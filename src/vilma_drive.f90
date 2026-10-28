@@ -44,8 +44,8 @@ module vilma_drive
 
    ! diagnostic surface fields written each output step (the prognostic memory is
    ! written separately via vilma_restart_write when a restart is wanted)
-   character(len=8), parameter :: OUT_VARS(5) = &
-        [character(len=8) :: "h_ice", "rsl", "z_bed", "C_ocean", "bsl"]
+   character(len=8), parameter :: OUT_VARS(6) = &
+        [character(len=8) :: "h_ice", "rsl", "z_bed", "C_ocean", "bsl", "bsl_ive"]
    ! ... plus the polar motion when the rotation solver is active. Appended at
    ! runtime rather than made unconditional: with rotation off, or under the
    ! VILMA1 backend (which runs its own rotation internally and never updates

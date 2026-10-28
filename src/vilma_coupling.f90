@@ -601,29 +601,34 @@ contains
    end subroutine relax_hold
 
    subroutine update_bsl(self)
-      !! Diagnose the barystatic sea level from the current (Gauss-grid) state.
+      !! Diagnose the barystatic sea level from the current (Gauss-grid) state, two ways.
       !!
-      !! The grounded-ice increment is masked exactly as vilma_sle masks it: the
-      !! current column by the current ocean function, the REFERENCE column by
-      !! the reference one. Masking the raw difference by the current C alone
-      !! drops the whole column of any cell that carried grounded marine
-      !! reference ice and has since flooded -- see the ΔI_g note in vilma_sle.
+      !! bsl: the ocean mean of C·rsl, ∫C·rsl dA / ∫C dA, the mean relative-sea-level
+      !! change over the ocean. This is the barystatic rise of the sea-level equation:
+      !! by its mass balance ∫C·rsl dA is the melt water (the ice-volume equivalent
+      !! below, times ∫C dA) plus the flooded-area fill, so water that fills newly
+      !! submerged area does not raise it.
       !!
-      !! This is the WHOLE grounded-column change, NOT the sea level vilma_sle
-      !! delivers: there is no subgrid term here, while vilma_sle's mass-conservation
-      !! offset carries one. Over cells that flooded since the reference, bsl
-      !! therefore reads high by their below-flotation volume -- about 10 m on the
-      !! LGM-datum deglaciation. It is an ice-volume-equivalent diagnostic, not the
-      !! barystatic rise; for that, take the ocean-mean of C*rsl.
+      !! bsl_ive: the ice-volume equivalent of the grounded-ice change. The grounded-ice
+      !! increment is masked exactly as vilma_sle masks it: the current column by the
+      !! current ocean function, the REFERENCE column by the reference one. Masking the
+      !! raw difference by the current C alone drops the whole column of any cell that
+      !! carried grounded marine reference ice and has since flooded -- see the ΔI_g
+      !! note in vilma_sle. This is the WHOLE grounded-column change, with no subgrid
+      !! term: over cells that flooded since the reference, bsl_ive therefore reads
+      !! high by their below-flotation volume -- about 10 m on the LGM-datum
+      !! deglaciation -- and is not the barystatic rise.
       type(solid_earth), intent(inout) :: self
       real(wp) :: c_int
       c_int = sht_grid_surface_integral(self%sht, self%gg%C)
       if (c_int > 0.0_wp) then
-         self%bsl = -(rho_ice/rho_water) * sht_grid_surface_integral(self%sht, &
-                       self%gg%h_ice   *(1.0_wp - self%gg%C) &
-                     - self%gg%h_ice_eq*(1.0_wp - self%gg%C0)) / c_int
+         self%bsl     = sht_grid_surface_integral(self%sht, self%gg%C*self%gg%rsl) / c_int
+         self%bsl_ive = -(rho_ice/rho_water) * sht_grid_surface_integral(self%sht, &
+                           self%gg%h_ice   *(1.0_wp - self%gg%C) &
+                         - self%gg%h_ice_eq*(1.0_wp - self%gg%C0)) / c_int
       else
-         self%bsl = 0.0_wp
+         self%bsl     = 0.0_wp
+         self%bsl_ive = 0.0_wp
       end if
    end subroutine update_bsl
 
