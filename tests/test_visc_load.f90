@@ -9,6 +9,11 @@ program test_visc_load
    !! this pins the coordinate ordering, the (nphi,nlat)→spatial-index mapping and
    !! the periodic-longitude wrap.
    !!
+   !! Part 1b (always): the same fields in the FesmData Bagge2021_visc.nc form
+   !! (log10_visc on lon -180:180, lat, depth, structure), two structures; the
+   !! requested one must come back, and the file's depth is the radius below
+   !! R_PREM. Longitude starting at -180 also pins the periodic wrap.
+   !!
    !! Part 2 (only if present): load the real Pan et al. (2022) field from
    !! input/pan2022.nc (vendored from isostasy_data), enable it via the
    !! node→element bridge, and check the resulting Maxwell rate field is finite and
@@ -26,6 +31,7 @@ program test_visc_load
    real(wp), parameter :: YR = 3.15576e7_wp, DT = 50.0_wp*YR
    character(len=*), parameter :: SYNTH = 'obj/test_visc_synth.nc'
    character(len=*), parameter :: FLIP  = 'obj/test_visc_flip.nc'
+   character(len=*), parameter :: FESM  = 'obj/test_visc_fesmdata.nc'
    character(len=*), parameter :: PAN   = 'input/pan2022.nc'
 
    type(sht_grid)    :: sht
@@ -40,6 +46,7 @@ program test_visc_load
 
    call test_synthetic()
    call test_orientation()
+   call test_fesmdata_form()
 
    inquire(file=PAN, exist=exists)
    if (exists) then
@@ -150,6 +157,63 @@ contains
       end if
       deallocate(lon_s, lat_s, r_s, eta_s, vn)
    end subroutine test_orientation
+
+   subroutine test_fesmdata_form()
+      !! FesmData Bagge2021_visc.nc layout: lon -180:180 (ascending, wrapped), lat
+      !! ascending, depth [m] from the surface down, structure last. Structure k holds
+      !! k*(lon + 1000 lat + 1e-3 r) with r = R_PREM - depth, so reading structure 2
+      !! must give twice the analytic field of structure 1 on the model grid.
+      real(wp), parameter :: R_PREM = 6371.0e3_wp
+      real(wp), allocatable :: lon_s(:), lat_s(:), depth_s(:), eta_s(:,:,:,:), vn(:,:), vn1(:,:)
+      integer,  allocatable :: istruct(:)
+      real(wp) :: lon_t, lat_t, expect, err, maxerr
+      integer  :: nphi, nlat, nr, i, j, k, sp, ks
+      nphi = sht%nphi;  nlat = sht%nlat;  nr = ve%nr
+      allocate(lon_s(nphi), lat_s(nlat), depth_s(nr), eta_s(nphi,nlat,nr,2), istruct(2))
+      ! source lon = Gauss lon wrapped to [-180,180) and sorted; lat ascending
+      do i = 1, nphi;  lon_s(i) = modulo(sht%lon(i)*rad2deg + 180.0_wp, 360.0_wp) - 180.0_wp;  end do
+      lon_s = cshift(lon_s, nphi/2)
+      do j = 1, nlat;  lat_s(j) = 90.0_wp - sht%colat(nlat+1-j)*rad2deg;  end do
+      do k = 1, nr;    depth_s(k) = R_PREM - ve%r(nr+1-k);              end do  ! surface first
+      istruct = [1, 2]
+      do ks = 1, 2
+         do k = 1, nr
+            do j = 1, nlat
+               do i = 1, nphi
+                  eta_s(i,j,k,ks) = real(ks,wp)*(lon_s(i) + 1000.0_wp*lat_s(j) &
+                                                 + 1.0e-3_wp*(R_PREM - depth_s(k)))
+               end do
+            end do
+         end do
+      end do
+      call nc_create(FESM, overwrite=.true.)
+      call nc_write_dim(FESM, "lon",       x=lon_s,   units="degrees_east")
+      call nc_write_dim(FESM, "lat",       x=lat_s,   units="degrees_north")
+      call nc_write_dim(FESM, "depth",     x=depth_s, units="m")
+      call nc_write_dim(FESM, "structure", x=istruct, units="1")
+      call nc_write(FESM, "log10_visc", eta_s, dim1="lon", dim2="lat", dim3="depth", dim4="structure")
+
+      call vilma_read_visc_3d(FESM, sht, ve%r, vn, structure=2)
+      call vilma_read_visc_3d(FESM, sht, ve%r, vn1, structure=1)
+      maxerr = 0.0_wp
+      do k = 1, nr
+         do j = 1, nlat
+            lat_t = 90.0_wp - sht%colat(j)*rad2deg
+            do i = 1, nphi
+               lon_t = modulo(sht%lon(i)*rad2deg + 180.0_wp, 360.0_wp) - 180.0_wp
+               sp = i + (j-1)*nphi
+               expect = lon_t + 1000.0_wp*lat_t + 1.0e-3_wp*ve%r(k)
+               err = max(abs(vn(sp,k) - 2.0_wp*expect), abs(vn1(sp,k) - expect))/(1.0_wp + abs(expect))
+               maxerr = max(maxerr, err)
+            end do
+         end do
+      end do
+      write(*,'(a,es10.2)') ' FesmData-form round-trip max rel err = ', maxerr
+      if (maxerr > 1.0e-10_wp) then
+         ok = .false.; write(*,'(a)') '   FAIL: FesmData-form read does not return the requested structure'
+      end if
+      deallocate(lon_s, lat_s, depth_s, eta_s, istruct, vn, vn1)
+   end subroutine test_fesmdata_form
 
    subroutine test_pan2022()
       real(wp), allocatable :: vn(:,:)

@@ -340,15 +340,26 @@ contains
       !! variable is named, else taken RELATIVE to the field, f_visc_rel*log10(eta)
       !! (so the perturbation tracks the viscosity structure rather than a constant
       !! floor). The clamp also imposes the viscosity floor on the raw field.
+      !!
+      !! With visc_3d_structure >= 1 the file is the FesmData Bagge2021_visc.nc
+      !! product: the variable and coordinate names are the product's (log10_visc,
+      !! lon, lat, depth), so name_visc* do not apply, and the sigma variable
+      !! (name_visc_sd) is not available; sigma is relative.
       type(vilma_param_class), intent(in)  :: p
       type(sht_grid),       intent(in)  :: sht
       real(wp),             intent(in)  :: r_node(:)
       real(wp), allocatable, intent(out) :: visc_node(:,:)
       real(wp), allocatable :: sd_node(:,:)
-      call vilma_read_visc_3d(p%visc_3d_file, sht, r_node, visc_node, varname=p%name_visc, &
-           lonname=p%name_visc_lon, latname=p%name_visc_lat, rname=p%name_visc_r)
+      logical :: fesmdata
+      fesmdata = p%visc_3d_structure > 0
+      if (fesmdata) then
+         call vilma_read_visc_3d(p%visc_3d_file, sht, r_node, visc_node, structure=p%visc_3d_structure)
+      else
+         call vilma_read_visc_3d(p%visc_3d_file, sht, r_node, visc_node, varname=p%name_visc, &
+              lonname=p%name_visc_lon, latname=p%name_visc_lat, rname=p%name_visc_r)
+      end if
       if (p%f_visc_sd /= 0.0_wp) then
-         if (len_trim(p%name_visc_sd) > 0) then
+         if (len_trim(p%name_visc_sd) > 0 .and. .not. fesmdata) then
             call vilma_read_visc_3d(p%visc_3d_file, sht, r_node, sd_node, varname=p%name_visc_sd, &
                  lonname=p%name_visc_lon, latname=p%name_visc_lat, rname=p%name_visc_r)
          else
@@ -360,7 +371,7 @@ contains
    end subroutine load_visc_3d
 
    subroutine vilma_read_visc_3d(filename, sht, r_node, visc_node, varname, &
-                              lonname, latname, rname)
+                              lonname, latname, rname, structure)
       !! Read a real 3D viscosity field (lon, lat, radius) from netCDF and
       !! interpolate it onto the Gauss-Legendre grid × the FE radial nodes,
       !! returning ABSOLUTE log10(η [Pa·s]) as visc_node(nphi*nlat, nr). Horizontal
@@ -372,11 +383,18 @@ contains
       !! The stored variable is assumed to already be log10(η). Coordinate names
       !! default to lon/lat/r; the radius coordinate must be metres. Any axis may
       !! be stored in either direction — they are normalised to ascending on read.
+      !!
+      !! With `structure` present the file is the FesmData Bagge2021_visc.nc form
+      !! instead: log10_visc(lon, lat, depth, structure) with depth [m, positive
+      !! down] for the radial coordinate, whose radius is R_PREM - depth (the Earth
+      !! radius of VILMA that the product is built with), and only the requested
+      !! structure is read. varname/lonname/latname/rname are then ignored.
       character(len=*), intent(in)  :: filename
       type(sht_grid),   intent(in)  :: sht
       real(wp),         intent(in)  :: r_node(:)              !! (nr) FE node radii [m], ascending
       real(wp), allocatable, intent(out) :: visc_node(:,:)    !! (nphi*nlat, nr) log10(η)
       character(len=*), intent(in), optional :: varname, lonname, latname, rname
+      integer,          intent(in), optional :: structure   !! FesmData form: structure index
       character(len=64) :: vnm, lnm, tnm, rnm
       real(wp), allocatable :: lon_s(:), lat_s(:), r_s(:), eta_s(:,:,:)
       integer,  allocatable :: il0(:), il1(:), jl0(:), jl1(:)
@@ -390,6 +408,9 @@ contains
       if (present(lonname)) lnm = lonname
       if (present(latname)) tnm = latname
       if (present(rname))   rnm = rname
+      if (present(structure)) then
+         vnm = 'log10_visc';  lnm = 'lon';  tnm = 'lat';  rnm = 'depth'
+      end if
 
       nlon   = nc_size(filename, trim(lnm))
       nlat_s = nc_size(filename, trim(tnm))
@@ -398,7 +419,17 @@ contains
       call nc_read(filename, trim(lnm), lon_s)
       call nc_read(filename, trim(tnm), lat_s)
       call nc_read(filename, trim(rnm), r_s)
-      call nc_read(filename, trim(vnm), eta_s)        ! eta_s(lon, lat, r) = log10(η)
+      if (present(structure)) then
+         if (structure < 1 .or. structure > nc_size(filename, 'structure')) then
+            write(*,'(a,i0,a,i0,a)') ' vilma_read_visc_3d: structure ', structure, ' not in 1..', &
+                 nc_size(filename, 'structure'), ' of '//trim(filename)
+            error stop 'vilma_read_visc_3d: structure out of range'
+         end if
+         call nc_read(filename, trim(vnm), eta_s, start=[1,1,1,structure], count=[nlon,nlat_s,nr_s,1])
+         r_s = R_PREM - r_s                              ! depth [m] -> radius [m]
+      else
+         call nc_read(filename, trim(vnm), eta_s)        ! eta_s(lon, lat, r) = log10(η)
+      end if
 
       ! --- Normalise the source axes to ascending ------------------------------
       ! locate_clamped and locate_periodic both REQUIRE a strictly ascending axis

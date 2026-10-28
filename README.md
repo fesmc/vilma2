@@ -86,7 +86,9 @@ converted to SI seconds on load.
 - **Degree-1 frame** — `deg1_frame = "cm"` (default, geocenter motion kept) or
   `"cf"` (Spada disc-benchmark convention).
 - **3D viscosity** — `l_visc_3d`, `visc_3d_file`, `visc3d_tol`; `l_toroidal`
-  carries the toroidal flow (off by default).
+  carries the toroidal flow (off by default). `visc_3d_structure = n` reads
+  structure `n` of the FesmData `Bagge2021_visc.nc` instead of a lon-lat-r
+  field (6 = `v_1.0_s16`).
 - **Spin-up / restart** — `equil_time_max`, `pre_spinup_1d`, and
   `restart_in_file` (`&ctl`).
 - **Rotation** — `rotation` (TPW feedback): on by default; `.false.` for the

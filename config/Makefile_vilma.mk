@@ -258,6 +258,13 @@ test_visc_load: vilma-static | $(bindir)
 		-o $(bindir)/test_visc_load.x $(objdir)/libvilma.a $(LFLAGS)
 	@echo "    $(bindir)/test_visc_load.x is ready."
 
+# FesmData Bagge2021_visc.nc against the isostasy_data file (needs both files,
+# which are not in the repo; not in `make check`): see the header of the test.
+test_visc_fesmdata: vilma-static | $(bindir)
+	$(FC) $(DFLAGS) $(CPPFLAGS) $(FFLAGS) $(testdir)/test_visc_fesmdata.f90 \
+		-o $(bindir)/test_visc_fesmdata.x $(objdir)/libvilma.a $(LFLAGS)
+	@echo "    $(bindir)/test_visc_fesmdata.x is ready."
+
 test_rotinv: vilma-static | $(bindir)
 	$(FC) $(DFLAGS) $(CPPFLAGS) $(FFLAGS) $(testdir)/test_rotinv.f90 \
 		-o $(bindir)/test_rotinv.x $(objdir)/libvilma.a $(LFLAGS)

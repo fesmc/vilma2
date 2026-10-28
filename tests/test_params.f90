@@ -42,6 +42,7 @@ program test_params
    write(u,'(a)') "    equil_time_max = 2000.0"
    write(u,'(a)') "    dt_init      = 500.0"
    write(u,'(a)') "    rotation     = .true."
+   write(u,'(a)') "    visc_3d_structure = 6"
    write(u,'(a)') "/"
    close(u)
 
@@ -55,6 +56,7 @@ program test_params
    call check_int("sle_n_outer", p%sle_n_outer, 5)
    call check_log("sle_subgrid", p%sle_subgrid, .false.)
    call check_log("rotation",    p%rotation,    .true.)
+   call check_int("visc_3d_structure", p%visc_3d_structure, 6)
 
    ! --- (2) YEARS -> seconds conversion of the time fields ---------------------
    call check_real("equil_time_max [s]", p%equil_time_max, 2000.0_wp*sec_per_year)
@@ -76,6 +78,7 @@ program test_params
    ! --- (5) un-overridden values fall through to the defaults file -------------
    call check_int("fallthrough max_couple_iter", p%max_couple_iter, 20)
    call check_int("fallthrough sle_n_inner",     p%sle_n_inner,     20)
+   call check_int("default visc_3d_structure",   pdef%visc_3d_structure, 0)
 
    ! --- (6) ~/ and $HOME/ expansion in file paths ------------------------------
    call get_environment_variable("HOME", home)
