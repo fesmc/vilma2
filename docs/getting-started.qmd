@@ -17,11 +17,12 @@ VILMA2 needs only a small, well-established stack:
 
 | Dependency | Provides | Source |
 |---|---|---|
-| **[fesm-utils](https://github.com/fesm-org/fesm-utils)** (branch `coords-dev`) | FFTW, SHTns, the `fesmutils` helper library (precision, ncio, namelists), and the `coords` module used by the remapper | cloned/linked by configme |
+| **[fesm-utils](https://github.com/fesm-org/fesm-utils)** (branch `dev`) | FFTW, SHTns, the `fesmutils` helper library (precision, ncio, namelists), and the `coords` module used by the remapper | cloned/linked by configme |
 | **netCDF** (C + Fortran) | restart and output I/O | system package (Homebrew, modules, …) |
 
-The `coords-dev` branch is pinned in `.configme/manifest.toml`, so the checkout
-self-describes the exact ref it needs.
+The `dev` branch is pinned in `.configme/manifest.toml`, so the checkout
+self-describes the exact ref it needs. The `phase0-kryos` branch that kryos
+uses contains it.
 
 ## Install with configme
 
@@ -61,7 +62,14 @@ make vilma        # -> bin/vilma.x        (standalone forced-run driver)
 make vilma_mkref  # -> bin/vilma_mkref.x  (build a Gauss-grid reference state)
 make vilma_remap  # -> bin/vilma_remap.x  (offline lon-lat -> Gauss remap)
 make check            # build + run the test suite
+make vilma-static     # -> libvilma/include/libvilma.a and the .mod files
 ```
+
+`make vilma-static` is the library that a host (kryos) links: objects, `.mod`
+files and `libvilma.a` are written to `libvilma/include/`, and the archive is
+rebuilt only when an object changes. `openmp=0` and `openmp=1` share that
+directory; changing the setting rebuilds every object, and the host must use
+the matching fesm-utils variant (`include-serial` or `include-omp`).
 
 Build switches: `debug = 0|1|2` (optimized / checks / profile) and
 `openmp = 0|1` (**default 1**). The threaded degree loop is what makes

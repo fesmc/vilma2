@@ -96,6 +96,13 @@ $(ompstamp): | $(objdir)
 $(objdir)/%.o: $(srcdir)/%.f90 $(FESMUTILS_LIB) $(ompstamp) | $(objdir)
 	$(FC) $(DFLAGS) $(CPPFLAGS) $(FFLAGS) -c $< -o $@
 
+# Without a rule for it, a missing archive makes make skip the pattern rule and
+# treat existing objects as up to date, so a stale build passes silently.
+$(FESMUTILS_LIB):
+	@echo "VILMA2: $@ is missing; build fesm-utils first:"
+	@echo "    make -C $(FESMUTILSROOT) fesmutils-static openmp=$(openmp)"
+	@exit 1
+
 $(objdir):
 	mkdir -p $(objdir)
 
