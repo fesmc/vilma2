@@ -38,9 +38,9 @@ program test_restart
             h_ice(sht%nphi,sht%nlat))
    call make_fields(z_bed_eq, h_ice_eq, h_ice)
 
-   call roundtrip("ve",    .false., "obj/test_restart_ve.nc",    ok)
-   call roundtrip("ve",    .true.,  "obj/test_restart_ve3d.nc",  ok)
-   call migration("obj/test_restart_mig.nc", ok)
+   call roundtrip("ve",    .false., "libvilma/include/test_restart_ve.nc",    ok)
+   call roundtrip("ve",    .true.,  "libvilma/include/test_restart_ve3d.nc",  ok)
+   call migration("libvilma/include/test_restart_mig.nc", ok)
 
    call sht_grid_destroy(sht)
 

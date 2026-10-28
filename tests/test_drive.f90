@@ -14,11 +14,11 @@ program test_drive
    implicit none
 
    integer, parameter :: LMAX = 8, NLAT = 16, NPHI = 32, NT = 3
-   character(len=*), parameter :: REF   = "obj/test_drive_ref.nc"
-   character(len=*), parameter :: FORCE = "obj/test_drive_force.nc"
-   character(len=*), parameter :: OUT   = "obj/test_drive_out.nc"
-   character(len=*), parameter :: HOR   = "obj/test_drive_hor.nc"
-   character(len=*), parameter :: CFG   = "obj/test_drive.nml"
+   character(len=*), parameter :: REF   = "libvilma/include/test_drive_ref.nc"
+   character(len=*), parameter :: FORCE = "libvilma/include/test_drive_force.nc"
+   character(len=*), parameter :: OUT   = "libvilma/include/test_drive_out.nc"
+   character(len=*), parameter :: HOR   = "libvilma/include/test_drive_hor.nc"
+   character(len=*), parameter :: CFG   = "libvilma/include/test_drive.nml"
    character(len=*), parameter :: DEFS  = "input/vilma_defaults.nml"
 
    type(sht_grid), target :: sht

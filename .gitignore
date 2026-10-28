@@ -1,6 +1,7 @@
 # Generated build artifacts
 /Makefile
 /obj/
+/libvilma/
 /bin/
 *.o
 *.mod

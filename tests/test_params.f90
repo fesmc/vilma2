@@ -13,7 +13,7 @@ program test_params
    use vilma_earth_structure, only: earth_n_layers, earth_model, build_earth, RHEOL_MAXWELL, RHEOL_FLUID
    implicit none
 
-   character(len=*), parameter :: NML  = "obj/test_params.nml"
+   character(len=*), parameter :: NML  = "libvilma/include/test_params.nml"
    character(len=*), parameter :: DEFS = "input/vilma_defaults.nml"   ! shipped complete &vilma defaults
    type(vilma_param_class) :: p, pdef
    type(earth_model)    :: em, emdef

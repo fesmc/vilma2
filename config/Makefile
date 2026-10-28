@@ -2,7 +2,12 @@
 .SHELL: /bin/sh
 
 # === Directory layout ========================================================
-objdir  = obj
+# Objects, .mod files and libvilma.a share one directory, as in yelmo and chion:
+# a host compiles with -I<vilma>/libvilma/include and links -L... -lvilma.
+# openmp=0 and openmp=1 use the same directory; the objects depend on a stamp
+# naming the OpenMP setting they were built with (config/Makefile_vilma.mk), so
+# switching openmp rebuilds them.
+objdir  = libvilma/include
 srcdir  = src
 testdir = tests
 bindir  = bin

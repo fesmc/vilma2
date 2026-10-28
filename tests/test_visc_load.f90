@@ -29,9 +29,9 @@ program test_visc_load
 
    integer,  parameter :: LMAX = 32, NLATF = 2
    real(wp), parameter :: YR = 3.15576e7_wp, DT = 50.0_wp*YR
-   character(len=*), parameter :: SYNTH = 'obj/test_visc_synth.nc'
-   character(len=*), parameter :: FLIP  = 'obj/test_visc_flip.nc'
-   character(len=*), parameter :: FESM  = 'obj/test_visc_fesmdata.nc'
+   character(len=*), parameter :: SYNTH = 'libvilma/include/test_visc_synth.nc'
+   character(len=*), parameter :: FLIP  = 'libvilma/include/test_visc_flip.nc'
+   character(len=*), parameter :: FESM  = 'libvilma/include/test_visc_fesmdata.nc'
    character(len=*), parameter :: PAN   = 'input/pan2022.nc'
 
    type(sht_grid)    :: sht
