@@ -121,5 +121,6 @@ type(solid_earth) :: se
 call vilma_par_load(se%par, "vilma.nml")
 call solid_earth_init(se, z_bed_eq, h_ice_eq, grid=host_grid)  ! Gauss grid + remap
 call solid_earth_update(se, h_ice, dt_yr)   ! advance dt_yr [years]; read se%rsl, se%z_bed
+                                            ! (rsl = se%dz_ss - se%dz_bed: sea-surface and bed change)
 call solid_earth_finalize(se)
 ```

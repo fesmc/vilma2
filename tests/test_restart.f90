@@ -4,7 +4,7 @@ program test_restart
    !! Maxwell memory tensor + σ_n). Checks:
    !!
    !!   (1) direct state restore — read the last snapshot into a fresh model and
-   !!       its z_bed/rsl match what was written;
+   !!       its z_bed/rsl/dz_bed/dz_ss/dphi match what was written;
    !!   (2) bit-for-bit continuation — restore the EARLIER snapshot's memory
    !!       (tau_*, plus the rotation state m + channel memory rot_*) + adaptive-Δt
    !!       seed and step forward; the trajectory reproduces the uninterrupted run
@@ -64,7 +64,8 @@ contains
       logical,           intent(inout) :: ok
       type(vilma_param_class) :: p
       type(solid_earth)    :: a, b, c
-      real(wp), allocatable :: a6_zbed(:,:), a6_rsl(:,:)
+      real(wp), allocatable :: a6_zbed(:,:), a6_rsl(:,:), a6_dzb(:,:), a6_dzs(:,:)
+      real(wp) :: a6_dphi
       real(wp) :: t1, t2, d_restore, d_continue, dt_yr
       integer  :: step, nt
 
@@ -91,6 +92,7 @@ contains
       t2 = a%time
       call vilma_restart_write(a, t2, filename=file, init=.false.)  ! snapshot 2 (state @ K1+K2)
       a6_zbed = a%z_bed;  a6_rsl = a%rsl
+      a6_dzb = a%dz_bed;  a6_dzs = a%dz_ss;  a6_dphi = a%dphi
 
       write(*,'(a,a,a,l1,a,i0,a,i0,a,f6.2,a,f6.2)') ' restart [', trim(resp), &
            ', visc3d=', visc3d, ']: lmax=', LMAX, '   memory channels=', a%resp%nlam, &
@@ -109,7 +111,9 @@ contains
       ! === (1) direct state restore (default = last snapshot, t2) =============
       b%par = p; call solid_earth_init(b, z_bed_eq, h_ice_eq)
       call vilma_restart_read(b, file)
-      d_restore = max(maxval(abs(b%z_bed - a6_zbed)), maxval(abs(b%rsl - a6_rsl)))
+      d_restore = max(maxval(abs(b%z_bed - a6_zbed)), maxval(abs(b%rsl - a6_rsl)), &
+                      maxval(abs(b%dz_bed - a6_dzb)), maxval(abs(b%dz_ss - a6_dzs)), &
+                      abs(b%dphi - a6_dphi))
       write(*,'(a,es11.2)') '   (1) state restore  max|B - A|     =', d_restore
       if (d_restore > 1.0e-9_wp) then
          write(*,'(a)') '   FAIL: restored state does not match the written state'; ok = .false.
@@ -121,7 +125,9 @@ contains
       do step = 1, K2
          call solid_earth_update(c, h_ice, dt_yr)     ! same load, K2 steps
       end do
-      d_continue = max(maxval(abs(c%z_bed - a6_zbed)), maxval(abs(c%rsl - a6_rsl)))
+      d_continue = max(maxval(abs(c%z_bed - a6_zbed)), maxval(abs(c%rsl - a6_rsl)), &
+                       maxval(abs(c%dz_bed - a6_dzb)), maxval(abs(c%dz_ss - a6_dzs)), &
+                       abs(c%dphi - a6_dphi))
       write(*,'(a,es11.2)') '   (2) continuation   max|C - A|     =', d_continue
       if (d_continue > 1.0e-9_wp) then
          write(*,'(a)') '   FAIL: restarted trajectory diverges from the uninterrupted run'

@@ -71,7 +71,11 @@ phase, Gauss grid, phi-contiguous layout; spectral arrays hold `m >= 0`.
 ## 4. Coupling contract (from CLIMBER-X `src/geo/vilma.F90`)
 
 - **in:** ice thickness `h_ice` [m]; **out:** relative sea level `rsl` [m] and
-  bedrock `z_bed = z_bed_eq - rsl` [m].
+  bedrock `z_bed = z_bed_eq - rsl` [m]. `rsl` is also exported as its two parts,
+  `rsl = dz_ss - dz_bed`: the bed change `dz_bed = u` and the sea-surface change
+  `dz_ss = N + Δφ` (`se%dz_bed`, `se%dz_ss`, with the uniform shift `se%dphi`), on
+  the host and Gauss grids; they come from the same final SLE solve as `rsl`
+  (VILMA1 backend: unset).
 - Host (CLIMBER-X) maps between its grid and the model's lat-lon Gauss grid with
   conservative (in) / bilinear (out) SCRIP weights; **all SH transforms stay
   inside this model**.
