@@ -114,7 +114,8 @@ phase, Gauss grid, phi-contiguous layout; spectral arrays hold `m >= 0`.
   on the spatial grid — this is what kills Gibbs ringing at coastlines.
 - **Conserve mass, not volume**: apply `rho_ice/rho_water` exactly once each in
   the flotation criterion, the eustatic conversion, and the SLE; fix one density
-  set (benchmark: ρ_ice = 931, ρ_water = 1000).
+  set (`&vilma` `rho_ice`, `rho_water`; default the benchmark values 931, 1000; a host
+  sets its own pair).
 - The SLE is a **Fredholm equation of the second kind** → nested fixed-point
   iteration (~3 outer × 3 inner; Kendall, Mitrovica & Milne 2005).
 - **Explicit-scheme stability**: enforce a viscosity floor; the time step is

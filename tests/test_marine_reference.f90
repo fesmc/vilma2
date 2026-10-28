@@ -95,7 +95,7 @@ program test_marine_reference
 
    ! the reference coastline the solver will build, recomputed here so the
    ! expected value is assembled from the same discrete fields
-   call ocean_function(topo0, h_eq, C0)
+   call ocean_function(topo0, h_eq, C0, rho_ice, rho_water)
 
    ! above-flotation water equivalent of the reference ice, over the cells where
    ! that ice is GROUNDED (C0 = 0). Floating reference ice (zone F, C0 = 1) is

@@ -58,7 +58,7 @@ module vilma_v1
    !! start time. A zero-length update (the driver's seed call) only records the
    !! entering ice, exactly as it does for the native solver.
    use vilma_precision, only: wp
-   use vilma_constants, only: rad2deg, rho_ice, rho_water, sec_per_year
+   use vilma_constants, only: rad2deg, rho_ice_gia => rho_ice, rho_water_gia => rho_water, sec_per_year
    use vilma_params,    only: vilma_param_class
    use vilma_sht,       only: sht_grid, sht_grid_surface_integral
    use coords,       only: grid_class, grid_init, map_class, map_init, map_field
@@ -101,6 +101,8 @@ module vilma_v1
       integer :: nphi = 0, ngauss = 0!! model Gauss grid dimensions
       real(wp) :: t_kyr = 0.0_wp     !! VILMA1 clock: end of the last completed interval [kyr]
       integer  :: nsub = 1           !! VILMA1 sub-steps per coupling interval (p%vilma_v1_nsub)
+      real(wp) :: rho_ice   = rho_ice_gia    !! densities [kg m^-3] of the load file (p%rho_ice, p%rho_water)
+      real(wp) :: rho_water = rho_water_gia
 
       character(len=512) :: out_dir = ""       !! VILMA1 scratch/output directory
       real(wp), allocatable :: lon(:), lat(:)  !! VILMA1 grid axes [degrees]
@@ -235,6 +237,8 @@ contains
 
       self%t_kyr   = 0.0_wp
       self%nsub    = max(1, par%vilma_v1_nsub)
+      self%rho_ice   = par%rho_ice
+      self%rho_water = par%rho_water
       self%started = .false.
       self%active  = .true.
 
@@ -624,9 +628,9 @@ contains
       !!
       !! loadh.inp's first row is `nlat nlon rho_ice rho_ocean` — LATITUDE FIRST, and
       !! nlat/nlon must equal the NetCDF lat/lon sizes or VILMA1's check_dim_ne aborts.
-      !! The densities are VILMA2's OWN rho_ice / rho_water, so both backends
+      !! The densities are VILMA2's OWN rho_ice / rho_water (&vilma), so both backends
       !! turn the same ice thickness into the same load; CLIMBER-X hard-codes
-      !! 910/1020 there instead.
+      !! 910/1020 there instead. The file holds integers: they are rounded.
       type(vilma_v1_backend), intent(in) :: self
       real(wp),            intent(in) :: t0_kyr, t1_kyr
       character(len=512) :: fnm
@@ -648,7 +652,7 @@ contains
 
       open(newunit=u, file=trim(self%out_dir)//'/loadh.inp', form='formatted', &
            status='replace', action='write')
-      write(u,fmt=*) self%nlat, self%nlon, nint(rho_ice), nint(rho_water)
+      write(u,fmt=*) self%nlat, self%nlon, nint(self%rho_ice), nint(self%rho_water)
       write(u,fmt=*) 2
       write(u,fmt=*) t0_kyr
       write(u,fmt=*) t1_kyr

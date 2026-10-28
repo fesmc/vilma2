@@ -30,7 +30,7 @@ module vilma_coupling
    !! drive the deformation and sea-level change incrementally. The reference
    !! topography z_bed_eq doubles as the SLE's reference topo0.
    use vilma_precision,       only: wp
-   use vilma_constants,       only: rho_ice, rho_water, sec_per_year, pi, kyr
+   use vilma_constants,       only: sec_per_year, pi, kyr
    use vilma_params,          only: vilma_param_class
    use vilma_sht,             only: sht_grid, sht_grid_init, sht_grid_destroy, &
                                  sht_grid_synthesis, sht_grid_surface_integral
@@ -168,6 +168,8 @@ contains
       ! standalone driver calls it earlier still, right after reading the config)
       call solid_earth_check_solver(self%par)
       self%use_vilma_v1 = (trim(self%par%solver) == "v1")
+      if (self%par%rho_ice <= 0.0_wp .or. self%par%rho_water <= 0.0_wp) &
+         error stop 'solid_earth_init: &vilma rho_ice and rho_water must be > 0'
 
       ! the model owns its Gauss grid, sized from the parameter record
       allocate(self%sht)
@@ -221,7 +223,8 @@ contains
       ! The reference ocean function is a run constant (z_bed_eq and h_ice_eq are
       ! fixed from here on), so build it once and keep it. The initial C is that
       ! same field, which is exactly what the old unconditional call produced.
-      call ocean_function(self%gg%z_bed_eq, self%gg%h_ice_eq, self%gg%C0)
+      call ocean_function(self%gg%z_bed_eq, self%gg%h_ice_eq, self%gg%C0, &
+                          self%par%rho_ice, self%par%rho_water)
       self%gg%C = self%gg%C0
 
       ! host-grid current state at the reference
@@ -303,6 +306,8 @@ contains
       self%sle%max_mem_iter = self%par%sle_max_mem_iter
       self%sle%fixed_ocean  = self%par%sle_fixed_ocean
       self%sle%subgrid      = self%par%sle_subgrid
+      self%sle%rho_ice      = self%par%rho_ice
+      self%sle%rho_water    = self%par%rho_water
       self%sle%warm_start   = .true.
 
       ! adaptive-Δt controller (vilma_timestep)
@@ -413,7 +418,8 @@ contains
          !   bsl — update_bsl's barystatic integral over that C and the ice anomaly.
          !         Again a VILMA2 diagnostic of VILMA1's state, not VILMA1's own
          !         ocean bookkeeping (vega_oce.dat).
-         call ocean_function(self%gg%z_bed, self%gg%h_ice, self%gg%C)
+         call ocean_function(self%gg%z_bed, self%gg%h_ice, self%gg%C, &
+                             self%par%rho_ice, self%par%rho_water)
          call update_bsl(self)
          ! NOT derivable: VILMA1 reports no sea-level-equation mass residual, so this
          ! stays at the documented fill value rather than a made-up number. The
@@ -623,7 +629,7 @@ contains
       c_int = sht_grid_surface_integral(self%sht, self%gg%C)
       if (c_int > 0.0_wp) then
          self%bsl     = sht_grid_surface_integral(self%sht, self%gg%C*self%gg%rsl) / c_int
-         self%bsl_ive = -(rho_ice/rho_water) * sht_grid_surface_integral(self%sht, &
+         self%bsl_ive = -(self%par%rho_ice/self%par%rho_water) * sht_grid_surface_integral(self%sht, &
                            self%gg%h_ice   *(1.0_wp - self%gg%C) &
                          - self%gg%h_ice_eq*(1.0_wp - self%gg%C0)) / c_int
       else

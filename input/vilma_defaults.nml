@@ -88,6 +88,8 @@
     sle_max_mem_iter = 20
     sle_fixed_ocean  = .false. ! .true. => coastline held fixed (no migration)
     sle_subgrid      = .true.  ! sloping-coast (mass-correct) ocean load
+    rho_ice          = 931.0   ! [kg m-3] ice density: load, melt source, flotation
+    rho_water        = 1000.0  ! [kg m-3] ocean water density (GIA benchmark values; a host sets its own pair)
 
     ! --- adaptive time stepping (vilma_timestep) -------------------------
     ! The coupling cadence is NOT a parameter: the host (or the driver's forcing

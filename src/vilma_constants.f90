@@ -24,6 +24,8 @@ module vilma_constants
    real(wp), parameter :: rho_earth_mean = 5511.0_wp!! mean density [kg m^-3]
 
    ! --- Material densities (GIA benchmark convention) -------------------------
+   ! The benchmark values, and the defaults of the &vilma parameters rho_ice and
+   ! rho_water that the model actually uses (a host with its own densities sets those).
    real(wp), parameter :: rho_ice   = 931.0_wp      !! ice  [kg m^-3]
    real(wp), parameter :: rho_water = 1000.0_wp     !! ocean water [kg m^-3]
 

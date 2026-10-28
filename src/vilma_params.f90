@@ -13,7 +13,7 @@ module vilma_params
    !! window, online-remap and i_eq selectors, restart-in path — live in the separate
    !! `&ctl` group (vilma_control), which a host never reads.
    use vilma_precision, only: wp
-   use vilma_constants, only: sec_per_year
+   use vilma_constants, only: sec_per_year, rho_ice_gia => rho_ice, rho_water_gia => rho_water
    use nml
    implicit none
    private
@@ -76,6 +76,11 @@ module vilma_params
       integer  :: sle_max_mem_iter = 20
       logical  :: sle_fixed_ocean  = .false.
       logical  :: sle_subgrid      = .true.
+      real(wp) :: rho_ice   = rho_ice_gia    !! ice density [kg m^-3]: surface load, melt source, flotation
+      real(wp) :: rho_water = rho_water_gia  !! ocean water density [kg m^-3]: ocean load, melt source, flotation
+         !! The GIA benchmark values (931, 1000, vilma_constants) by default. A host that
+         !! has its own densities sets both, so that the mass it passes in and the sea
+         !! level it takes out use the same pair; bsl is then in metres of that water.
 
       ! --- adaptive time stepping (vilma_timestep) ----------------------------------
       ! The Δt fields are SI [s] in the record; the nml supplies them in YEARS and
@@ -266,6 +271,8 @@ contains
       call nml_read(filename, g, "sle_max_mem_iter", p%sle_max_mem_iter, defaults_file=df)
       call nml_read(filename, g, "sle_fixed_ocean",  p%sle_fixed_ocean,  defaults_file=df)
       call nml_read(filename, g, "sle_subgrid",      p%sle_subgrid,      defaults_file=df)
+      call nml_read(filename, g, "rho_ice",          p%rho_ice,          defaults_file=df)
+      call nml_read(filename, g, "rho_water",        p%rho_water,        defaults_file=df)
 
       ! adaptive time stepping. The Δt fields are given in YEARS in the nml and
       ! converted to SI seconds here (the record is uniformly SI internally).
@@ -387,6 +394,7 @@ contains
       write(u,'(a,i0,a,i0,a,es8.1,a,l1,a,l1)') &
            '   sle:    n_outer=', p%sle_n_outer, '  n_inner=', p%sle_n_inner, &
            '  tol=', p%sle_tol, '  fixed_ocean=', p%sle_fixed_ocean, '  subgrid=', p%sle_subgrid
+      write(u,'(a,f7.1,a,f7.1,a)') '   density: rho_ice=', p%rho_ice, '  rho_water=', p%rho_water, ' kg/m3'
       write(u,'(a,es9.2,a,es8.1,a,es8.1,a,f5.2)') &
            '   dt:     init=', p%dt_init, &
            '  rtol=', p%rtol, '  atol=', p%atol, '  cfl=', p%cfl

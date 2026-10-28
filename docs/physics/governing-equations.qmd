@@ -139,7 +139,8 @@ practice, the key to getting the low-degree elastic Love numbers right — see t
 
 ## Conventions and constants
 
-- **Densities:** the benchmark density set is fixed once,
+- **Densities:** the benchmark density set is the default of the `rho_ice`,
+  `rho_water` parameters (`&vilma`; a host sets its own pair, used throughout),
   $\rho_{\text{ice}} = 931$, $\rho_{\text{water}} = 1000\ \mathrm{kg\,m^{-3}}$;
   surface gravity $g_0 = 9.815\ \mathrm{m\,s^{-2}}$. Mass — not volume — is
   conserved, applying $\rho_{\text{ice}}/\rho_{\text{water}}$ exactly once in
