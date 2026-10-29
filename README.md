@@ -85,6 +85,27 @@ compiles with `-I<vilma>/libvilma/include` and links, in this order,
 
 (`-serial`, `-lshtns`, `-lfftw3` for `openmp=0`).
 
+### Host-resolved terms (optional)
+
+A host that resolves the ice margin on its own grid inside regions of weight `w` can pass, per
+unit Gauss-cell area, the grounded-ice column `I_g = w·H·f_g`, the ocean fraction
+`C = w·(1−f_g)` and the flooded-area fill `F = w·ζ⁽⁰⁾·(C − C_ref)`:
+
+```fortran
+call solid_earth_init(se, z_bed_eq, h_ice_eq, grid, w=w, I_g=I_g, C=C)    ! reference terms
+call solid_earth_spinup(se, h_ice_lgm, w, I_g, C, F)                      ! held over every pass
+call solid_earth_update(se, h_ice, dt_yr, w, I_g, C, F)                   ! ramped like the ice
+ok = solid_earth_host_check(w, I_g, C, F, msg)                            ! admissibility
+```
+
+Inside `w` the sea-level solve uses them; on `1 − w` it applies its own flotation and coastline
+rule, and `h_ice`, `h_ice_eq` are then the ice of that part (an area mean; cells with `w = 1`
+ignore them). All or none, fixed for the run; not with `solver = "v1"`, `sle_fixed_ocean` or
+`h_ice_init`; `F` enters only through the subgrid term (`sle_subgrid`). Without them, or with
+`w ≡ 0`, a run is bit-identical to one without. Fields on the Gauss grid pass through; a global
+lon-lat host (`grid`) is remapped by the model, a regional one is refused. The terms are part of
+the restart. Details: [doc/design.md §15](doc/design.md).
+
 ## Configure & run
 
 A run configuration has two namelist groups: `&vilma` (physics and numerics,
