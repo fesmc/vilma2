@@ -81,8 +81,8 @@ module vilma_coupling
    !! The convergence criterion (mean bed velocity over a pass [m/yr]) is the runtime
    !! parameter par%equil_rate_tol.
 
-   !! Round-off in a remapped fraction beyond its bounds that is clipped rather than refused,
-   !! and the default tolerance of C ≤ w in solid_earth_host_check.
+   !! Round-off in a fraction (w, C) beyond its bounds that is clipped rather than refused:
+   !! the tolerance of solid_earth_host_check, and of to_gauss_frac on every path.
    real(wp), parameter :: HOST_TOL = 1.0e-9_wp
 
    type :: host_state
@@ -815,9 +815,10 @@ contains
 
    logical function solid_earth_host_check(w, I_g, C, F, msg, tol) result(good)
       !! Are host-resolved terms (Gauss grid, per unit cell area) admissible: all finite,
-      !! 0 ≤ w ≤ 1, I_g ≥ 0, 0 ≤ C ≤ w + tol (default 1e-9), and w = 0 means I_g = C = F = 0.
-      !! A host with several regions sums them first, so w ≤ 1 and C ≤ w are checked on the
-      !! sums. On failure msg names the first violation.
+      !! -tol ≤ w ≤ 1 + tol, I_g ≥ 0, -tol ≤ C ≤ w + tol (tol default 1e-9, the round-off the
+      !! model then clips), and w ≤ 0 means I_g = F = 0. A host with several regions sums
+      !! them first, so w ≤ 1 and C ≤ w are checked on the sums. On failure msg names the
+      !! first violation.
       real(wp),         intent(in)  :: w(:,:), I_g(:,:), C(:,:), F(:,:)
       character(len=*), intent(out) :: msg
       real(wp), optional, intent(in) :: tol
@@ -833,17 +834,17 @@ contains
             if (.not. (is_finite(w(i,j)) .and. is_finite(I_g(i,j)) .and. is_finite(C(i,j)) .and. is_finite(F(i,j)))) then
                write(msg,'(a,2i6)') 'host term not finite at', i, j;  return
             end if
-            if (w(i,j) < 0.0_wp .or. w(i,j) > 1.0_wp) then
+            if (w(i,j) < -tl .or. w(i,j) > 1.0_wp + tl) then
                write(msg,'(a,2i6,es12.4)') 'host w outside [0,1] at', i, j, w(i,j);  return
             end if
             if (I_g(i,j) < 0.0_wp) then
                write(msg,'(a,2i6,es12.4)') 'host I_g < 0 at', i, j, I_g(i,j);  return
             end if
-            if (C(i,j) < 0.0_wp .or. C(i,j) > w(i,j) + tl) then
+            if (C(i,j) < -tl .or. C(i,j) > w(i,j) + tl) then
                write(msg,'(a,2i6,2es12.4)') 'host C outside [0,w] at', i, j, C(i,j), w(i,j);  return
             end if
-            if (w(i,j) == 0.0_wp .and. (I_g(i,j) /= 0.0_wp .or. C(i,j) /= 0.0_wp .or. F(i,j) /= 0.0_wp)) then
-               write(msg,'(a,2i6)') 'host terms not 0 where w = 0 at', i, j;  return
+            if (w(i,j) <= 0.0_wp .and. (I_g(i,j) /= 0.0_wp .or. F(i,j) /= 0.0_wp)) then
+               write(msg,'(a,2i6)') 'host I_g or F not 0 where w = 0 at', i, j;  return
             end if
          end do
       end do
@@ -851,9 +852,10 @@ contains
    end function solid_earth_host_check
 
    subroutine host_to_gauss(self, w, I_g, C, F, hg, what)
-      !! Host-resolved terms from the host grid onto the Gauss grid, checked. Passthrough
-      !! copies. A lon-lat host is remapped: the fractions w and C without the mass factor
-      !! (to_gauss_frac), I_g conservatively with it, F without it (not rescaled).
+      !! Host-resolved terms from the host grid onto the Gauss grid, clipped and checked. A
+      !! lon-lat host is remapped: the fractions w and C without the mass factor, clipped to
+      !! [0,1] and [0,w] (to_gauss_frac, also for a Gauss host), I_g conservatively with it,
+      !! F without it (not rescaled).
       type(solid_earth), intent(in)    :: self
       real(wp),          intent(in)    :: w(:,:), I_g(:,:), C(:,:), F(:,:)
       type(sle_host),    intent(inout) :: hg
@@ -874,10 +876,9 @@ contains
    end subroutine host_to_gauss
 
    subroutine to_gauss_frac(self, f_host, f_gauss, upper)
-      !! A fraction onto the Gauss grid: the conservative remap without the mass factor,
-      !! then clipped to [0, upper] (default 1). Round-off beyond the bounds (HOST_TOL) is
-      !! clipped, anything larger or non-finite stops. Passthrough copies and clips nothing:
-      !! the host's own values are checked as given.
+      !! A fraction onto the Gauss grid: the conservative remap without the mass factor
+      !! (a copy for a Gauss host), then clipped to [0, upper] (default 1). Round-off beyond
+      !! the bounds (HOST_TOL) is clipped, on either path; anything larger or non-finite stops.
       type(solid_earth), intent(in)  :: self
       real(wp),          intent(in)  :: f_host(:,:)
       real(wp),          intent(out) :: f_gauss(:,:)
@@ -886,9 +887,8 @@ contains
       allocate(hi(size(f_gauss,1), size(f_gauss,2)))
       hi = 1.0_wp;  if (present(upper)) hi = upper
       call to_gauss(self, f_host, f_gauss, conserve_mass=.false.)
-      if (.not. self%remap) return
       if (.not. all(is_finite(f_gauss)) .or. any(f_gauss < -HOST_TOL) .or. any(f_gauss > hi + HOST_TOL)) &
-         error stop 'solid_earth: remapped host fraction outside its bounds (not round-off) or not finite'
+         error stop 'solid_earth: host fraction (w or C) outside its bounds by more than round-off, or not finite'
       f_gauss = min(max(f_gauss, 0.0_wp), hi)
    end subroutine to_gauss_frac
 

@@ -9,7 +9,8 @@ program test_host_terms
    !!       ∫C·rsl = -(rho_i/rho_w) ∫ΔI_g + ∫fill, and bsl, bsl_ive tied by ∫fill / ∫C;
    !!   (4) passthrough == a global lon-lat host: the same terms on a 96 x 48 host grid, remapped
    !!       by the model, and handed over already remapped on the Gauss grid;
-   !!   (5) two hosts (disjoint regions) summed == one host over both.
+   !!   (5) two hosts (disjoint regions) summed == one host over both;
+   !!   (6) round-off beyond [0,1] and [0,w] is clipped, for a Gauss host as for a remapped one..
    use vilma_precision, only: wp
    use vilma_constants, only: pi, sec_per_year, rho_ice, rho_water
    use vilma_params,    only: vilma_param_class
@@ -49,6 +50,7 @@ program test_host_terms
    call check_balance(ok)
    call check_passthrough(ok)
    call check_two_hosts(ok)
+   call check_clip(ok)
 
    write(*,'(a)') ''
    if (ok) then
@@ -142,12 +144,21 @@ contains
       call expect(w, I_g, C, F, .true., 'admissible terms', nfail)
       C(2,2) = 0.5_wp + 0.5e-9_wp;   call expect(w, I_g, C, F, .true., 'C = w + 0.5e-9 (inside the tolerance)', nfail)
       C(2,2) = 0.5_wp + 2.0e-9_wp;   call expect(w, I_g, C, F, .false., 'C = w + 2e-9', nfail);       C(2,2) = 0.25_wp
-      w(2,2) = 1.0_wp + 1.0e-12_wp;  call expect(w, I_g, C, F, .false., 'w > 1', nfail);              w(2,2) = 0.5_wp
-      w(2,2) = -1.0e-12_wp;          call expect(w, I_g, C, F, .false., 'w < 0', nfail);              w(2,2) = 0.5_wp
+      C(2,2) = -0.5e-9_wp;           call expect(w, I_g, C, F, .true.,  'C = -0.5e-9', nfail)
+      C(2,2) = -2.0e-9_wp;           call expect(w, I_g, C, F, .false., 'C = -2e-9', nfail);          C(2,2) = 0.25_wp
+      w(2,2) = 1.0_wp + 0.5e-9_wp;   call expect(w, I_g, C, F, .true.,  'w = 1 + 0.5e-9', nfail)
+      w(2,2) = 1.0_wp + 2.0e-9_wp;   call expect(w, I_g, C, F, .false., 'w = 1 + 2e-9', nfail);       w(2,2) = 0.5_wp
+      w(2,2) = -0.5e-9_wp;           C(2,2) = 0.0_wp
+      call expect(w, I_g, C, F, .false., 'w = -0.5e-9 with I_g /= 0', nfail)
+      I_g(2,2) = 0.0_wp;  F(2,2) = 0.0_wp
+      call expect(w, I_g, C, F, .true.,  'w = -0.5e-9, terms 0 (clipped to w = 0)', nfail)
+      w(2,2) = -2.0e-9_wp;           call expect(w, I_g, C, F, .false., 'w = -2e-9', nfail)
+      w(2,2) = 0.5_wp;  C(2,2) = 0.25_wp;  I_g(2,2) = 100.0_wp;  F(2,2) = -3.0_wp
       I_g(3,3) = -1.0e-6_wp;         call expect(w, I_g, C, F, .false., 'I_g < 0', nfail);            I_g(3,3) = 100.0_wp
       C(3,3) = -1.0e-6_wp;           call expect(w, I_g, C, F, .false., 'C < 0', nfail);              C(3,3) = 0.25_wp
       I_g(1,1) = 1.0e-12_wp;         call expect(w, I_g, C, F, .false., 'I_g /= 0 where w = 0', nfail); I_g(1,1) = 0.0_wp
-      C(1,1) = 1.0e-12_wp;           call expect(w, I_g, C, F, .false., 'C /= 0 where w = 0', nfail);   C(1,1) = 0.0_wp
+      C(1,1) = 1.0e-12_wp;           call expect(w, I_g, C, F, .true.,  'C = 1e-12 where w = 0 (clipped to 0)', nfail); C(1,1) = 0.0_wp
+      C(1,1) = 1.0e-6_wp;            call expect(w, I_g, C, F, .false., 'C = 1e-6 where w = 0', nfail);  C(1,1) = 0.0_wp
       F(1,1) = 1.0e-12_wp;           call expect(w, I_g, C, F, .false., 'F /= 0 where w = 0', nfail);   F(1,1) = 0.0_wp
       F(4,2) = ieee_value(1.0_wp, ieee_quiet_nan);  call expect(w, I_g, C, F, .false., 'F = NaN', nfail);  F(4,2) = -3.0_wp
       I_g(4,2) = -ieee_value(1.0_wp, ieee_quiet_nan); call expect(w, I_g, C, F, .false., 'I_g = NaN', nfail); I_g(4,2) = 100.0_wp
@@ -379,5 +390,41 @@ contains
       end if
       call solid_earth_finalize(a);  call solid_earth_finalize(b)
    end subroutine check_two_hosts
+
+   ! --- (6) round-off in the fractions is clipped, also for a Gauss host -----------
+
+   subroutine check_clip(ok)
+      logical, intent(inout) :: ok
+      type(vilma_param_class) :: p
+      type(solid_earth) :: a, b
+      real(wp), allocatable :: z_eq(:,:), h_eq(:,:), h1(:,:), w1(:,:), I1(:,:), C1(:,:), F1(:,:), I0(:,:), C0(:,:), Cr(:,:)
+      real(wp), allocatable :: wq(:,:), Cp(:,:), Z0(:,:)
+      allocate(z_eq(np,nl), h_eq(np,nl), h1(np,nl), w1(np,nl), I1(np,nl), C1(np,nl), F1(np,nl), I0(np,nl), &
+               C0(np,nl), Cr(np,nl), wq(np,nl), Cp(np,nl), Z0(np,nl))
+      call scene(colat, lon, z_eq, h1, w1, I1, C1, F1, I0, C0, Cr, 0)
+      h_eq = 0.0_wp;  Z0 = 0.0_wp
+      ! b: w overshoots 1 and undershoots 0 by 1e-10, C overshoots w by 1e-10 where C = w (all inside the
+      ! tolerance); a: the exact terms
+      wq = w1
+      where (w1 >= 1.0_wp)
+         wq = 1.0_wp + 1.0e-10_wp
+      elsewhere (w1 <= 0.0_wp)
+         wq = -1.0e-10_wp
+      end where
+      Cp = C1;  where (w1 >= 1.0_wp .and. C1 >= w1) Cp = C1 + 1.0e-10_wp
+      call new_par(p)
+      a%par = p;  b%par = p
+      call solid_earth_init(a, z_eq, h_eq, w=w1, I_g=Z0, C=Cr)
+      call solid_earth_init(b, z_eq, h_eq, w=wq, I_g=Z0, C=Cr)
+      call solid_earth_update(a, h1, 500.0_wp, w1, I1, C1, F1)
+      call solid_earth_update(b, h1, 500.0_wp, wq, I1, Cp, F1)
+      write(*,'(a)') ' (6) round-off beyond [0,1] and [0,w] is clipped (Gauss host)'
+      write(*,'(a,es10.2)') '     |drsl| =', diff(a%gg%rsl, b%gg%rsl)
+      if (any(a%gg%rsl /= b%gg%rsl) .or. any(a%gg%C /= b%gg%C) .or. any(b%gg%host%last%w > 1.0_wp) &
+          .or. any(b%gg%host%last%w < 0.0_wp) .or. any(b%gg%host%last%C > b%gg%host%last%w)) then
+         write(*,'(a)') '     FAIL: round-off not clipped';  ok = .false.
+      end if
+      call solid_earth_finalize(a);  call solid_earth_finalize(b)
+   end subroutine check_clip
 
 end program test_host_terms
