@@ -15,7 +15,8 @@ module vilma_io
    !! continuation). With rotation enabled, the polar motion m and both degree-2
    !! channels' memory stress (rot_*) are persisted too. Static (written once,
    !! checked on read): the reference state z_bed_eq, h_ice_eq. Diagnostic: h_ice,
-   !! rsl, z_bed, C_ocean (lon,lat) — written for inspection and restored if present.
+   !! rsl, z_bed, dz_bed, dz_ss, C_ocean (lon,lat) and the scalars bsl, bsl_ive, dphi — written
+   !! for inspection and restored if present.
    use vilma_precision,    only: wp
    use vilma_constants,    only: rad2deg, sec_per_year
    use vilma_viscoelastic, only: NLAM, NLAM_TOR
@@ -24,7 +25,7 @@ module vilma_io
                               response_horizontal, response_horizontal_toroidal
    use vilma_sht,          only: sht_grid_sph_synthesis, sht_grid_tor_synthesis
    use vilma_rotation,     only: rotation_ne, rotation_get_memory, rotation_set_memory, ROT_NCOMP
-   use vilma_coupling,     only: solid_earth, solid_earth_sync_host
+   use vilma_coupling,     only: solid_earth, solid_earth_sync_host, VILMA_UNSET
    use ncio
    use variable_io
    implicit none
@@ -38,8 +39,8 @@ module vilma_io
    ! the Maxwell stress tensor + trapezoidal σ_n; RESP_ELASTIC/RESP_NULL are
    ! memoryless (COMMON_VARS only).
    ! Static reference fields are written once in the init branch.
-   character(len=12), parameter :: COMMON_VARS(6) = [character(len=12) :: &
-        "h_ice", "rsl", "z_bed", "C_ocean", "dt_try", "bsl"]
+   character(len=12), parameter :: COMMON_VARS(10) = [character(len=12) :: &
+        "h_ice", "rsl", "z_bed", "dz_bed", "dz_ss", "C_ocean", "dt_try", "bsl", "bsl_ive", "dphi"]
    character(len=12), parameter :: VE_MEM_VARS(9) = [character(len=12) :: &
         "tau_a_re", "tau_a_im", "tau_b_re", "tau_b_im", "tau_c_re", "tau_c_im", &
         "sigma_n_re", "sigma_n_im", "sigma_primed"]
@@ -315,8 +316,12 @@ contains
       case ("h_ice");    call put2d(self, filename, name, self%gg%h_ice, n=n, ncid=ncid)
       case ("rsl");      call put2d(self, filename, name, self%gg%rsl,   n=n, ncid=ncid)
       case ("z_bed");    call put2d(self, filename, name, self%gg%z_bed, n=n, ncid=ncid)
+      case ("dz_bed");   call put2d(self, filename, name, self%gg%dz_bed, n=n, ncid=ncid)
+      case ("dz_ss");    call put2d(self, filename, name, self%gg%dz_ss,  n=n, ncid=ncid)
       case ("C_ocean");  call put2d(self, filename, name, self%gg%C,     n=n, ncid=ncid)
       case ("bsl");      call put_scalar(filename, name, self%bsl, n, ncid)
+      case ("bsl_ive");  call put_scalar(filename, name, self%bsl_ive, n, ncid)
+      case ("dphi");     call put_scalar(filename, name, self%dphi, n, ncid)
       ! Polar motion m = m1 + i*m2 [rad]. Already prognostic and already
       ! serialized into restarts by write_rotation; these two cases let the
       ! DIAGNOSTIC output file carry it as well, via an explicit nms list.
@@ -586,7 +591,11 @@ contains
 
    subroutine read_diagnostics(self, filename, n, np, nl)
       !! Restore the (lon,lat) diagnostic state so the restarted object reports
-      !! correctly: ice thickness, RSL, bedrock and the ocean function at slice n.
+      !! correctly: ice thickness, RSL, bedrock, its two parts (dz_bed, dz_ss, Δφ) and
+      !! the ocean function at slice n, and the scalars bsl, bsl_ive. A file from before
+      !! the split lacks dz_bed/dz_ss/dphi: they are then left at VILMA_UNSET until the
+      !! next update. bsl, bsl_ive are restored only from a file that has bsl_ive (an
+      !! older file's bsl is the ice-volume equivalent, a different quantity).
       type(solid_earth), intent(inout) :: self
       character(len=*),   intent(in)    :: filename
       integer,            intent(in)    :: n, np, nl
@@ -594,6 +603,19 @@ contains
       call get2d(filename, "rsl",     self%gg%rsl,   np, nl, n)
       call get2d(filename, "z_bed",   self%gg%z_bed, np, nl, n)
       call get2d(filename, "C_ocean", self%gg%C,     np, nl, n)
+      if (nc_exists_var(filename, "bsl_ive")) then
+         call nc_read(filename, "bsl",     self%bsl,     start=[n], count=[1])
+         call nc_read(filename, "bsl_ive", self%bsl_ive, start=[n], count=[1])
+      end if
+      if (nc_exists_var(filename, "dz_bed") .and. nc_exists_var(filename, "dz_ss") .and. &
+          nc_exists_var(filename, "dphi")) then
+         call get2d(filename, "dz_bed", self%gg%dz_bed, np, nl, n)
+         call get2d(filename, "dz_ss",  self%gg%dz_ss,  np, nl, n)
+         call nc_read(filename, "dphi", self%dphi, start=[n], count=[1])
+      else
+         write(*,'(a)') ' vilma_restart_read: no dz_bed/dz_ss/dphi in the file (older restart); left unset'
+         self%gg%dz_bed = VILMA_UNSET;  self%gg%dz_ss = VILMA_UNSET;  self%dphi = VILMA_UNSET
+      end if
    end subroutine read_diagnostics
 
    subroutine restore_sigma(self, filename, n)

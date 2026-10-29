@@ -78,7 +78,7 @@ module vilma_timestep
 contains
 
    subroutine stepper_advance(self, sht, resp, sle, topo0, ice0, ice1, ice_ref, &
-                              t0, t1, rsl, C, rot, sigma_out)
+                              t0, t1, rsl, C, rot, sigma_out, u_out, N_out, dphi_out)
       !! Advance the VE+SLE model from t0 to t1 with the ice load interpolated linearly
       !! ice(t) = ice0 + (t−t0)/(t1−t0)·(ice1−ice0), absolute; the SLE load is
       !! d_ice(t) = ice(t) − ice_ref (total change from the reference state). Δt is
@@ -104,10 +104,16 @@ contains
       !! from it rather than re-deriving the load (vilma_coupling). The final SLE solve of
       !! the run lands on the accepted state at t1, so its load is the t1 load.
       complex(wp),    optional, intent(out)   :: sigma_out(:)
+      !! u_out, N_out, dphi_out (optional): the converged solid uplift u and geoid
+      !! rise N (spectral, nlm) and the uniform sea-surface shift Δφ at t1, from the
+      !! same final SLE solve as rsl, so rsl = N − u + Δφ (on the grid, to round-off).
+      complex(wp),    optional, intent(out)   :: u_out(:), N_out(:)
+      real(wp),       optional, intent(out)   :: dphi_out
 
       type(sle_result)      :: res
       real(wp), allocatable :: rsl_n(:,:), ice_now(:,:), dice_now(:,:)
-      complex(wp), allocatable :: sig0(:), sig_last(:)
+      complex(wp), allocatable :: sig0(:), sig_last(:), u_last(:), N_last(:)
+      real(wp) :: dphi_last
       real(wp) :: t, dt, err_inf, tau_inf, errsc, fac, ricfac, expo, span
       real(wp) :: rate, dt_stab, tau0, tau_run, scale
       integer  :: p, np, nl, n_sub
@@ -117,7 +123,8 @@ contains
       span = t1 - t0
       ! Capture the converged load on every SLE solve; after the run sig_last holds
       ! the final (t1) solve's load. Always allocated so solve_at can fill it cheaply.
-      allocate(sig_last(sht%nlm))
+      allocate(sig_last(sht%nlm), u_last(sht%nlm), N_last(sht%nlm))
+      dphi_last = 0.0_wp
       self%worst_mass_resid = 0.0_wp             ! per-interval diagnostic (reset each advance)
 
       ! Zero-length interval: no time or memory advance, but still refresh the diagnostic
@@ -158,7 +165,8 @@ contains
          call sle_solve(sle, sht, resp, dice_now, ice_now, topo0, rsl, C, res, &
                         report_only=.true., sigma_lm=sig_last, rot=rot, rot_dt=0.0_wp)
          self%worst_mass_resid = res%mass_resid
-         if (present(sigma_out)) sigma_out = sig_last
+         u_last = res%u_lm;  N_last = res%N_lm;  dphi_last = res%esl
+         call hand_back()
          return
       end if
       if (.not. scheme_is_implicit(resp%scheme)) then
@@ -225,7 +233,7 @@ contains
                   'vilma_timestep: explicit guard sub-step collapsed (viscosity too stiff for FE)'
             end if
          end do
-         if (present(sigma_out)) sigma_out = sig_last
+         call hand_back()
          return
       end if
 
@@ -313,9 +321,17 @@ contains
       end do
 
       ! sig_last now holds the final accepted step's fine sub-step at t1.
-      if (present(sigma_out)) sigma_out = sig_last
+      call hand_back()
 
    contains
+
+      subroutine hand_back()
+         !! Return the optional outputs of the final SLE solve (the one at t1).
+         if (present(sigma_out)) sigma_out = sig_last
+         if (present(u_out))     u_out     = u_last
+         if (present(N_out))     N_out     = N_last
+         if (present(dphi_out))  dphi_out  = dphi_last
+      end subroutine hand_back
 
       subroutine solve_at(t_eval, h)
          !! One SLE solve (co-converged memory advance) with the ice load interpolated
@@ -330,6 +346,7 @@ contains
          call sle_solve(sle, sht, resp, dice_now, ice_now, topo0, rsl, C, res, &
                         sigma_lm=sig_last, rot=rot, rot_dt=h)
          self%worst_mass_resid = max(self%worst_mass_resid, res%mass_resid)
+         u_last = res%u_lm;  N_last = res%N_lm;  dphi_last = res%esl
       end subroutine solve_at
 
    end subroutine stepper_advance

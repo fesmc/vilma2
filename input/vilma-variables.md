@@ -29,7 +29,9 @@ seed `dt_try` for both. The reference fields `z_bed_eq`/`h_ice_eq` are static
 | 14 | sigma_n_re   | nlm, time     | kg m-2 | Trapezoidal start-of-step load σ_n (real part)   |
 | 15 | sigma_n_im   | nlm, time     | kg m-2 | Trapezoidal start-of-step load σ_n (imag part)   |
 | 16 | sigma_primed | time          | 1      | Flag: σ_n is tracked (1) or not yet primed (0)   |
-| 17 | bsl          | time          | m      | Barystatic sea level vs reference (eustatic eq.) |
+| 17 | bsl          | time          | m      | Barystatic sea level vs reference (ocean mean of C*rsl) |
+| 18 | dz_bed       | lon, lat      | m      | Bed change u (solid uplift); rsl = dz_ss - dz_bed |
+| 19 | dz_ss        | lon, lat      | m      | Sea-surface change N + dphi (geoid rise + shift) |
 | 20 | rot_m_re     | time          | 1      | Polar motion m₁ (rotation, real part)            |
 | 21 | rot_m_im     | time          | 1      | Polar motion m₂ (rotation, imag part)            |
 | 22 | rot_load_mem | nlam_rot, ne_rot, nrc | Pa | Rotation loading-channel memory stress (packed) |
@@ -38,3 +40,5 @@ seed `dt_try` for both. The reference fields `z_bed_eq`/`h_ice_eq` are static
 | 25 | u_north      | lon, lat      | m      | Surface horizontal displacement, north (total)   |
 | 26 | u_east_tor   | lon, lat      | m      | Surface horizontal displacement, east (toroidal) |
 | 27 | u_north_tor  | lon, lat      | m      | Surface horizontal displacement, north (toroidal)|
+| 28 | dphi         | time          | m      | Uniform sea-surface shift (part of dz_ss)        |
+| 29 | bsl_ive      | time          | m      | Ice-volume equivalent of the grounded-ice change |

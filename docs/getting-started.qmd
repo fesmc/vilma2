@@ -189,6 +189,7 @@ call solid_earth_spinup(se, h_ice_lgm)                ! optional LGM-memory spin
 do
    call solid_earth_update(se, h_ice, dt_yr)          ! advance dt_yr [years]
    ! ... read se%rsl, se%z_bed on the host grid (se%gg%* on the Gauss grid) ...
+   ! ... rsl = se%dz_ss - se%dz_bed: the sea-surface change N + dphi and the bed change u ...
 end do
 call solid_earth_finalize(se)                         ! frees the grid too
 ```

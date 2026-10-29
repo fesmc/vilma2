@@ -19,9 +19,10 @@ module vilma_coupling
    !! If `grid` is absent (or already the Gauss grid) the fields are taken as-is
    !! (passthrough). Either way the host reads se%rsl / se%z_bed / se%bsl on the SAME
    !! grid it supplied; the Gauss-grid working state lives in se%gg (se%gg%rsl, ...).
-   !! Only the smooth rsl perturbation is mapped back to the host; se%z_bed is
-   !! reconstructed as se%z_bed_eq - se%rsl on the host's own (high-resolution) bed,
-   !! so host bed detail is preserved.
+   !! Only the smooth perturbations are mapped back to the host: rsl, and its two parts
+   !! dz_bed = u (bed change) and dz_ss = N + Δφ (sea-surface change), rsl = dz_ss − dz_bed.
+   !! se%z_bed is reconstructed as se%z_bed_eq - se%rsl on the host's own
+   !! (high-resolution) bed, so host bed detail is preserved.
    !!
    !! Reference (equilibrium) state. The supplied (z_bed_eq, h_ice_eq) IS the relaxed
    !! state: the Maxwell memory starts at zero, so with h_ice = h_ice_eq we get
@@ -29,7 +30,7 @@ module vilma_coupling
    !! drive the deformation and sea-level change incrementally. The reference
    !! topography z_bed_eq doubles as the SLE's reference topo0.
    use vilma_precision,       only: wp
-   use vilma_constants,       only: rho_ice, rho_water, sec_per_year, pi, kyr
+   use vilma_constants,       only: sec_per_year, pi, kyr
    use vilma_params,          only: vilma_param_class
    use vilma_sht,             only: sht_grid, sht_grid_init, sht_grid_destroy, &
                                  sht_grid_synthesis, sht_grid_surface_integral
@@ -78,6 +79,8 @@ module vilma_coupling
       real(wp), allocatable :: h_ice(:,:)      !! current grounded-ice thickness [m]
       real(wp), allocatable :: rsl(:,:)        !! relative sea level change [m] (full field)
       real(wp), allocatable :: z_bed(:,:)      !! bedrock = z_bed_eq − rsl [m]
+      real(wp), allocatable :: dz_bed(:,:)     !! bed change u [m] (solid uplift); rsl = dz_ss − dz_bed
+      real(wp), allocatable :: dz_ss(:,:)      !! sea-surface change N + Δφ [m] (geoid rise + uniform shift)
       real(wp), allocatable :: C(:,:)          !! ocean function (1 ocean / 0 land)
       real(wp), allocatable :: C0(:,:)         !! REFERENCE ocean function, from (z_bed_eq,
                                                !! h_ice_eq). Both are fixed at init, so this
@@ -131,11 +134,15 @@ module vilma_coupling
       real(wp), allocatable    :: h_ice(:,:)     !! current grounded ice [m], host grid
       real(wp), allocatable    :: rsl(:,:)       !! relative sea level change [m], host grid
       real(wp), allocatable    :: z_bed(:,:)     !! bedrock = z_bed_eq − rsl [m], host grid
+      real(wp), allocatable    :: dz_bed(:,:)    !! bed change u [m], host grid (rsl = dz_ss − dz_bed)
+      real(wp), allocatable    :: dz_ss(:,:)     !! sea-surface change N + Δφ [m], host grid
 
       ! clock + diagnostics
       real(wp) :: time = 0.0_wp               !! model time [years]
       real(wp) :: worst_mass_resid = 0.0_wp   !! worst SLE mass residual over the last interval
-      real(wp) :: bsl = 0.0_wp                !! barystatic sea level vs reference [m] (eustatic equivalent)
+      real(wp) :: dphi = 0.0_wp               !! uniform sea-surface shift Δφ [m] (the part of dz_ss that is not N)
+      real(wp) :: bsl = 0.0_wp                !! barystatic sea level vs reference [m]: ocean mean of C·rsl
+      real(wp) :: bsl_ive = 0.0_wp            !! ice-volume equivalent of the grounded-ice change [m] (see update_bsl)
    end type solid_earth
 
 contains
@@ -161,6 +168,8 @@ contains
       ! standalone driver calls it earlier still, right after reading the config)
       call solid_earth_check_solver(self%par)
       self%use_vilma_v1 = (trim(self%par%solver) == "v1")
+      if (self%par%rho_ice <= 0.0_wp .or. self%par%rho_water <= 0.0_wp) &
+         error stop 'solid_earth_init: &vilma rho_ice and rho_water must be > 0'
 
       ! the model owns its Gauss grid, sized from the parameter record
       allocate(self%sht)
@@ -199,7 +208,7 @@ contains
       ! function is seeded from the reference flotation so a dt=0 seed step yields a
       ! physical barystatic diagnostic (update_bsl needs C).
       allocate(self%gg%h_ice(np,nl), self%gg%rsl(np,nl), self%gg%z_bed(np,nl), &
-               self%gg%C(np,nl), self%gg%C0(np,nl))
+               self%gg%dz_bed(np,nl), self%gg%dz_ss(np,nl), self%gg%C(np,nl), self%gg%C0(np,nl))
       allocate(self%sigma_lm(self%sht%nlm));  self%sigma_lm = (0.0_wp, 0.0_wp)
       if (present(h_ice_init)) then
          call to_gauss(self, h_ice_init, self%gg%h_ice, conserve_mass=.true.)
@@ -210,15 +219,19 @@ contains
       end if
       self%gg%rsl   = 0.0_wp
       self%gg%z_bed = self%gg%z_bed_eq
+      self%gg%dz_bed = 0.0_wp;  self%gg%dz_ss = 0.0_wp;  self%dphi = 0.0_wp
       ! The reference ocean function is a run constant (z_bed_eq and h_ice_eq are
       ! fixed from here on), so build it once and keep it. The initial C is that
       ! same field, which is exactly what the old unconditional call produced.
-      call ocean_function(self%gg%z_bed_eq, self%gg%h_ice_eq, self%gg%C0)
+      call ocean_function(self%gg%z_bed_eq, self%gg%h_ice_eq, self%gg%C0, &
+                          self%par%rho_ice, self%par%rho_water)
       self%gg%C = self%gg%C0
 
       ! host-grid current state at the reference
       allocate(self%rsl(size(z_bed_eq,1), size(z_bed_eq,2)), source=0.0_wp)
       allocate(self%z_bed, source=z_bed_eq)
+      allocate(self%dz_bed(size(z_bed_eq,1), size(z_bed_eq,2)), source=0.0_wp)
+      allocate(self%dz_ss(size(z_bed_eq,1), size(z_bed_eq,2)), source=0.0_wp)
 
       ! VILMA1 backend: hand it the SAME reference and start-slice ice, already on
       ! the model Gauss grid. vilma_v1 owns the second remap leg (model Gauss <->
@@ -293,6 +306,8 @@ contains
       self%sle%max_mem_iter = self%par%sle_max_mem_iter
       self%sle%fixed_ocean  = self%par%sle_fixed_ocean
       self%sle%subgrid      = self%par%sle_subgrid
+      self%sle%rho_ice      = self%par%rho_ice
+      self%sle%rho_water    = self%par%rho_water
       self%sle%warm_start   = .true.
 
       ! adaptive-Δt controller (vilma_timestep)
@@ -362,6 +377,7 @@ contains
       real(wp),           intent(in)    :: h_ice(:,:)   !! grounded-ice thickness [m] (host grid)
       real(wp),           intent(in)    :: dt_yr        !! interval to advance [years]
       real(wp), allocatable :: ice_new(:,:)
+      complex(wp), allocatable :: u_lm(:), N_lm(:)
       real(wp) :: dt, t0, t1
       integer  :: np, nl
       integer(kind=8) :: pc0, pc1, prate            ! PROFILE: see %t_remap
@@ -388,6 +404,8 @@ contains
          self%gg%h_ice = ice_new
          self%gg%z_bed = self%gg%z_bed_eq - self%gg%rsl
          self%time     = self%time + dt_yr
+         ! VILMA1 returns only rsl: the split into bed and sea-surface change is not available
+         self%gg%dz_bed = VILMA_UNSET;  self%gg%dz_ss = VILMA_UNSET;  self%dphi = VILMA_UNSET
 
          ! Diagnostics VILMA1 does not hand back. DERIVED HONESTLY from VILMA1's own
          ! output, using the SAME formulas the native solver uses, so the two
@@ -400,7 +418,8 @@ contains
          !   bsl — update_bsl's barystatic integral over that C and the ice anomaly.
          !         Again a VILMA2 diagnostic of VILMA1's state, not VILMA1's own
          !         ocean bookkeeping (vega_oce.dat).
-         call ocean_function(self%gg%z_bed, self%gg%h_ice, self%gg%C)
+         call ocean_function(self%gg%z_bed, self%gg%h_ice, self%gg%C, &
+                             self%par%rho_ice, self%par%rho_water)
          call update_bsl(self)
          ! NOT derivable: VILMA1 reports no sea-level-equation mass residual, so this
          ! stays at the documented fill value rather than a made-up number. The
@@ -414,18 +433,26 @@ contains
          return
       end if
 
+      allocate(u_lm(self%sht%nlm), N_lm(self%sht%nlm))
       if (self%rotation%enabled) then
          ! Rotational feedback, stepped with the solid Earth: every SLE solve in the
          ! stepper converges the rotation ↔ sea-level fixed point at the end of its own
          ! sub-step (vilma_rotation: rotation_open_step / trial / close_step).
          call stepper_advance(self%stepper, self%sht, self%resp, self%sle, self%gg%z_bed_eq, &
                                    self%gg%h_ice, ice_new, self%gg%h_ice_eq, t0, t1, &
-                                   self%gg%rsl, self%gg%C, rot=self%rotation, sigma_out=self%sigma_lm)
+                                   self%gg%rsl, self%gg%C, rot=self%rotation, sigma_out=self%sigma_lm, &
+                                   u_out=u_lm, N_out=N_lm, dphi_out=self%dphi)
       else
          call stepper_advance(self%stepper, self%sht, self%resp, self%sle, self%gg%z_bed_eq, &
                                    self%gg%h_ice, ice_new, self%gg%h_ice_eq, t0, t1, &
-                                   self%gg%rsl, self%gg%C, sigma_out=self%sigma_lm)
+                                   self%gg%rsl, self%gg%C, sigma_out=self%sigma_lm, &
+                                   u_out=u_lm, N_out=N_lm, dphi_out=self%dphi)
       end if
+
+      ! bed change u and sea-surface change N + Δφ at t1; rsl = N − u + Δφ = dz_ss − dz_bed
+      call sht_grid_synthesis(self%sht, u_lm, self%gg%dz_bed)
+      call sht_grid_synthesis(self%sht, N_lm, self%gg%dz_ss)
+      self%gg%dz_ss         = self%gg%dz_ss + self%dphi
 
       self%gg%h_ice         = ice_new
       self%gg%z_bed         = self%gg%z_bed_eq - self%gg%rsl
@@ -441,14 +468,23 @@ contains
 
    subroutine solid_earth_sync_host(self)
       !! Refresh the host-grid output fields from the Gauss-grid state: map the smooth
-      !! rsl perturbation back (bilinear, or copy when passthrough) and reconstruct
+      !! rsl, dz_bed and dz_ss perturbations back (bilinear, or copy when passthrough;
+      !! bilinear is linear, so rsl = dz_ss − dz_bed holds on the host grid too) and reconstruct
       !! z_bed on the host's own (high-resolution) bed so its detail survives. update()
       !! calls this each step; vilma_restart_read calls it after restoring the gg state.
       type(solid_earth), intent(inout) :: self
       if (self%remap) then
          call remap_to_ll(self%map, self%gg%rsl, self%rsl)
+         if (self%use_vilma_v1) then            ! dz_* are unset: keep the fill value exact
+            self%dz_bed = VILMA_UNSET;  self%dz_ss = VILMA_UNSET
+         else
+            call remap_to_ll(self%map, self%gg%dz_bed, self%dz_bed)
+            call remap_to_ll(self%map, self%gg%dz_ss,  self%dz_ss)
+         end if
       else
-         self%rsl = self%gg%rsl
+         self%rsl    = self%gg%rsl
+         self%dz_bed = self%gg%dz_bed
+         self%dz_ss  = self%gg%dz_ss
       end if
       self%z_bed = self%z_bed_eq - self%rsl
    end subroutine solid_earth_sync_host
@@ -571,29 +607,34 @@ contains
    end subroutine relax_hold
 
    subroutine update_bsl(self)
-      !! Diagnose the barystatic sea level from the current (Gauss-grid) state.
+      !! Diagnose the barystatic sea level from the current (Gauss-grid) state, two ways.
       !!
-      !! The grounded-ice increment is masked exactly as vilma_sle masks it: the
-      !! current column by the current ocean function, the REFERENCE column by
-      !! the reference one. Masking the raw difference by the current C alone
-      !! drops the whole column of any cell that carried grounded marine
-      !! reference ice and has since flooded -- see the ΔI_g note in vilma_sle.
+      !! bsl: the ocean mean of C·rsl, ∫C·rsl dA / ∫C dA, the mean relative-sea-level
+      !! change over the ocean. This is the barystatic rise of the sea-level equation:
+      !! by its mass balance ∫C·rsl dA is the melt water (the ice-volume equivalent
+      !! below, times ∫C dA) plus the flooded-area fill, so water that fills newly
+      !! submerged area does not raise it.
       !!
-      !! This is the WHOLE grounded-column change, NOT the sea level vilma_sle
-      !! delivers: there is no subgrid term here, while vilma_sle's mass-conservation
-      !! offset carries one. Over cells that flooded since the reference, bsl
-      !! therefore reads high by their below-flotation volume -- about 10 m on the
-      !! LGM-datum deglaciation. It is an ice-volume-equivalent diagnostic, not the
-      !! barystatic rise; for that, take the ocean-mean of C*rsl.
+      !! bsl_ive: the ice-volume equivalent of the grounded-ice change. The grounded-ice
+      !! increment is masked exactly as vilma_sle masks it: the current column by the
+      !! current ocean function, the REFERENCE column by the reference one. Masking the
+      !! raw difference by the current C alone drops the whole column of any cell that
+      !! carried grounded marine reference ice and has since flooded -- see the ΔI_g
+      !! note in vilma_sle. This is the WHOLE grounded-column change, with no subgrid
+      !! term: over cells that flooded since the reference, bsl_ive therefore reads
+      !! high by their below-flotation volume -- about 10 m on the LGM-datum
+      !! deglaciation -- and is not the barystatic rise.
       type(solid_earth), intent(inout) :: self
       real(wp) :: c_int
       c_int = sht_grid_surface_integral(self%sht, self%gg%C)
       if (c_int > 0.0_wp) then
-         self%bsl = -(rho_ice/rho_water) * sht_grid_surface_integral(self%sht, &
-                       self%gg%h_ice   *(1.0_wp - self%gg%C) &
-                     - self%gg%h_ice_eq*(1.0_wp - self%gg%C0)) / c_int
+         self%bsl     = sht_grid_surface_integral(self%sht, self%gg%C*self%gg%rsl) / c_int
+         self%bsl_ive = -(self%par%rho_ice/self%par%rho_water) * sht_grid_surface_integral(self%sht, &
+                           self%gg%h_ice   *(1.0_wp - self%gg%C) &
+                         - self%gg%h_ice_eq*(1.0_wp - self%gg%C0)) / c_int
       else
-         self%bsl = 0.0_wp
+         self%bsl     = 0.0_wp
+         self%bsl_ive = 0.0_wp
       end if
    end subroutine update_bsl
 
@@ -615,6 +656,8 @@ contains
       if (allocated(self%gg%h_ice))    deallocate(self%gg%h_ice)
       if (allocated(self%gg%rsl))      deallocate(self%gg%rsl)
       if (allocated(self%gg%z_bed))    deallocate(self%gg%z_bed)
+      if (allocated(self%gg%dz_bed))   deallocate(self%gg%dz_bed)
+      if (allocated(self%gg%dz_ss))    deallocate(self%gg%dz_ss)
       if (allocated(self%gg%C))        deallocate(self%gg%C)
       if (allocated(self%gg%C0))       deallocate(self%gg%C0)
       if (allocated(self%z_bed_eq))    deallocate(self%z_bed_eq)
@@ -622,6 +665,9 @@ contains
       if (allocated(self%h_ice))       deallocate(self%h_ice)
       if (allocated(self%rsl))         deallocate(self%rsl)
       if (allocated(self%z_bed))       deallocate(self%z_bed)
+      if (allocated(self%dz_bed))      deallocate(self%dz_bed)
+      if (allocated(self%dz_ss))       deallocate(self%dz_ss)
+      self%dphi = 0.0_wp
       self%time = 0.0_wp
    end subroutine solid_earth_finalize
 

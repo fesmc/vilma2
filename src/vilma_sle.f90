@@ -30,7 +30,7 @@ module vilma_sle
    !! feeds back through the response); the outer loop rebuilds the ocean
    !! function C from the migrated topography topo0 − S (moving shorelines).
    use vilma_precision, only: wp
-   use vilma_constants, only: rho_ice, rho_water
+   use vilma_constants, only: rho_ice_gia => rho_ice, rho_water_gia => rho_water
    use vilma_sht,       only: sht_grid, sht_grid_surface_integral, sht_grid_analysis, sht_grid_synthesis
    use vilma_rotation,  only: rotation_state, rotation_open_step, rotation_trial, rotation_close_step, &
                               rotation_add_srot_lm
@@ -60,6 +60,11 @@ module vilma_sle
    end type sle_result
 
    type :: sle_solver
+      !! Densities [kg m^-3] of the surface load, the melt source and the flotation
+      !! test. The GIA benchmark values unless the caller sets them (vilma_coupling
+      !! passes the &vilma pair).
+      real(wp) :: rho_ice   = rho_ice_gia
+      real(wp) :: rho_water = rho_water_gia
       !! Cap on the paleotopography / coastline iterations, not a fixed count: the
       !! loop exits as soon as the migrated coastline stops moving (see sle_solve).
       integer  :: n_outer = 3          !! paleotopography / coastline iterations
@@ -204,7 +209,7 @@ contains
       allocate(load_lm(sht%nlm), S_lm(sht%nlm))
       allocate(u_lm(sht%nlm), N_lm(sht%nlm), source=(0.0_wp, 0.0_wp))
 
-      rho_ratio = rho_ice/rho_water
+      rho_ratio = self%rho_ice/self%rho_water
       ! Cold start zeroes rsl; warm start keeps the incoming field as the initial
       ! guess (the caller's previous converged solution — see %warm_start).
       if (.not. self%warm_start) rsl = 0.0_wp
@@ -221,7 +226,7 @@ contains
       ! ice ice − d_ice (= 0 for an ice-free reference ⇒ O⁽⁰⁾ = (topo0 < 0); = ice
       ! when d_ice = 0 ⇒ grounded reference ice is excluded, so a no-change solve
       ! leaves C ≡ C⁽⁰⁾ and the subgrid term vanishes).
-      call ocean_function(topo0, ice - d_ice, C0)
+      call ocean_function(topo0, ice - d_ice, C0, self%rho_ice, self%rho_water)
 
       ronly = .false.;  if (present(report_only)) ronly = report_only
       rotate = .false.
@@ -258,7 +263,7 @@ contains
             ! where the deformed solid surface topo0 − rsl is below the sea surface
             ! AND the ice there floats rather than grounds (grounded ice keeps a
             ! subsided cell as land).
-            call ocean_function(topo0 - rsl, ice, C)
+            call ocean_function(topo0 - rsl, ice, C, self%rho_ice, self%rho_water)
          else
             ! the coastline the previous pass's converged rsl implies; it was built
             ! at the foot of that pass by the convergence test, from this same rsl,
@@ -307,7 +312,7 @@ contains
          ! Constant over the inner loop (depends only on the coastline C, C⁽⁰⁾). It
          ! also enters the mass balance via ζ̄⁽⁰⁾ = ∫ζ⁽⁰⁾(C−C⁽⁰⁾) (eqs 19-20).
          if (self%subgrid) then
-            wcorr    = -rho_water * topo0 * (C - C0)
+            wcorr    = -self%rho_water * topo0 * (C - C0)
             zeta_int = sht_grid_surface_integral(sht, topo0*(C - C0))
          else
             wcorr = 0.0_wp;  zeta_int = 0.0_wp
@@ -365,7 +370,7 @@ contains
          ! C_next is promoted to C at the TOP of the next pass, never here. On the
          ! final pass C must stay the coastline that rsl was converged against,
          ! because the closing load (and wcorr, zeta_int) below are built from both.
-         call ocean_function(topo0 - rsl, ice, C_next)
+         call ocean_function(topo0 - rsl, ice, C_next, self%rho_ice, self%rho_water)
          res%n_coast_flip = count(C_next /= C)
          if (res%n_coast_flip == 0) exit
       end do
@@ -430,7 +435,7 @@ contains
          !! the same C the rsl was converged against. One definition rather than
          !! two copies kept in step by hand: the grounded-mask fix had to touch
          !! both sites, which is the failure mode this removes.
-         load = rho_ice*d_ice_g + rho_water*(C*rsl) + wcorr
+         load = self%rho_ice*d_ice_g + self%rho_water*(C*rsl) + wcorr
       end subroutine assemble_load
 
    end subroutine sle_solve
@@ -445,20 +450,22 @@ contains
       if (present(N)) call sht_grid_synthesis(sht, res%N_lm, N)
    end subroutine sle_result_grids
 
-   subroutine ocean_function(topo, ice, C)
+   subroutine ocean_function(topo, ice, C, rho_i, rho_w)
       !! Migrating-coastline ocean function with grounded-ice flotation. A cell
       !! is ocean (C = 1) only where BOTH
       !!   (a) the solid surface is below the sea surface, topo < 0, and
       !!   (b) the ice column is thin enough to float rather than ground:
       !!       ρ_i·I < −ρ_w·topo  (−topo > 0 is the water depth; the inequality
-      !!       compares the ice draft to the column it would displace).
+      !!       compares the ice draft to the column it would displace),
+      !! with the ice and water densities rho_i, rho_w [kg m^-3].
       !! Where ice grounds (ρ_i·I ≥ −ρ_w·topo) the cell is land (C = 0): the ice
       !! rests on and bears on the bed, so that column is not free ocean. With
       !! ice = 0 this reduces to the bare bathymetry test topo < 0.
       real(wp), intent(in)  :: topo(:,:)   !! solid surface vs. sea surface [m]
       real(wp), intent(in)  :: ice(:,:)    !! absolute grounded-ice thickness [m]
       real(wp), intent(out) :: C(:,:)
-      where (topo < 0.0_wp .and. rho_ice*ice < -rho_water*topo)
+      real(wp), intent(in)  :: rho_i, rho_w   !! ice, water density [kg m^-3]
+      where (topo < 0.0_wp .and. rho_i*ice < -rho_w*topo)
          C = 1.0_wp
       elsewhere
          C = 0.0_wp

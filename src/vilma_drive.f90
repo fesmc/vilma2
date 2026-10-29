@@ -44,8 +44,8 @@ module vilma_drive
 
    ! diagnostic surface fields written each output step (the prognostic memory is
    ! written separately via vilma_restart_write when a restart is wanted)
-   character(len=8), parameter :: OUT_VARS(5) = &
-        [character(len=8) :: "h_ice", "rsl", "z_bed", "C_ocean", "bsl"]
+   character(len=8), parameter :: OUT_VARS(6) = &
+        [character(len=8) :: "h_ice", "rsl", "z_bed", "C_ocean", "bsl", "bsl_ive"]
    ! ... plus the polar motion when the rotation solver is active. Appended at
    ! runtime rather than made unconditional: with rotation off, or under the
    ! VILMA1 backend (which runs its own rotation internally and never updates
@@ -53,6 +53,10 @@ module vilma_drive
    ! indistinguishable from a computed zero.
    character(len=8), parameter :: ROT_OUT_VARS(2) = &
         [character(len=8) :: "rot_m_re", "rot_m_im"]
+   ! ... and the split of rsl into bed and sea-surface change. Native solver only:
+   ! VILMA1 returns rsl alone, so under it these hold VILMA_UNSET and are omitted.
+   character(len=8), parameter :: DZ_OUT_VARS(3) = &
+        [character(len=8) :: "dz_bed", "dz_ss", "dphi"]
 
 contains
 
@@ -174,11 +178,9 @@ contains
 
       ! The diagnostic output list. Polar motion is appended only when the
       ! rotation solver is actually integrating it -- see ROT_OUT_VARS above.
-      if (se%rotation%enabled) then
-         out_names = [OUT_VARS, ROT_OUT_VARS]
-      else
-         out_names = OUT_VARS
-      end if
+      out_names = OUT_VARS
+      if (.not. se%use_vilma_v1) out_names = [out_names, DZ_OUT_VARS]
+      if (se%rotation%enabled)   out_names = [out_names, ROT_OUT_VARS]
 
       ! --- march the transient --------------------------------------------------
       t0 = tyr(k0)*sec_per_year

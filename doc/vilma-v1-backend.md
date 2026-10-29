@@ -152,7 +152,7 @@ fairer comparison:
 | `z_bed` | `z_bed_eq - rsl`, the same reconstruction the native solver uses |
 | `h_ice` | the forcing, as remapped |
 | `C_ocean` | `vilma_sle`'s `ocean_function` (flotation) applied to VILMA1's updated bed and the current ice. This is **VILMA2's diagnostic of VILMA1's state**, not VILMA1's internal ocean function — the library keeps `ocfunc` private and does not expose it on this grid. The two can differ by a cell where the flotation rules disagree. |
-| `bsl` | `update_bsl`'s barystatic integral over that `C_ocean` and the ice anomaly — again a VILMA2 diagnostic of VILMA1's state, computed by the *same* formula for both backends. VILMA1's own water-layer scalar is written to `<vilma_v1_out_dir>/vega_oce.dat`, column 4 (columns 5–6 are its degree-0 load and ocean-area fraction) if you want VILMA1's internal number instead. |
+| `bsl`, `bsl_ive` | `update_bsl`'s ocean mean of `C_ocean`·`rsl` and its ice-volume equivalent over that `C_ocean` and the ice anomaly — again VILMA2 diagnostics of VILMA1's state, computed by the *same* formula for both backends. VILMA1's own water-layer scalar is written to `<vilma_v1_out_dir>/vega_oce.dat`, column 4 (columns 5–6 are its degree-0 load and ocean-area fraction) if you want VILMA1's internal number instead. |
 | `t_solver` | wall-clock inside `time_evolution` |
 | `t_remap` | wall-clock in the Gauss ↔ VILMA1 remap |
 
@@ -336,6 +336,7 @@ threads:
  vilma: wrote out.nc
 ```
 
-`out.nc` carries the usual `h_ice`, `rsl`, `z_bed`, `C_ocean`, `bsl` on the
+`out.nc` carries the usual `h_ice`, `rsl`, `z_bed`, `C_ocean`, `bsl`, `bsl_ive` on the
 128 × 66 model Gauss grid, 11 time slices; `rsl` grows monotonically from 0 to
-−31.7 … +20.2 m and `bsl` stays near +2.2 m.
+−31.7 … +20.2 m and `bsl_ive` stays near +2.2 m (measured before `bsl` became the ocean mean
+of `C·rsl`; then it was `bsl`).
