@@ -68,9 +68,9 @@ div.csl-indent {
 <link href="../site_libs/quarto-html/quarto-syntax-highlighting-bf27225e3a48a9273f3daa8f8e829971.css" rel="stylesheet" class="quarto-color-scheme-extra" id="quarto-text-highlighting-styles">
 <script src="../site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="../site_libs/bootstrap/bootstrap-b4fe353c20efd084fc4a7e897873478f.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
-<link href="../site_libs/bootstrap/bootstrap-dark-8125d913983b18cf7b0a744c5d78f6d8.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
-<link href="../site_libs/bootstrap/bootstrap-b4fe353c20efd084fc4a7e897873478f.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
+<link href="../site_libs/bootstrap/bootstrap-fe9ab94330ff2cdc5105c70272dca3f0.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
+<link href="../site_libs/bootstrap/bootstrap-dark-bddab9ad0d549410cca6a651ad8ac0e7.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
+<link href="../site_libs/bootstrap/bootstrap-fe9ab94330ff2cdc5105c70272dca3f0.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
 <script id="quarto-search-options" type="application/json">{
   "location": "navbar",
   "copy-button": false,
@@ -707,7 +707,7 @@ E = E_{\text{press}} + E_{\text{shear}} + E_{\text{grav}} + E_{\text{uniq}},
 <section id="conventions-and-constants" class="level2">
 <h2 class="anchored" data-anchor-id="conventions-and-constants">Conventions and constants</h2>
 <ul>
-<li><strong>Densities:</strong> the benchmark density set is fixed once, <span class="math inline">\(\rho_{\text{ice}} = 931\)</span>, <span class="math inline">\(\rho_{\text{water}} = 1000\ \mathrm{kg\,m^{-3}}\)</span>; surface gravity <span class="math inline">\(g_0 = 9.815\ \mathrm{m\,s^{-2}}\)</span>. Mass — not volume — is conserved, applying <span class="math inline">\(\rho_{\text{ice}}/\rho_{\text{water}}\)</span> exactly once in each of the flotation criterion, the eustatic conversion, and the sea-level equation.</li>
+<li><strong>Densities:</strong> the benchmark density set is the default of the <code>rho_ice</code>, <code>rho_water</code> parameters (<code>&amp;vilma</code>; a host sets its own pair, used throughout), <span class="math inline">\(\rho_{\text{ice}} = 931\)</span>, <span class="math inline">\(\rho_{\text{water}} = 1000\ \mathrm{kg\,m^{-3}}\)</span>; surface gravity <span class="math inline">\(g_0 = 9.815\ \mathrm{m\,s^{-2}}\)</span>. Mass — not volume — is conserved, applying <span class="math inline">\(\rho_{\text{ice}}/\rho_{\text{water}}\)</span> exactly once in each of the flotation criterion, the eustatic conversion, and the sea-level equation.</li>
 <li><strong>Degree 1 is frame-dependent.</strong> The geocenter (degree-1) signal is physical and is <em>not</em> hard-coded. By default displacement and geoid are both expressed in the <strong>centre-of-mass (CM) frame</strong> <span class="citation" data-cites="Blewitt2003">(<a href="#ref-Blewitt2003" role="doc-biblioref">Blewitt 2003</a>)</span> (<code>deg1_frame = "cm"</code>). See <a href="../physics/sea-level.html">Sea-level equation</a> and <a href="../discretization/radial-fe.html">Radial finite elements</a>.</li>
 </ul>
 <div class="callout callout-style-default callout-tip callout-titled" title="Where this lives in the code">
