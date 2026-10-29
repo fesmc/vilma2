@@ -430,9 +430,9 @@ contains
       write(gname, '(a,i0,a,i0)') "gauss_", self%nphi, "x", self%ngauss
       write(vname, '(a,i0,a,i0)') "vilma_v1_", self%nlon, "x", self%nlat
       call grid_init(self%gauss, name=trim(gname), mtype="latlon", units="degrees", &
-                     lon180=.false., x=lon_g,    y=lat_g)
+                     planet="Spherical Earth", lon180=.false., x=lon_g,    y=lat_g)
       call grid_init(self%vgrid, name=trim(vname), mtype="latlon", units="degrees", &
-                     lon180=.true.,  x=self%lon, y=self%lat)
+                     planet="Spherical Earth", lon180=.true.,  x=self%lon, y=self%lat)
 
       call map_init(self%to_vilma_v1, self%gauss, self%vgrid, method="con",      gen="coords", fldr="maps")
       call map_init(self%to_gauss, self%vgrid, self%gauss, method="bilinear", &

@@ -9,8 +9,8 @@ program test_host_convergence
    !! Level A, prescribed sea level (analytic rsl): the water-budget integrals
    !!     Mi = ∫ΔI_g,   Mw = ∫C·rsl,   Mf = ∫fill
    !! and the L1 distance of C from the remapped host coastline, against the 0.5 deg truth, with
-   !! the host's cell areas as the map weights have them (coords', up to 0.9% from the exact
-   !! sphere at this resolution; the conservative remap preserves sum(f*area) in them). The
+   !! the exact sphere's cell areas (the host grid is spherical, planet="Spherical Earth", so
+   !! the map weights carry them to the corner-polygon error, 2e-5 at 0.5 deg). The
    !! own-path error falls with lmax, roughly as 1/lmax (the coast is a line, its cell-wise
    !! error is first order) but noisily, since a coarse cell flips between ocean and
    !! grounded; the host path stays at its floor, set by the host resolution and the product
@@ -75,7 +75,8 @@ contains
       dlon = 360.0_wp/NLON;  dlat = 180.0_wp/NLAT
       do i = 1, NLON;  xl(i) = -180.0_wp + (real(i,wp)-0.5_wp)*dlon;  end do
       do j = 1, NLAT;  yl(j) =  -90.0_wp + (real(j,wp)-0.5_wp)*dlat;  end do
-      call grid_init(hgrid, name="host05", mtype="latlon", units="degrees", lon180=.true., x=xl, y=yl)
+      call grid_init(hgrid, name="host05", mtype="latlon", units="degrees", planet="Spherical Earth", &
+                     lon180=.true., x=xl, y=yl)
       do j = 1, NLAT
          s0 = sin((yl(j) - 0.5_wp*dlat)*DEG);  s1 = sin((yl(j) + 0.5_wp*dlat)*DEG)
          do i = 1, NLON
@@ -84,10 +85,7 @@ contains
          end do
       end do
       write(*,'(a,es10.2)') ' host cell areas, coords vs exact sphere: max relative difference =', &
-           maxval(abs(hgrid%area/sum(hgrid%area)*4.0_wp*pi/area - 1.0_wp))
-      ! the host's areas are those of the map weights (coords): the conservative remap preserves
-      ! sum(f*area) in them, so the truth is formed with them (normalised to the sphere)
-      area = hgrid%area/sum(hgrid%area)*4.0_wp*pi
+           maxval(abs(hgrid%area/hgrid%cs%planet%R**2/area - 1.0_wp))
    end subroutine fine_grid
 
    subroutine geometry(t, l, bed, ice, rsl)
@@ -206,7 +204,7 @@ contains
       if (.not. (l1o(2) < l1o(1) .and. l1o(3) < l1o(2) .and. l1o(4) < l1o(3) .and. l1o(4) < 0.5_wp*l1o(1))) then
          write(*,'(a)') '   FAIL: the own coastline does not converge to the host one';  ok = .false.
       end if
-      if (.not. all(eh(1,:) < 1.0e-10_wp) .or. .not. all(eh(2,:) < 5.0e-4_wp) .or. .not. all(eh(3,:) < 5.0e-4_wp)) then
+      if (.not. all(eh(1,:) < 1.0e-4_wp) .or. .not. all(eh(2,:) < 5.0e-4_wp) .or. .not. all(eh(3,:) < 5.0e-4_wp)) then
          write(*,'(a)') '   FAIL: the host-path floor is too high';  ok = .false.
       end if
       if (.not. (maxval(eh(2,:)) < minval(eo(2,:)) .and. maxval(eh(3,:)) < minval(eo(3,:)))) then

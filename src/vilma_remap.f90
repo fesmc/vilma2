@@ -17,7 +17,9 @@ module vilma_remap
    !! which we tag with the grid dimensions so a resolution change invalidates the
    !! cache. The conservative weight build (polygon clipping) is the costly step; the
    !! cache lets a restart skip it. (Same-dimension/different-axes host grids would
-   !! collide on the name — clear `fldr` if the host grid changes at fixed resolution.)
+   !! collide on the name — clear `fldr` if the host grid changes at fixed resolution. The key
+   !! does not include the planet either: both grids are spherical (planet="Spherical Earth",
+   !! as the model), so a cache built before that was set (WGS84 areas) must be cleared.)
    !!
    !! Mass note: `coords` derives target cell boundaries from axis midpoints, so the
    !! Gauss-cell areas it uses are not exactly the SHTns Gauss quadrature weights. The
@@ -88,9 +90,9 @@ contains
       write(ll_name,    '(a,i0,a,i0)') "ll_",    self%nlon, "x", self%nlat_ll
       write(gauss_name, '(a,i0,a,i0)') "gauss_", self%nphi, "x", self%nlat
       call grid_init(self%ll,    name=trim(ll_name),    mtype="latlon", units="degrees", &
-                     lon180=.true.,  x=lon_src, y=lat_src)
+                     planet="Spherical Earth", lon180=.true.,  x=lon_src, y=lat_src)
       call grid_init(self%gauss, name=trim(gauss_name), mtype="latlon", units="degrees", &
-                     lon180=.false., x=lon_t,   y=lat_t)
+                     planet="Spherical Earth", lon180=.false., x=lon_t,   y=lat_t)
 
       ! in-package weights (gen="coords"), auto-cached under fldr and reloaded if present
       call map_init(self%to_gauss, self%ll, self%gauss, method="con", gen="coords", fldr=cache)

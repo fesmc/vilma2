@@ -152,7 +152,8 @@ contains
       integer :: i, j
       do i = 1, NLON;  lon(i) = -180.0_wp + (real(i,wp)-0.5_wp)*(360.0_wp/NLON);  end do
       do j = 1, NLAT;  lat(j) =  -90.0_wp + (real(j,wp)-0.5_wp)*(180.0_wp/NLAT);  end do
-      call grid_init(hgrid, name="host", mtype="latlon", units="degrees", lon180=.true., x=lon, y=lat)
+      call grid_init(hgrid, name="host", mtype="latlon", units="degrees", planet="Spherical Earth", &
+                     lon180=.true., x=lon, y=lat)
    end subroutine build_host_grid
 
 end program test_dz_split

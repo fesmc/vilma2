@@ -305,7 +305,8 @@ contains
             tl(i,j) = 90.0_wp - yl(j);  ll(i,j) = modulo(xl(i), 360.0_wp)
          end do
       end do
-      call grid_init(hgrid, name="host", mtype="latlon", units="degrees", lon180=.true., x=xl, y=yl)
+      call grid_init(hgrid, name="host", mtype="latlon", units="degrees", planet="Spherical Earth", &
+                     lon180=.true., x=xl, y=yl)
       allocate(z_eq(NLON,NLAT), h_eq(NLON,NLAT), h1(NLON,NLAT), w1(NLON,NLAT), I1(NLON,NLAT), C1(NLON,NLAT), &
                F1(NLON,NLAT), I0(NLON,NLAT), C0(NLON,NLAT), Cr(NLON,NLAT), Z0(NLON,NLAT))
       call scene(tl, ll, z_eq, h1, w1, I1, C1, F1, I0, C0, Cr, 0)
