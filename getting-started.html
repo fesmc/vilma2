@@ -61,7 +61,26 @@ div.sourceCode
 @media screen {
 pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
 }
-</style>
+/* CSS for citations */
+div.csl-bib-body { }
+div.csl-entry {
+  clear: both;
+}
+.hanging-indent div.csl-entry {
+  margin-left:2em;
+  text-indent:-2em;
+}
+div.csl-left-margin {
+  min-width:2em;
+  float:left;
+}
+div.csl-right-inline {
+  margin-left:2em;
+  padding-left:1em;
+}
+div.csl-indent {
+  margin-left: 2em;
+}</style>
 
 
 <script src="site_libs/quarto-nav/quarto-nav.js"></script>
@@ -696,7 +715,7 @@ window.Quarto = {
 <li><strong>Memory scheme</strong> is chosen by <code>scheme</code>: <code>"fe"</code> (explicit, default) or <code>"trap"</code> (2nd-order, adaptive); see <a href="./physics/rheology.html#memory-time-schemes">Rheology</a>.</li>
 <li><strong>Degree-1 frame</strong> is chosen by <code>deg1_frame</code>: <code>"cm"</code> (default) or <code>"cf"</code>; see <a href="./physics/sea-level.html#reference-frame-and-degree-1">Sea-level equation</a>.</li>
 <li><strong>Reference state / spin-up</strong> is controlled by <code>i_eq</code> (<code>&amp;ctl</code>), <code>equil_time_max</code>, <code>equil_rate_tol</code> (LGM-memory spin-up cap, relaxing to bed-stationary equilibrium), <code>pre_spinup_1d</code> (run a cheap 1-D pre-equilibration first), and <code>restart_in_file</code> (<code>&amp;ctl</code>; resume full state, interpolated up if lower-resolution).</li>
-<li><strong>3-D viscosity</strong> is enabled with <code>l_visc_3d = .true.</code> and a lateral <code>log10(eta)</code> field (<code>visc_3d_file</code>); <code>visc3d_tol</code> sets which elements are treated as genuinely 3-D. With <code>visc_3d_structure = n</code> (n &gt;= 1) the file is the FesmData product <code>Bagge2021_visc.nc</code> (<code>log10_visc</code> on <code>lon</code>, <code>lat</code>, <code>depth</code>, <code>structure</code>) and structure <code>n</code> is read; 6 is <code>v_1.0_s16</code>, the field of <code>input/bagge2021.nc</code>.</li>
+<li><strong>3-D viscosity</strong> is enabled with <code>l_visc_3d = .true.</code> and a lateral <code>log10(eta)</code> field (<code>visc_3d_file</code>); <code>visc3d_tol</code> sets which elements are treated as genuinely 3-D. With <code>visc_3d_structure = n</code> (n &gt;= 1) the file is in the FesmData layout (<code>log10_visc</code> on <code>lon</code>, <code>lat</code>, <code>depth</code>, <code>structure</code>) and structure <code>n</code> is read. The default is the FesmData product <code>fesmdata/Global/GLOBAL-T170/GLOBAL-T170_SolidEarth-Bagge2021.nc</code> (<span class="citation" data-cites="Bagge2021">Bagge et al. (<a href="#ref-Bagge2021" role="doc-biblioref">2021</a>)</span>; structure 6, <code>v_1.0_s16</code>); the path is relative to the run folder, which needs a <code>fesmdata</code> link to the FesmData store (on Levante <code>/work/ba1442/fesmdata</code>). The model does not ship a viscosity file.</li>
 <li><strong>Rotational feedback</strong> (<code>rotation</code>) is <strong>on by default</strong> for real-Earth runs; set <code>rotation = .false.</code> for the non-rotating community benchmarks. The secular Love number in the Liouville equation defaults to the model’s own fluid limit; <code>rotation_k_s</code> (&gt; 0) prescribes it and <code>rotation_c_minus_a</code> sets C − A (default 2.63e35 kg m²).</li>
 <li><strong>Backend</strong> is chosen by <code>solver</code>: <code>"v2"</code> (this model, default) or <code>"v1"</code>, the VILMA1 library behind the same driver, forcing and output for like-for-like comparison (requires a build with <code>vilma_v1=1</code>).</li>
 </ul>
@@ -762,9 +781,14 @@ window.Quarto = {
 <p><code>grid</code> (a coords lon-lat grid) is optional: omit it when the fields are already on the model’s Gauss grid. The full prognostic state (the Maxwell memory, the integrator state, and the model clock) is persisted on restart, so a coupled run resumes bit-for-bit; the host-grid outputs are re-derived on read.</p>
 
 
+
 </section>
 
-<a onclick="window.scrollTo(0, 0); return false;" role="button" id="quarto-back-to-top"><i class="bi bi-arrow-up"></i> Back to top</a></main> <!-- /main -->
+<a onclick="window.scrollTo(0, 0); return false;" role="button" id="quarto-back-to-top"><i class="bi bi-arrow-up"></i> Back to top</a><div id="quarto-appendix" class="default"><section class="quarto-appendix-contents" role="doc-bibliography" id="quarto-bibliography"><h2 class="anchored quarto-appendix-heading">References</h2><div id="refs" class="references csl-bib-body hanging-indent" role="list">
+<div id="ref-Bagge2021" class="csl-entry" role="listitem">
+Bagge, M., V. Klemann, B. Steinberger, M. Latinović, and M. Thomas. 2021. <span>“Glacial-Isostatic Adjustment Models Using Geodynamically Constrained <span>3D</span> Earth Structures.”</span> <em>Geochemistry, Geophysics, Geosystems</em> 22 (11): e2021GC009853. <a href="https://doi.org/10.1029/2021GC009853">https://doi.org/10.1029/2021GC009853</a>.
+</div>
+</div></section></div></main> <!-- /main -->
 <script id="quarto-html-after-body" type="application/javascript">
   window.document.addEventListener("DOMContentLoaded", function (event) {
     // Ensure there is a toggle, if there isn't float one in the top right
