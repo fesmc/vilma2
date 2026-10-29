@@ -9,7 +9,10 @@ The prognostic state restored on restart depends on the response kind: the
 Maxwell memory-stress fields `tau_*` (+ `sigma_n_*`) for `RESP_VE`, plus the
 adaptive controller's next-step Δt
 seed `dt_try` for both. The reference fields `z_bed_eq`/`h_ice_eq` are static
-(written once) and checked on read; the rest are diagnostic.
+(written once) and checked on read, and so are the host reference terms
+`w_ref`, `I_g_ref`, `C_host_ref` of a run with host-resolved terms; the host terms
+of the last update (`w_prev`, `I_g_prev`, `C_prev`, `F_prev`: the next ramp start)
+are prognostic; the rest are diagnostic.
 
 | id | variable     | dimensions    | units  | long_name                                        |
 |----|--------------|---------------|--------|--------------------------------------------------|
@@ -42,3 +45,10 @@ seed `dt_try` for both. The reference fields `z_bed_eq`/`h_ice_eq` are static
 | 27 | u_north_tor  | lon, lat      | m      | Surface horizontal displacement, north (toroidal)|
 | 28 | dphi         | time          | m      | Uniform sea-surface shift (part of dz_ss)        |
 | 29 | bsl_ive      | time          | m      | Ice-volume equivalent of the grounded-ice change |
+| 30 | w_ref        | lon, lat      | 1      | Host reference: fraction of the cell in host regions |
+| 31 | I_g_ref      | lon, lat      | m      | Host reference: w H f_g, grounded-ice column     |
+| 32 | C_host_ref   | lon, lat      | 1      | Host reference: w (1 - f_g), ocean fraction      |
+| 33 | w_prev       | lon, lat      | 1      | Host terms of the last update: w (ramp start)    |
+| 34 | I_g_prev     | lon, lat      | m      | Host terms of the last update: I_g (ramp start)  |
+| 35 | C_prev       | lon, lat      | 1      | Host terms of the last update: C (ramp start)    |
+| 36 | F_prev       | lon, lat      | m      | Host terms of the last update: F (ramp start)    |
