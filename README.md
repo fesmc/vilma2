@@ -42,8 +42,10 @@ Spada test 3/2 (rotation). Cross-code validation of the 3D path is ongoing.
 ## Install
 
 Dependencies are [fesm-utils](https://github.com/fesm-org/fesm-utils) (branch
-`coords-dev`, providing FFTW, SHTns, the `fesmutils` helper and the `coords`
-module) plus a system netCDF. **configme** clones/links the dependencies and
+`dev`, providing FFTW, SHTns, the `fesmutils` helper and the `coords`
+module; the `phase0-kryos` branch that kryos uses contains it) plus a system
+netCDF. Build FFTW and SHTns in fesm-utils first (`make shtns openmp=0|1`,
+and `make fesmutils-static openmp=0|1`). **configme** clones/links the dependencies and
 generates the machine/compiler Makefile:
 
 ```bash
@@ -59,10 +61,29 @@ make vilma        # -> bin/vilma.x        (standalone forced-run driver)
 make vilma_mkref  # -> bin/vilma_mkref.x  (build a Gauss-grid reference)
 make vilma_remap  # -> bin/vilma_remap.x  (offline lon-lat -> Gauss remap)
 make check            # build + run the test suite
+make vilma-static # -> libvilma/include/libvilma.a and the .mod files
 ```
 
 `make` switches: `debug=0|1|2`, `openmp=0|1` (default 1; build `openmp=1` for the
 threaded degree loop at production resolutions).
+
+### As a library
+
+`make vilma-static` writes the objects, the `.mod` files and `libvilma.a` to
+`libvilma/include/` (as yelmo and chion). The archive is a file target: its
+time changes only when an object does, so a host can depend on it. `openmp=0`
+and `openmp=1` share the directory; a stamp (`.openmp0|1`) rebuilds all objects
+when the setting changes, and the host must use the same setting as the
+fesm-utils variant it links (`include-serial` or `include-omp`). A host
+compiles with `-I<vilma>/libvilma/include` and links, in this order,
+
+```
+-L<vilma>/libvilma/include -lvilma  -L<fesm-utils>/include-omp -lfesmutils
+-L<fesm-utils>/SHTns/shtns-omp/lib -lshtns_omp
+-L<fesm-utils>/fftw/fftw-omp/lib -lfftw3_omp -lfftw3 -lm   <netCDF>
+```
+
+(`-serial`, `-lshtns`, `-lfftw3` for `openmp=0`).
 
 ## Configure & run
 
@@ -86,7 +107,9 @@ converted to SI seconds on load.
 - **Degree-1 frame** — `deg1_frame = "cm"` (default, geocenter motion kept) or
   `"cf"` (Spada disc-benchmark convention).
 - **3D viscosity** — `l_visc_3d`, `visc_3d_file`, `visc3d_tol`; `l_toroidal`
-  carries the toroidal flow (off by default).
+  carries the toroidal flow (off by default). `visc_3d_structure = n` reads
+  structure `n` of the FesmData `Bagge2021_visc.nc` instead of a lon-lat-r
+  field (6 = `v_1.0_s16`).
 - **Spin-up / restart** — `equil_time_max`, `pre_spinup_1d`, and
   `restart_in_file` (`&ctl`).
 - **Rotation** — `rotation` (TPW feedback): on by default; `.false.` for the

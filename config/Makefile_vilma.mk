@@ -75,6 +75,17 @@ $(objdir)/vilma.o:                  $(objdir)/vilma_coupling.o $(objdir)/vilma_i
                                     $(objdir)/vilma_drive.o $(objdir)/vilma_params.o \
                                     $(objdir)/vilma_control.o
 
+# --- OpenMP stamp ------------------------------------------------------------
+# The OpenMP setting the objects in $(objdir) were compiled with. A missing stamp
+# (first build, or openmp switched) is created newer than every object, so all of
+# them are rebuilt with the current flags; the other setting's stamp is removed so
+# that switching back rebuilds again.
+ompstamp = $(objdir)/.openmp$(openmp)
+
+$(ompstamp): | $(objdir)
+	rm -f $(objdir)/.openmp*
+	touch $@
+
 # --- Pattern rule ------------------------------------------------------------
 # Every object depends on FESMUTILS_LIB (libfesmutils.a): fesm-utils modules
 # (coords/ncio/nml) are used across VILMA2, and a rebuilt fesm-utils with a
@@ -82,8 +93,15 @@ $(objdir)/vilma.o:                  $(objdir)/vilma_coupling.o $(objdir)/vilma_i
 # silently relinking a stale object (ABI mismatch -> segfault, the i_geo=3 coords
 # crash). Blanket dep keeps this correct without tracking which objects use which
 # fesm-utils module. FESMUTILS_LIB (config/common.mk) is required by every build.
-$(objdir)/%.o: $(srcdir)/%.f90 $(FESMUTILS_LIB) | $(objdir)
+$(objdir)/%.o: $(srcdir)/%.f90 $(FESMUTILS_LIB) $(ompstamp) | $(objdir)
 	$(FC) $(DFLAGS) $(CPPFLAGS) $(FFLAGS) -c $< -o $@
+
+# Without a rule for it, a missing archive makes make skip the pattern rule and
+# treat existing objects as up to date, so a stale build passes silently.
+$(FESMUTILS_LIB):
+	@echo "VILMA2: $@ is missing; build fesm-utils first:"
+	@echo "    make -C $(FESMUTILSROOT) fesmutils-static openmp=$(openmp)"
+	@exit 1
 
 $(objdir):
 	mkdir -p $(objdir)
@@ -92,8 +110,16 @@ $(bindir):
 	mkdir -p $(bindir)
 
 # --- Library -----------------------------------------------------------------
-vilma-static: $(obj_vilma)
-	ar rcs $(objdir)/libvilma.a $(obj_vilma)
+# The archive is a file target, so its mtime only changes when an object does
+# (hosts such as kryos depend on it to rebuild their own objects after a type
+# change). It is written from scratch: `ar` only adds and replaces members, so an
+# object that has left the list would otherwise stay in it.
+vilma-static: $(objdir)/libvilma.a
+
+$(objdir)/libvilma.a: $(obj_vilma)
+	rm -f $@
+	ar rc $@ $(obj_vilma)
+	ranlib $@
 	@echo ""
 	@echo "    $(objdir)/libvilma.a is ready."
 	@echo ""
@@ -258,6 +284,13 @@ test_visc_load: vilma-static | $(bindir)
 		-o $(bindir)/test_visc_load.x $(objdir)/libvilma.a $(LFLAGS)
 	@echo "    $(bindir)/test_visc_load.x is ready."
 
+# FesmData Bagge2021_visc.nc against the isostasy_data file (needs both files,
+# which are not in the repo; not in `make check`): see the header of the test.
+test_visc_fesmdata: vilma-static | $(bindir)
+	$(FC) $(DFLAGS) $(CPPFLAGS) $(FFLAGS) $(testdir)/test_visc_fesmdata.f90 \
+		-o $(bindir)/test_visc_fesmdata.x $(objdir)/libvilma.a $(LFLAGS)
+	@echo "    $(bindir)/test_visc_fesmdata.x is ready."
+
 test_rotinv: vilma-static | $(bindir)
 	$(FC) $(DFLAGS) $(CPPFLAGS) $(FFLAGS) $(testdir)/test_rotinv.f90 \
 		-o $(bindir)/test_rotinv.x $(objdir)/libvilma.a $(LFLAGS)
@@ -417,7 +450,7 @@ usage:
 	@echo ""
 	@echo "    * VILMA2 build *"
 	@echo ""
-	@echo " make vilma-static : build libvilma.a"
+	@echo " make vilma-static : build $(objdir)/libvilma.a and the .mod files"
 	@echo " make vilma        : build the standalone driver (bin/vilma.x)"
 	@echo " make check            : build + run the test suite"
 	@echo " make openmp=1 check-slow : build + run the slow full-res benchmarks"
@@ -445,6 +478,6 @@ showconfig:
 	@echo "LFLAGS    : $(LFLAGS)"
 
 clean:
-	rm -f $(objdir)/*.o $(objdir)/*.mod $(objdir)/*.a
+	rm -f $(objdir)/*.o $(objdir)/*.mod $(objdir)/*.a $(objdir)/.openmp*
 	rm -f $(bindir)/*.x
 	rm -rf $(bindir)/*.dSYM

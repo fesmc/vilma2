@@ -138,6 +138,9 @@ module vilma_params
       character(len=8) :: deg1_frame = "cm"   !! "cm" | "cf"
       logical  :: l_visc_3d   = .false.   !! load a lateral log10(eta) field
       character(len=512) :: visc_3d_file  = ""       !! lon-lat-r log10(eta) field
+      integer  :: visc_3d_structure = 0     !! 0: visc_3d_file is a lon-lat-r field (name_visc*);
+         !! >= 1: it is the FesmData Bagge2021_visc.nc product (log10_visc on lon, lat, depth,
+         !! structure; name_visc* ignored) and this is the structure to read (6 = v_1.0_s16)
       character(len=64)  :: name_visc     = "eta"    !! viscosity var (log10 Pa s)
       character(len=64)  :: name_visc_lon = "lon"
       character(len=64)  :: name_visc_lat = "lat"
@@ -303,6 +306,7 @@ contains
          error stop 'vilma_params: deg1_frame must be "cf" or "cm"'
       call nml_read(filename, g, "l_visc_3d",      p%l_visc_3d,      defaults_file=df)
       call nml_read(filename, g, "visc_3d_file",   p%visc_3d_file,   defaults_file=df)
+      call nml_read(filename, g, "visc_3d_structure", p%visc_3d_structure, defaults_file=df)
       p%visc_3d_file = expand_path(p%visc_3d_file)
       call nml_read(filename, g, "visc3d_tol",     p%visc3d_tol,     defaults_file=df)
       call nml_read(filename, g, "visc3d_lid_depth",    p%visc3d_lid_depth,    defaults_file=df)
@@ -396,6 +400,8 @@ contains
            '  equil_rate_tol=', p%equil_rate_tol, '  pre_spinup_1d=', p%pre_spinup_1d
       if (p%l_visc_3d) then
          write(u,'(a,a)')   '   visc_3d: ', trim(p%visc_3d_file)
+         if (p%visc_3d_structure > 0) &
+            write(u,'(a,i0,a)') '            structure ', p%visc_3d_structure, ' (FesmData form)'
          write(u,'(a,f6.2,a,f6.2,a,f5.2,a,f5.2,a)') &
               '            f_visc_sd=', p%f_visc_sd, '  f_visc_rel=', p%f_visc_rel, &
               '  clamp=[', p%visc_log10_min, ',', p%visc_log10_max, ']'

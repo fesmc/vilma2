@@ -131,6 +131,9 @@
     ! Default 3-D field: Bagge et al. (2021), floored at log10 eta = 19.5 (visc_log10_min
     ! below). Preferred over Pan 2022, whose raw min (~13.7 dex) is unphysical and ~6x slower.
     visc_3d_file   = "input/bagge2021.nc"  ! vendored from isostasy_data; paths may use ~/ or $HOME/
+    visc_3d_structure = 0    ! 0: lon-lat-r field, variable names below; >= 1: visc_3d_file is the FesmData
+                             ! Bagge2021_visc.nc (log10_visc on lon, lat, depth, structure; names below
+                             ! ignored) and this is the structure to read (6 = v_1.0_s16, as input/bagge2021.nc)
     name_visc      = "eta"   ! viscosity var (log10 Pa s)
     name_visc_lon  = "lon"
     name_visc_lat  = "lat"

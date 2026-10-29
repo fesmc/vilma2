@@ -328,7 +328,7 @@ displacement `u`.
    (identical engine). Reference / equilibration via `i_eq` (0: declare start slice as
    relaxed; 1: ice-free + paleotopo spin-up to LGM equilibrium under `dt_equil`).
    Validated on CLIMBER-X `geo_ice_tarasov_deglac.nc` (−26 ka→0). Depends on the
-   fesm-utils `coords-dev` branch (`coords` module). See §13.
+   fesm-utils `dev` branch (`coords` module). See §13.
 
 **Rung 6 (3D laterally-varying viscosity) — 6a/6b/6c DONE (§12).** Tensor-correct
 pseudo-spectral memory advance (`vilma_tensor_sh`, general order `mmax≥0`), validated
@@ -529,8 +529,8 @@ weights), so `apply(conserve_mass=.true.)` rescales a mass-bearing field (ice) b
 global factor so its SHTns quadrature integral equals the source area-integral exactly
 (the whole sphere is 4π sr — no planet radius needed). Geometry (bed) is remapped as-is.
 `test_remap`: constant preserved ~3e-15, latitude orientation, zonal accuracy, mass
-exact. **Depends on the fesm-utils `coords-dev` branch** (the `coords` module); point
-the `fesm-utils` symlink at a `coords-dev` checkout and build its utils lib.
+exact. **Depends on the fesm-utils `dev` branch** (the `coords` module); point
+the `fesm-utils` symlink at a `dev` checkout and build its utils lib.
 
 **Driver (`vilma_drive`).** General forced-transient loop, fields read per
 (file, var, time-index) so experiments mix and match. `remap_input=.true.` (default)

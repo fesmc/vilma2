@@ -9,8 +9,9 @@
 #     ln -s ../fesm-utils fesm-utils
 #
 # vilma_remap (conservative lon-lat -> Gauss remapping for the standalone driver) uses
-# the `coords` module, which lives on the fesm-utils `coords-dev` branch. Point the
-# symlink at a checkout on that branch and build its utils library:
+# the `coords` module, which is in the fesm-utils `dev` branch (and so in `phase0-kryos`,
+# the one kryos uses). Point the symlink at a checkout on one of them and build its
+# utils library:
 #     (in the fesm-utils checkout)  configme config && make fesmutils-static
 #
 # SHTns (spherical-harmonic transforms) is built into fesm-utils with:
