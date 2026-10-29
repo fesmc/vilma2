@@ -72,6 +72,16 @@ program test_remap
       write(*,*) 'FAIL: mass not conserved with conserve_mass'; ok = .false.
    end if
 
+   ! (3b) with Gauss edges from the Gauss weights the cell areas are the SHTns quadrature
+   !      weights, so the plain remap already preserves the integral: the conserve_mass
+   !      factor is 1 to round-off.
+   call remap_to_gauss(rmap, sht, fsrc, fdst)
+   idst = sht_grid_surface_integral(sht, fdst)/(16.0_wp*atan(1.0_wp))
+   write(*,'(a,es10.2)') '   unscaled remap integral vs source, rel = ', abs(isrc-idst)/abs(isrc)
+   if (abs(isrc-idst) > 1.0e-10_wp*abs(isrc)) then
+      write(*,*) 'FAIL: plain remap does not preserve the integral'; ok = .false.
+   end if
+
    ! (4) reverse leg: bilinear Gauss -> host lon-lat reproduces a smooth zonal field
    block
       real(wp), allocatable :: gsrc(:,:), fll(:,:)

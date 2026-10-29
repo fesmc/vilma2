@@ -21,17 +21,16 @@ module vilma_remap
    !! does not include the planet either: both grids are spherical (planet="Spherical Earth",
    !! as the model), so a cache built before that was set (WGS84 areas) must be cleared.)
    !!
-   !! Mass note: `coords` derives target cell boundaries from axis midpoints, so the
-   !! Gauss-cell areas it uses are not exactly the SHTns Gauss quadrature weights. The
-   !! conservative map is conservative w.r.t. its own areas, but when SHTns re-integrates
-   !! the remapped field its quadrature total differs by O(1/nlat^2). For a mass-bearing
-   !! field (ice) pass conserve_mass=.true.: a single global factor rescales the result
-   !! so its SHTns surface integral equals the source area-integral exactly (the whole
-   !! sphere is 4*pi sr, used to convert the conserved coords-area total to steradians
-   !! without needing the planet radius). Geometry fields (bed) are remapped as-is.
+   !! Mass note: the Gauss target is built with coords' grid_init_gaussian, whose cell edges
+   !! come from the Gauss weights, so its cell areas are the SHTns quadrature weights
+   !! (R^2 dlon w_j) and the conservative map preserves the integral SHTns takes of the
+   !! remapped field to round-off. conserve_mass=.true. then rescales by a factor of 1
+   !! (to ~1e-16, tests/test_remap); it is kept as a safeguard for mass-bearing fields
+   !! (ice) and converts the conserved coords-area total to steradians (4*pi over the
+   !! total area of the full-sphere source grid). Geometry fields (bed) are remapped as-is.
    use vilma_precision, only: wp
    use vilma_sht,       only: sht_grid, sht_grid_surface_integral
-   use coords,       only: grid_class, grid_init, map_class, map_init, map_field
+   use coords,       only: grid_class, grid_init, grid_init_gaussian, map_class, map_init, map_field
    implicit none
    private
 
@@ -66,7 +65,6 @@ contains
       real(wp),             intent(in)  :: lon_src(:)   !! source longitudes [deg]
       real(wp),             intent(in)  :: lat_src(:)   !! source latitudes  [deg]
       character(len=*), optional, intent(in) :: fldr    !! weight-cache dir (default "maps")
-      real(wp), allocatable :: lon_t(:), lat_t(:)
       character(len=:), allocatable :: cache
       character(len=64) :: ll_name, gauss_name
       integer :: j
@@ -76,23 +74,27 @@ contains
       cache = "maps";  if (present(fldr)) cache = trim(fldr)
       call execute_command_line("mkdir -p '"//cache//"'")
 
-      allocate(lon_t(self%nphi), lat_t(self%nlat))
-      do j = 1, self%nphi
-         lon_t(j) = sht%lon(j)*RAD2DEG                  ! SHTns longitudes [0,360)
-      end do
-      do j = 1, self%nlat
-         ! SHTns colat is ascending (north -> south), so lat descends; reverse it so
-         ! the target axis is ascending (south -> north), as coords expects.
-         lat_t(j) = 90.0_wp - sht%colat(self%nlat - j + 1)*RAD2DEG
-      end do
+      if (sht%mres /= 1) error stop 'vilma_remap: the Gauss target is global (needs mres = 1)'
 
       ! tag grid names with their dimensions so the weight cache is resolution-specific
       write(ll_name,    '(a,i0,a,i0)') "ll_",    self%nlon, "x", self%nlat_ll
       write(gauss_name, '(a,i0,a,i0)') "gauss_", self%nphi, "x", self%nlat
-      call grid_init(self%ll,    name=trim(ll_name),    mtype="latlon", units="degrees", &
-                     planet="Spherical Earth", lon180=.true.,  x=lon_src, y=lat_src)
-      call grid_init(self%gauss, name=trim(gauss_name), mtype="latlon", units="degrees", &
-                     planet="Spherical Earth", lon180=.false., x=lon_t,   y=lat_t)
+      call grid_init(self%ll, name=trim(ll_name), mtype="latlon", units="degrees", &
+                     planet="Spherical Earth", lon180=.true., x=lon_src, y=lat_src)
+      ! Gauss target with edges from the Gauss weights, so its cell areas are the SHTns
+      ! quadrature weights (R^2 dlon w_j); lat ascending (south first), as coords expects.
+      call grid_init_gaussian(self%gauss, trim(gauss_name), nlon=self%nphi, nlat=self%nlat, &
+                              planet="Spherical Earth", lon180=.false.)
+      ! the axes must be those of the SHTns grid (the apply routines flip rows only)
+      do j = 1, self%nphi
+         if (abs(self%gauss%G%x(j) - sht%lon(j)*RAD2DEG) > 1.0e-8_wp) &
+            error stop 'vilma_remap: coords Gauss longitudes differ from the SHTns grid'
+      end do
+      do j = 1, self%nlat
+         ! SHTns colat runs north -> south, so lat descends; coords' axis is ascending.
+         if (abs(self%gauss%G%y(j) - (90.0_wp - sht%colat(self%nlat - j + 1)*RAD2DEG)) > 1.0e-8_wp) &
+            error stop 'vilma_remap: coords Gauss latitudes differ from the SHTns grid'
+      end do
 
       ! in-package weights (gen="coords"), auto-cached under fldr and reloaded if present
       call map_init(self%to_gauss, self%ll, self%gauss, method="con", gen="coords", fldr=cache)
