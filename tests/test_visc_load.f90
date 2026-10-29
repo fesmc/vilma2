@@ -113,7 +113,7 @@ contains
       !! deliberately ascending (see the lat loop above), which is the one case
       !! locate_clamped happens to handle. A descending axis makes its first guard
       !! fire for nearly every target, collapsing the field onto one parallel —
-      !! which is what input/bagge2021.nc, stored north-to-south, did in every 3-D
+      !! which is what the Bagge file, stored north-to-south, did in every 3-D
       !! run until this was fixed.
       real(wp), allocatable :: lon_s(:), lat_s(:), r_s(:), eta_s(:,:,:), vn(:,:)
       real(wp) :: lon_t, lat_t, expect, err, maxerr

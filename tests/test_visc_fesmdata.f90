@@ -1,15 +1,18 @@
 program test_visc_fesmdata
-   !! The FesmData Bagge2021_visc.nc product against the isostasy_data file that
-   !! CLIMBER-X reads today (input/vilma2/visc3d_Bagge2021.nc = isostasy_data
-   !! earth_structure/viscosity/bagge2021.nc): structure 6 (v_1.0_s16) of the
-   !! product must give the same log10(eta) on the model grid as that file.
+   !! The FesmData Bagge2021 product (the default visc_3d_file,
+   !! fesmdata/Global/GLOBAL-T170/GLOBAL-T170_SolidEarth-Bagge2021.nc) against the
+   !! isostasy_data file (earth_structure/viscosity/bagge2021.nc): structure 6
+   !! (v_1.0_s16) of the product must give the same log10(eta) on the model grid as
+   !! that file, to within the rounding of the product (TOL).
    !!
    !! Both files are read by vilma_read_visc_3d, onto the lmax = 170 Gauss grid at the
    !! radii of the reference file plus a few off-layer radii. Needs the two data
-   !! files, which are not in the repository, so it is NOT in `make check`:
+   !! files, which are not in the repository, so it is NOT in `make check`; run it by
+   !! hand where the data exist:
    !!
    !!   make test_visc_fesmdata
-   !!   bin/test_visc_fesmdata.x <Bagge2021_visc.nc> <bagge2021.nc> [structure=6]
+   !!   bin/test_visc_fesmdata.x fesmdata/Global/GLOBAL-T170/GLOBAL-T170_SolidEarth-Bagge2021.nc \
+   !!        <isostasy_data>/earth_structure/viscosity/bagge2021.nc [structure=6]
    use vilma_precision,       only: wp
    use vilma_earth_structure, only: vilma_read_visc_3d
    use vilma_sht,             only: sht_grid, sht_grid_init
@@ -17,7 +20,7 @@ program test_visc_fesmdata
    implicit none
 
    integer,  parameter :: LMAX = 170
-   real(wp), parameter :: TOL = 1.0e-6_wp          !! [dex]
+   real(wp), parameter :: TOL = 2.0e-2_wp          !! [dex]: the product is rounded (~4e-3 dex)
    character(len=512) :: f_fesm, f_ref, arg
    integer            :: structure, nr_ref, nr, k, i
    real(wp), allocatable :: r_ref(:), r_node(:)
@@ -26,7 +29,7 @@ program test_visc_fesmdata
    real(wp) :: maxdiff, vmin, vmax
 
    if (command_argument_count() < 2) then
-      write(*,'(a)') ' usage: test_visc_fesmdata.x <Bagge2021_visc.nc> <bagge2021.nc> [structure]'
+      write(*,'(a)') ' usage: test_visc_fesmdata.x <GLOBAL-T170_SolidEarth-Bagge2021.nc> <isostasy_data bagge2021.nc> [structure]'
       error stop 'test_visc_fesmdata: files not given'
    end if
    call get_command_argument(1, f_fesm)

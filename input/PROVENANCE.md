@@ -81,15 +81,16 @@ the window (e.g. `--t0 -21000` for the 21 ka LGM-snapshot convention) and
 sha256  ed4c141605d914140648d116f61fa6e8b7351105037af193a7556fc46e7de72f
 ```
 
-## `bagge2021.nc`, `pan2022.nc`
+## `pan2022.nc`
 
-Laterally varying (3-D) mantle viscosity fields, `log10(eta)`. These predate
-this file and their upstream provenance is not recorded here — it should be
-filled in by whoever staged them.
+Laterally varying (3-D) mantle viscosity field, `log10(eta)`. Its upstream
+provenance is not recorded here — it should be filled in by whoever staged it.
 
-`bagge2021.nc` stores latitude NORTH-first (descending). That is legitimate —
-`vilma_read_visc_3d` normalises either orientation to ascending on read — but note
-it when comparing against a backend that reads the file itself.
+The default 3-D viscosity (Bagge et al. 2021) is not vendored: it is read from
+the FesmData product `Global/GLOBAL-T170/GLOBAL-T170_SolidEarth-Bagge2021.nc`
+(structure 6, `v_1.0_s16`) through a `fesmdata` link in the run folder. The
+vendored `bagge2021.nc` was removed; it differed from that product by about
+4e-3 dex.
 
 `pan2022.nc` has been edited since staging: longitude index 360 duplicated
 index 359 (both 0.0 deg, with a bit-identical `eta` column), which left the

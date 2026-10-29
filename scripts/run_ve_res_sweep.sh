@@ -20,7 +20,7 @@
 # Override any setting from the environment, e.g.
 #   LMAX_LIST="64 128" ./scripts/run_ve_res_sweep.sh            # fewer resolutions
 #   CFL_PROBE="0.5 1.5" ./scripts/run_ve_res_sweep.sh           # extra cfl points at the ref
-#   FORCING=/work/ice.nc VISC3D=/work/bagge.nc RUNME_FLAGS="-s -r" ./scripts/run_ve_res_sweep.sh
+#   FORCING=/work/ice.nc VISC3D=/work/visc_fesmdata.nc RUNME_FLAGS="-s -r" ./scripts/run_ve_res_sweep.sh
 #   RUNME_FLAGS="-rs -q 12h -w 06:00:00" ./scripts/run_ve_res_sweep.sh
 #
 set -euo pipefail
@@ -30,9 +30,9 @@ cd "$(dirname "$0")/.."                      # repo root (where .runme/ lives)
 # MACHINE-SPECIFIC paths — EDIT THESE for the target cluster (absolute paths).
 # ============================================================================
 CLIMBER_ROOT=/albedo/work/projects/p_forclima/robinson/models/climber-x
-ISOSTASY_DATA=/albedo/work/projects/p_forclima/isostasy_data
+FESMDATA=${FESMDATA:-$PWD/fesmdata}                                         # FesmData store (or a link to it)
 FORCING=${FORCING:-${CLIMBER_ROOT}/input/geo_ice_tarasov_deglac.nc}         # ice_thickness(lon,lat,time)
-VISC3D=${VISC3D:-${ISOSTASY_DATA}/earth_structure/viscosity/bagge2021.nc}   # log10(eta)(lon,lat,r)
+VISC3D=${VISC3D:-${FESMDATA}/Global/GLOBAL-T170/GLOBAL-T170_SolidEarth-Bagge2021.nc}   # FesmData layout, structure 6
 
 # ============================================================================
 # Experiment knobs.
@@ -78,7 +78,7 @@ EXP=${EXP:-runs/ve_res_sweep}                # experiment root (under gitignored
 RUNME_FLAGS=${RUNME_FLAGS--s -r}             # note: `-` not `:-`, so RUNME_FLAGS="" = stage-only
 
 # 3-D viscosity + cheap 1-D LGM spin-up (the deglac3d setup).
-VISC3D_ON=(vilma.l_visc_3d=true vilma.pre_spinup_1d=true vilma.visc_3d_file="$VISC3D")
+VISC3D_ON=(vilma.l_visc_3d=true vilma.pre_spinup_1d=true vilma.visc_3d_file="$VISC3D" vilma.visc_3d_structure=6)
 
 # Parameters common to every run (machine paths + the shared deglaciation setup).
 # Resolution (lmax + reference) and the scheme/cfl are added per run below; the grid

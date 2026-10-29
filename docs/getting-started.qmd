@@ -121,9 +121,12 @@ A few conventions worth knowing:
 - **3-D viscosity** is enabled with `l_visc_3d = .true.` and a lateral
   `log10(eta)` field (`visc_3d_file`); `visc3d_tol` sets which elements are
   treated as genuinely 3-D. With `visc_3d_structure = n` (n >= 1) the file is
-  the FesmData product `Bagge2021_visc.nc` (`log10_visc` on `lon`, `lat`,
-  `depth`, `structure`) and structure `n` is read; 6 is `v_1.0_s16`, the
-  field of `input/bagge2021.nc`.
+  in the FesmData layout (`log10_visc` on `lon`, `lat`, `depth`, `structure`)
+  and structure `n` is read. The default is the FesmData product
+  `fesmdata/Global/GLOBAL-T170/GLOBAL-T170_SolidEarth-Bagge2021.nc`
+  (@Bagge2021; structure 6, `v_1.0_s16`); the path is relative to the run
+  folder, which needs a `fesmdata` link to the FesmData store (on Levante
+  `/work/ba1442/fesmdata`). The model does not ship a viscosity file.
 - **Rotational feedback** (`rotation`) is **on by default** for real-Earth runs;
   set `rotation = .false.` for the non-rotating community benchmarks.
   The secular Love number in the Liouville equation defaults to the model's own

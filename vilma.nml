@@ -76,7 +76,7 @@
     pre_spinup_1d  = .false.   ! cheap 1-D pre-equilibration first
 
     ! --- 3-D viscosity + uncertainty sampling -------------------------
-    l_visc_3d      = .false.   ! load a lateral log10(eta) field (Bagge 2021 by default)
+    l_visc_3d      = .false.   ! load a lateral log10(eta) field (Bagge 2021 from FesmData by default; needs a `fesmdata` link in the run folder)
     f_visc_sd      = 0.0       ! perturbation in units of sigma (0 = mean field)
     visc3d_tol     = 1.0e-3    ! [dex] lateral spread above which an element is treated 3-D
 /

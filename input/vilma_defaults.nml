@@ -130,12 +130,14 @@
     ! Degrees >= 2 are unaffected either way.
     deg1_frame = "cm"
     l_visc_3d      = .false. ! load a lateral log10(eta) field
-    ! Default 3-D field: Bagge et al. (2021), floored at log10 eta = 19.5 (visc_log10_min
-    ! below). Preferred over Pan 2022, whose raw min (~13.7 dex) is unphysical and ~6x slower.
-    visc_3d_file   = "input/bagge2021.nc"  ! vendored from isostasy_data; paths may use ~/ or $HOME/
-    visc_3d_structure = 0    ! 0: lon-lat-r field, variable names below; >= 1: visc_3d_file is the FesmData
-                             ! Bagge2021_visc.nc (log10_visc on lon, lat, depth, structure; names below
-                             ! ignored) and this is the structure to read (6 = v_1.0_s16, as input/bagge2021.nc)
+    ! Default 3-D field: Bagge et al. (2021) from FesmData (the source of the inputs), floored at
+    ! log10 eta = 19.5 (visc_log10_min below). Preferred over Pan 2022, whose raw min (~13.7 dex)
+    ! is unphysical and ~6x slower. The path is relative to the run folder, which needs a `fesmdata`
+    ! link to the FesmData store (as kryos and yelmox); paths may also use ~/ or $HOME/.
+    visc_3d_file   = "fesmdata/Global/GLOBAL-T170/GLOBAL-T170_SolidEarth-Bagge2021.nc"
+    visc_3d_structure = 6    ! 0: lon-lat-r field, variable names below; >= 1: visc_3d_file is in the
+                             ! FesmData layout (log10_visc on lon, lat, depth, structure; names below
+                             ! ignored) and this is the structure to read (6 = v_1.0_s16)
     name_visc      = "eta"   ! viscosity var (log10 Pa s)
     name_visc_lon  = "lon"
     name_visc_lat  = "lat"

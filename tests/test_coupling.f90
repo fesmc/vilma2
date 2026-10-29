@@ -19,6 +19,7 @@ program test_coupling
    implicit none
 
    integer, parameter :: LMAX = 16, NSTEP = 15
+   character(len=*), parameter :: VISC = "libvilma/include/test_coupling_visc.nc"
    type(sht_grid), target :: sht
    type(vilma_param_class)   :: p
    type(solid_earth)      :: se
@@ -125,6 +126,8 @@ program test_coupling
 
 contains
 
+   include "synth_visc_fesmdata.inc"
+
    subroutine make_reference(z_bed_eq, h_ice_eq)
       !! Reference (equilibrium) topography: a polar land cap (colat<50°, +500 m)
       !! over deep ocean (−4000 m); no reference ice.
@@ -206,8 +209,9 @@ contains
       real(wp), allocatable :: rate(:)
       real(wp) :: dmax
       integer  :: e
+      call write_synth_visc_fesmdata(VISC)
       pr%lmax = LMAX;  pr%nlat = 2*LMAX;  pr%nphi = 4*LMAX
-      pr%rotation = .true.;  pr%l_visc_3d = .true.;  pr%visc_3d_file = "input/bagge2021.nc"
+      pr%rotation = .true.;  pr%l_visc_3d = .true.;  pr%visc_3d_file = VISC;  pr%visc_3d_structure = 6
       se%par = pr; call solid_earth_init(se, z_bed_eq, h_ice_eq)
       rate  = response_radial_rate(se%resp)
       dmax  = max(maxval(abs(se%rotation%load_ch%MkPerDt - rate)), &

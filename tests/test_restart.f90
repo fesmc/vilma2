@@ -12,7 +12,7 @@ program test_restart
    !!   (3) multi-snapshot file — two snapshots at different times coexist, and a
    !!       specific earlier time can be selected on read.
    !! RESP_VE is run twice: radially symmetric (4 memory channels) and with the
-   !! vendored lateral viscosity, which switches on the toroidal channels (6), so
+   !! synthetic FesmData-form lateral viscosity, which switches on the toroidal channels (6), so
    !! the round trip covers the widened memory. Then (4) the migration: a
    !! spheroidal-only file (l_toroidal = .false., 4 channels) read into a run
    !! that carries the toroidal field restores the spheroidal memory exactly and
@@ -28,11 +28,13 @@ program test_restart
    implicit none
 
    integer, parameter :: LMAX = 12, K1 = 3, K2 = 3
+   character(len=*), parameter :: VISC = "libvilma/include/test_restart_visc.nc"
    type(sht_grid), target :: sht
    real(wp), allocatable  :: z_bed_eq(:,:), h_ice_eq(:,:), h_ice(:,:)
    logical  :: ok
 
    ok = .true.
+   call write_synth_visc_fesmdata(VISC)
    call sht_grid_init(sht, LMAX, nlat=2*LMAX, nphi=4*LMAX)
    allocate(z_bed_eq(sht%nphi,sht%nlat), h_ice_eq(sht%nphi,sht%nlat), &
             h_ice(sht%nphi,sht%nlat))
@@ -57,6 +59,8 @@ program test_restart
 
 contains
 
+   include "synth_visc_fesmdata.inc"
+
    subroutine roundtrip(resp, visc3d, file, ok)
       !! Full restart round-trip for one response kind on the shared grid/fields.
       character(len=*),  intent(in)    :: resp, file
@@ -74,8 +78,8 @@ contains
       p%earth_response = resp
       p%rotation      = .true.            ! rotation on: also round-trips the polar
                                           ! motion m + both channels' memory (rot_*)
-      p%l_visc_3d     = visc3d            ! vendored Bagge field: 3-D elements, 6 channels
-      p%visc_3d_file  = "input/bagge2021.nc"
+      p%l_visc_3d     = visc3d            ! synthetic lateral field: 3-D elements, 6 channels
+      p%visc_3d_file  = VISC;  p%visc_3d_structure = 6
       p%l_toroidal    = visc3d            ! carry the toroidal field in the 3-D case
 
       ! === reference run A ====================================================
@@ -149,7 +153,7 @@ contains
       integer  :: step
       p%lmax = LMAX;  p%nlat = 2*LMAX;  p%nphi = 4*LMAX
       p%earth_response = "ve";  p%rotation = .true.;  p%l_visc_3d = .true.
-      p%visc_3d_file = "input/bagge2021.nc"
+      p%visc_3d_file = VISC;  p%visc_3d_structure = 6
       p%l_toroidal = .false.
       a%par = p; call solid_earth_init(a, z_bed_eq, h_ice_eq)
       do step = 1, K1

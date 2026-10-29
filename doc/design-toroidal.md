@@ -96,7 +96,7 @@ return leg never happens.
 
 This work was scoped when VILMA2's lateral response looked severely damped
 against VILMA1. **That turned out to be a bug in the viscosity reader, not
-missing physics** (fixed in `dd03b79`; `input/bagge2021.nc` stores latitude
+missing physics** (fixed in `dd03b79`; the then-vendored `input/bagge2021.nc` stored latitude
 north-first and the whole field was collapsing onto one parallel). Corrected,
 at 21 ka against the block-D deglaciation:
 

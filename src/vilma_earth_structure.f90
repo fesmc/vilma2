@@ -438,8 +438,8 @@ contains
       ! essentially every target, so every Gauss point takes source row 1 and the
       ! whole field collapses onto a single parallel — silently, and with the
       ! surviving longitude structure still varied enough that the visc3d split
-      ! diagnostic looks entirely normal. input/bagge2021.nc stores latitude
-      ! north-to-south and hit exactly that.
+      ! diagnostic looks entirely normal. The Bagge file once vendored as
+      ! input/bagge2021.nc stored latitude north-to-south and hit exactly that.
       !
       ! Orientation is a property of the file, not an error, so flip the data with
       ! the coordinate and carry on. A non-monotonic axis IS an error: no
@@ -504,8 +504,8 @@ contains
       !! Reverse a 3-D field along one dimension through an explicit heap copy.
       !! The self-referencing section assignment a = a(:,n:1:-1,:) makes the
       !! compiler build a temporary of the WHOLE field, and ifx puts it on the
-      !! stack: for input/bagge2021.nc that is ~340 MB, which overflows any
-      !! default stack limit (test_restart, reading the vendored field at 8 MB).
+      !! stack: for the Bagge field that is ~340 MB, which overflows any
+      !! default stack limit (test_restart, reading the Bagge field at 8 MB).
       real(wp), allocatable, intent(inout) :: a(:,:,:)
       integer,               intent(in)    :: dim
       real(wp), allocatable :: b(:,:,:)

@@ -138,7 +138,7 @@ Three details matter in practice:
   exactly elastic and laterally uniform, whatever the file prescribes there.
 
 The lateral field is read as absolute $\log_{10}\eta(\text{lon},\text{lat},r)$
-(`visc_3d_file`, default the @Bagge2021 field), bounded by `visc_log10_min` /
+(`visc_3d_file`, default the @Bagge2021 field from the FesmData product `GLOBAL-T170_SolidEarth-Bagge2021.nc`, structure 6), bounded by `visc_log10_min` /
 `visc_log10_max`, and optionally perturbed by `f_visc_sd` standard deviations
 for uncertainty ensembles.
 

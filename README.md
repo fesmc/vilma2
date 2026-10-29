@@ -129,8 +129,12 @@ converted to SI seconds on load.
   `"cf"` (Spada disc-benchmark convention).
 - **3D viscosity** — `l_visc_3d`, `visc_3d_file`, `visc3d_tol`; `l_toroidal`
   carries the toroidal flow (off by default). `visc_3d_structure = n` reads
-  structure `n` of the FesmData `Bagge2021_visc.nc` instead of a lon-lat-r
-  field (6 = `v_1.0_s16`).
+  structure `n` of a FesmData-layout file instead of a lon-lat-r field. The
+  default is the FesmData product
+  `fesmdata/Global/GLOBAL-T170/GLOBAL-T170_SolidEarth-Bagge2021.nc` (Bagge et
+  al. 2021, structure 6 = `v_1.0_s16`): the path is relative to the run folder,
+  which needs a `fesmdata` link to the FesmData store (Levante:
+  `/work/ba1442/fesmdata`). No viscosity file is shipped with the model.
 - **Spin-up / restart** — `equil_time_max`, `pre_spinup_1d`, and
   `restart_in_file` (`&ctl`).
 - **Rotation** — `rotation` (TPW feedback): on by default; `.false.` for the
