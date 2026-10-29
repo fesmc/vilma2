@@ -27,7 +27,7 @@ module vilma_timestep
    use vilma_precision,    only: wp
    use vilma_sht,          only: sht_grid
    use vilma_response,     only: response_coarse_fine_error, response_stash_coarse, response_prime_sigma, response_restore_state, response_set_dt, response_save_state, response_memory_norm, response_max_rate, response
-   use vilma_sle,          only: sle_solve, sle_solver, sle_result
+   use vilma_sle,          only: sle_solve, sle_solver, sle_result, sle_host
    use vilma_rotation,     only: rotation_state, rotation_save_state, rotation_restore_state
    use vilma_viscoelastic, only: scheme_order, scheme_is_implicit
    implicit none
@@ -78,7 +78,8 @@ module vilma_timestep
 contains
 
    subroutine stepper_advance(self, sht, resp, sle, topo0, ice0, ice1, ice_ref, &
-                              t0, t1, rsl, C, rot, sigma_out, u_out, N_out, dphi_out)
+                              t0, t1, rsl, C, rot, sigma_out, u_out, N_out, dphi_out, &
+                              host_ref, host0, host1, dIg_out)
       !! Advance the VE+SLE model from t0 to t1 with the ice load interpolated linearly
       !! ice(t) = ice0 + (t−t0)/(t1−t0)·(ice1−ice0), absolute; the SLE load is
       !! d_ice(t) = ice(t) − ice_ref (total change from the reference state). Δt is
@@ -109,21 +110,39 @@ contains
       !! same final SLE solve as rsl, so rsl = N − u + Δφ (on the grid, to round-off).
       complex(wp),    optional, intent(out)   :: u_out(:), N_out(:)
       real(wp),       optional, intent(out)   :: dphi_out
+      !! host_ref, host0, host1 (optional, all or none): host-resolved terms (vilma_sle,
+      !! sle_host) at the reference and at t0 and t1. They ramp linearly over the interval,
+      !! field by field and with the same formula as the ice, so every sub-step solves
+      !! with host(t) = host0 + (t−t0)/(t1−t0)·(host1−host0). The ice then is the own
+      !! part's (1−w). The σ_n priming uses host0; the dt = 0 seed uses host1 with ice0
+      !! (like the ice, see KNOWN ISSUE below). Without them the stepper is the host-free one.
+      type(sle_host), optional, intent(in)    :: host_ref, host0, host1
+      !! dIg_out (optional): the grounded-ice increment ΔI_g [m] of the final SLE solve (t1).
+      real(wp),       optional, intent(out)   :: dIg_out(:,:)
 
       type(sle_result)      :: res
-      real(wp), allocatable :: rsl_n(:,:), ice_now(:,:), dice_now(:,:)
+      type(sle_host)        :: host_now
+      real(wp), allocatable :: rsl_n(:,:), ice_now(:,:), dice_now(:,:), dIg_last(:,:)
       complex(wp), allocatable :: sig0(:), sig_last(:), u_last(:), N_last(:)
       real(wp) :: dphi_last
       real(wp) :: t, dt, err_inf, tau_inf, errsc, fac, ricfac, expo, span
       real(wp) :: rate, dt_stab, tau0, tau_run, scale
       integer  :: p, np, nl, n_sub
-      logical  :: at_floor, accept, finite
+      logical  :: at_floor, accept, finite, hmode
       integer(kind=8) :: gc0, gc1, grate          ! PROFILE: see %t_guard
 
       span = t1 - t0
+      hmode = present(host_ref)
+      if (hmode .neqv. (present(host0) .and. present(host1))) &
+         error stop 'stepper_advance: host_ref, host0 and host1 go together'
+      if (hmode) then
+         allocate(host_now%w(sht%nphi,sht%nlat), host_now%I_g(sht%nphi,sht%nlat), &
+                  host_now%C(sht%nphi,sht%nlat), host_now%F(sht%nphi,sht%nlat))
+      end if
       ! Capture the converged load on every SLE solve; after the run sig_last holds
       ! the final (t1) solve's load. Always allocated so solve_at can fill it cheaply.
-      allocate(sig_last(sht%nlm), u_last(sht%nlm), N_last(sht%nlm))
+      allocate(sig_last(sht%nlm), u_last(sht%nlm), N_last(sht%nlm), dIg_last(sht%nphi,sht%nlat))
+      dIg_last = 0.0_wp
       dphi_last = 0.0_wp
       self%worst_mass_resid = 0.0_wp             ! per-interval diagnostic (reset each advance)
 
@@ -162,8 +181,7 @@ contains
          allocate(ice_now(sht%nphi, sht%nlat), dice_now(sht%nphi, sht%nlat))
          ice_now  = ice0
          dice_now = ice0 - ice_ref
-         call sle_solve(sle, sht, resp, dice_now, ice_now, topo0, rsl, C, res, &
-                        report_only=.true., sigma_lm=sig_last, rot=rot, rot_dt=0.0_wp)
+         call solve(dice_now, ice_now, sig_last, 0.0_wp, host1, report_only=.true.)
          self%worst_mass_resid = res%mass_resid
          u_last = res%u_lm;  N_last = res%N_lm;  dphi_last = res%esl
          call hand_back()
@@ -248,8 +266,7 @@ contains
       if (.not. resp%sigma_primed) then
          allocate(sig0(sht%nlm))
          ice_now = ice0;  dice_now = ice0 - ice_ref
-         call sle_solve(sle, sht, resp, dice_now, ice_now, topo0, rsl, C, res, &
-                        report_only=.true., sigma_lm=sig0, rot=rot, rot_dt=0.0_wp)
+         call solve(dice_now, ice_now, sig0, 0.0_wp, host0, report_only=.true.)
          call response_prime_sigma(resp, sig0)
       end if
 
@@ -331,7 +348,28 @@ contains
          if (present(u_out))     u_out     = u_last
          if (present(N_out))     N_out     = N_last
          if (present(dphi_out))  dphi_out  = dphi_last
+         if (present(dIg_out))   dIg_out   = dIg_last
       end subroutine hand_back
+
+      subroutine solve(dice, ice, sigma, h, hn, report_only)
+         !! The one place sle_solve is called: with the host terms hn (and the reference)
+         !! when the stepper has them, else exactly the host-free call. Solves into the
+         !! stepper's rsl, C and res; sigma is the spectral load, h the rotation step.
+         real(wp),    intent(in)  :: dice(:,:), ice(:,:)
+         complex(wp), intent(out) :: sigma(:)
+         real(wp),    intent(in)  :: h
+         type(sle_host), optional, intent(in) :: hn
+         logical,        optional, intent(in) :: report_only
+         if (hmode) then
+            call sle_solve(sle, sht, resp, dice, ice, topo0, rsl, C, res, &
+                           report_only=report_only, sigma_lm=sigma, rot=rot, rot_dt=h, &
+                           host=hn, host_ref=host_ref, dIg_out=dIg_last)
+         else
+            call sle_solve(sle, sht, resp, dice, ice, topo0, rsl, C, res, &
+                           report_only=report_only, sigma_lm=sigma, rot=rot, rot_dt=h, &
+                           dIg_out=dIg_last)
+         end if
+      end subroutine solve
 
       subroutine solve_at(t_eval, h)
          !! One SLE solve (co-converged memory advance) with the ice load interpolated
@@ -343,8 +381,15 @@ contains
          ice_now  = ice0 + frac*(ice1 - ice0)
          dice_now = ice_now - ice_ref
          self%n_solve = self%n_solve + 1
-         call sle_solve(sle, sht, resp, dice_now, ice_now, topo0, rsl, C, res, &
-                        sigma_lm=sig_last, rot=rot, rot_dt=h)
+         if (hmode) then
+            host_now%w   = host0%w   + frac*(host1%w   - host0%w)
+            host_now%I_g = host0%I_g + frac*(host1%I_g - host0%I_g)
+            host_now%C   = host0%C   + frac*(host1%C   - host0%C)
+            host_now%F   = host0%F   + frac*(host1%F   - host0%F)
+            call solve(dice_now, ice_now, sig_last, h, host_now)
+         else
+            call solve(dice_now, ice_now, sig_last, h)
+         end if
          self%worst_mass_resid = max(self%worst_mass_resid, res%mass_resid)
          u_last = res%u_lm;  N_last = res%N_lm;  dphi_last = res%esl
       end subroutine solve_at

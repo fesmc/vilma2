@@ -260,6 +260,12 @@ test_sle_host: vilma-static | $(bindir)
 		-o $(bindir)/test_sle_host.x $(objdir)/libvilma.a $(LFLAGS)
 	@echo "    $(bindir)/test_sle_host.x is ready."
 
+# Host-resolved terms in the adaptive stepper: ramp, dt = 0 seed, sigma_n priming.
+test_host_ramp: vilma-static | $(bindir)
+	$(FC) $(DFLAGS) $(CPPFLAGS) $(FFLAGS) $(testdir)/test_host_ramp.f90 \
+		-o $(bindir)/test_host_ramp.x $(objdir)/libvilma.a $(LFLAGS)
+	@echo "    $(bindir)/test_host_ramp.x is ready."
+
 test_flotation: vilma-static | $(bindir)
 	$(FC) $(DFLAGS) $(CPPFLAGS) $(FFLAGS) $(testdir)/test_flotation.f90 \
 		-o $(bindir)/test_flotation.x $(objdir)/libvilma.a $(LFLAGS)
@@ -421,7 +427,7 @@ bench_visc3d: vilma-static | $(bindir)
 		-o $(bindir)/bench_visc3d.x $(objdir)/libvilma.a $(LFLAGS)
 	@echo "    $(bindir)/bench_visc3d.x is ready."
 
-TESTS = test_params test_drive test_band test_sht test_earth test_mesh test_integrals test_assembly test_love test_relax test_tidal test_rotation test_rotation_sle test_response test_sle test_sle_host test_flotation test_flotation_load test_marine_reference test_etd1 test_ve_response test_tensor_sh test_response_3d test_toroidal test_sle_ve test_benchmark_love test_coupling test_dz_split test_bsl test_density test_couple_remap test_spinup test_restart test_benchmark_disc test_benchmark_martinec test_field test_sle_subgrid test_visc_load test_visc_lid test_rotinv test_remap
+TESTS = test_params test_drive test_band test_sht test_earth test_mesh test_integrals test_assembly test_love test_relax test_tidal test_rotation test_rotation_sle test_response test_sle test_sle_host test_host_ramp test_flotation test_flotation_load test_marine_reference test_etd1 test_ve_response test_tensor_sh test_response_3d test_toroidal test_sle_ve test_benchmark_love test_coupling test_dz_split test_bsl test_density test_couple_remap test_spinup test_restart test_benchmark_disc test_benchmark_martinec test_field test_sle_subgrid test_visc_load test_visc_lid test_rotinv test_remap
 
 check: $(TESTS)
 	@echo ""
