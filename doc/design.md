@@ -631,3 +631,75 @@ perturbation tracks the viscosity structure. If the dataset ships its own uncert
 field, prefer that; otherwise fall back to the relative `f_visc_rel`. Params:
 `f_visc_sd`, `f_visc_rel`, `visc_log10_min/max`. Enables ensemble GIA runs sampling
 viscosity uncertainty.
+
+## 15. Host-resolved terms in the sea-level solve
+
+A host that resolves the ice margin on a finer grid than the Gauss grid (kryos: Yelmo domains
+inside a global instance) hands the solve what it resolves, per unit Gauss-cell area, inside
+regions of weight `w` (0..1; a host with several regions sums them):
+
+| term | meaning |
+|---|---|
+| `I_g = w·H·f_g` | grounded-ice column [m] |
+| `C = w·(1−f_g)` | ocean fraction (open ocean and floating ice), `0 ≤ C ≤ w` |
+| `F = w·ζ⁽⁰⁾·(C − C_ref)` | flooded-area fill [m], the host's subgrid term |
+
+Where `w = 0` all three are 0. On the remaining `1 − w` the solve applies its own flotation and
+coastline rule, and `h_ice`, `h_ice_eq` are the ice of that part (an area mean over it; cells
+with `w = 1` ignore them). With `a = 1 − w`, `a0 = 1 − w_ref`, hats for the host terms and
+`C_own` the ocean function of the own part (`vilma_sle`, `sle_solve(…, host, host_ref)`):
+
+    C    = Ĉ + a·C_own
+    ΔI_g = (Î_g − Î_g0) + [a·ice·(1−C_own) − a0·(ice−d_ice)·(1−C0_own)]
+    fill = F̂ + a·ζ⁽⁰⁾·(C_own − C0_own)
+
+`C` replaces the ocean function in the load, the ocean integrals and the returned field, `ΔI_g`
+the melt source and the grounded load, `fill` the subgrid term `ζ⁽⁰⁾(C − C0)`, so the balance
+`∫C·rsl = −(ρ_i/ρ_w) ∫ΔI_g + ∫fill` holds to round-off with `0 < w < 1`. `F` enters only
+through the subgrid term: with `sle_subgrid = .false.` it is ignored, as the legacy fill is.
+Own-part terms are masked by `a > 0`, not multiplied by it, and the own ice is zeroed where the
+own part is absent before the flotation test, so what a caller leaves there (NaN) is never read.
+Only the own part moves the coastline: the outer loop counts flips of `C_own` where `a > 0` and
+ends after one pass when `w = 1` everywhere. The reference is fixed for the run,
+`C0_tot = Ĉ0 + (1−w0)·ocean_function(z_bed_eq, h_ice_eq)`, and `F_ref ≡ 0`, so `F` is not an
+argument of `solid_earth_init`. The host's reference terms must describe the same state as
+`(z_bed_eq, h_ice_eq)`; `i_eq` is invisible to VILMA2.
+
+**Ramp.** The terms ramp linearly over an update interval, field by field and with the same
+formula as the ice (`stepper_advance`: `host_now = host0 + frac·(host1 − host0)`), `w` included.
+The previous update's terms are the ramp start (`gg%host%last`; the reference at the first
+update); the σ_n priming uses them, the `dt = 0` seed uses the new terms with the ice the model
+carries (the KNOWN ISSUE of §10 stays as it is).
+
+**Grids.** A host on the Gauss grid (kryos) passes straight through. A global lon-lat host is
+remapped: `w` and `C` conservatively without the mass factor (`to_gauss_frac`), `I_g` with it, `F`
+without it (not rescaled). That map is exact only for a global host, so a regional lon-lat host
+stops at init. Round-off beyond `[0,1]` and `[0,w]` (1e-9) is clipped on every path; larger
+excursions and NaN stop.
+
+**Rules.** The terms come all or none (`w, I_g, C` at init; `w, I_g, C, F` at update and in the
+spin-up) and their presence is fixed for the run. Not with `solver = "v1"`, `sle_fixed_ocean` or
+`h_ice_init`. `solid_earth_host_check` (public) tests finiteness, `−tol ≤ w ≤ 1+tol`,
+`I_g ≥ 0`, `−tol ≤ C ≤ w+tol`, and `I_g = F = 0` where `w = 0`; the coupling runs it at init
+and at every update. A host with several regions checks the sums. The `bsl_ive` of the update is
+the integral of the solve's own `ΔI_g` (`gg%dIg`), host columns included.
+
+**Bit-identity by dispatch.** With no host arguments, or `w ≡ 0` at the reference, at the last
+update and at the new one, the host-free statements run; nothing is rewritten. `test_host_bitident`
+compares the two runs with `==` (fe and trap, rotation, spin-up, dt = 0).
+
+**Restart.** `w_ref`, `I_g_ref`, `C_host_ref` are static and checked on read; `w_prev`, `I_g_prev`,
+`C_prev`, `F_prev` (the next ramp start) are written with each snapshot, and the global attribute
+`host_terms` records whether the run had them. A file read into a model of the other kind stops.
+A same-resolution restart restores the ramp start; a cross-resolution one leaves it at the
+reference, and the caller re-seeds with a `dt = 0` update, as for the ice.
+
+**Tests.** `test_sle_host` (formulas, mass balance), `test_host_ramp` (ramp, dt = 0, priming),
+`test_host_bitident`, `test_host_terms` (ramp, balance, remap == passthrough, summed hosts, checks,
+clipping), `test_restart_host`, and `test_host_convergence`: a 0.5° global host against the own
+path at lmax 8–48. The own path's errors in `∫ΔI_g`, `∫C·rsl`, `∫fill` and in the coastline fall
+with lmax, noisily and about as `1/lmax` (a coast is a line); the host path stays at its floor
+(`∫ΔI_g` conserved to round-off, the others ~1e-4), and `|bsl_host − bsl_own|`, `|Δφ_host − Δφ_own|`
+of the elastic solve fall with lmax. The conservative remap preserves `Σ f·area` in the `coords`
+cell areas of the host grid, which differ from the exact sphere by up to 0.9% at 0.5°.
+

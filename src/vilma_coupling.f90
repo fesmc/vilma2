@@ -24,6 +24,16 @@ module vilma_coupling
    !! se%z_bed is reconstructed as se%z_bed_eq - se%rsl on the host's own
    !! (high-resolution) bed, so host bed detail is preserved.
    !!
+   !! Host-resolved terms (optional). A host that resolves the ice margin on its own grid
+   !! inside regions of weight w passes, per unit Gauss-cell area, the grounded-ice column
+   !! I_g = w·H·f_g, the ocean fraction C = w·(1−f_g) and, on update, the flooded-area fill
+   !! F = w·ζ⁽⁰⁾·(C − C_ref): w, I_g, C at init (the reference), w, I_g, C, F at every
+   !! update and in the spin-up. The sea-level solve uses them inside w and applies its
+   !! own flotation and coastline rule on the remaining 1 − w, where h_ice and h_ice_eq are
+   !! then the ice of that part (an area mean over it; cells with w = 1 ignore them). The
+   !! terms ramp over the interval like the ice. All or none, and fixed for the run. With
+   !! none, or w ≡ 0, the results are those of a host-free run, bit for bit.
+   !!
    !! Reference (equilibrium) state. The supplied (z_bed_eq, h_ice_eq) IS the relaxed
    !! state: the Maxwell memory starts at zero, so with h_ice = h_ice_eq we get
    !! d_ice = 0, rsl = 0, z_bed = z_bed_eq. Departures from the reference ice load
@@ -38,7 +48,7 @@ module vilma_coupling
    use vilma_viscoelastic,    only: scheme_from_name
    use vilma_response,        only: response_destroy, response_enable_lateral_visc_from_nodes, response_radial_rate, response, &
                                  response_init_elastic, response_init_ve, response_init_null, RESP_VE
-   use vilma_sle,             only: sle_solver, ocean_function
+   use vilma_sle,             only: sle_solver, ocean_function, sle_host
    use vilma_timestep,        only: stepper_advance, adaptive_stepper
    use vilma_rotation,        only: rotation_destroy, rotation_init, rotation_state, &
                                     rotation_set_rate
@@ -46,13 +56,14 @@ module vilma_coupling
    use vilma_v1,           only: vilma_v1_backend, vilma_v1_init, vilma_v1_update, vilma_v1_finalize, &
                                  vilma_v1_require
    use coords,             only: grid_class
+   use, intrinsic :: iso_fortran_env, only: int64
    implicit none
    private
 
-   public :: solid_earth, gauss_state
+   public :: solid_earth, gauss_state, host_state
    public :: solid_earth_init, solid_earth_update, solid_earth_finalize
    public :: solid_earth_enable_visc_3d, solid_earth_sync_host, solid_earth_spinup
-   public :: solid_earth_check_solver
+   public :: solid_earth_check_solver, solid_earth_host_check
    public :: VILMA_UNSET
 
    !! Fill value for a diagnostic the ACTIVE backend does not produce. Only the
@@ -70,6 +81,17 @@ module vilma_coupling
    !! The convergence criterion (mean bed velocity over a pass [m/yr]) is the runtime
    !! parameter par%equil_rate_tol.
 
+   !! Round-off in a fraction (w, C) beyond its bounds that is clipped rather than refused:
+   !! the tolerance of solid_earth_host_check, and of to_gauss_frac on every path.
+   real(wp), parameter :: HOST_TOL = 1.0e-9_wp
+
+   type :: host_state
+      !! Host-resolved terms on the Gauss grid (vilma_sle, sle_host), fixed in presence at init.
+      logical        :: on = .false.   !! the run carries host terms
+      type(sle_host) :: ref            !! reference state: w, I_g, C (static; its F is 0)
+      type(sle_host) :: last           !! terms of the last update: the ramp start of the next
+   end type host_state
+
    type :: gauss_state
       !! Model fields on the model's own Gauss grid, where the physics runs. When the
       !! host supplies data already on the Gauss grid (passthrough), these mirror the
@@ -85,7 +107,11 @@ module vilma_coupling
       real(wp), allocatable :: C0(:,:)         !! REFERENCE ocean function, from (z_bed_eq,
                                                !! h_ice_eq). Both are fixed at init, so this
                                                !! is a RUN CONSTANT: built once in
-                                               !! solid_earth_init, never refreshed.
+                                               !! solid_earth_init, never refreshed. With host
+                                               !! terms the total, Ĉ0 + (1−w0)·C0_own.
+      real(wp), allocatable :: dIg(:,:)        !! grounded-ice increment ΔI_g [m] of the last
+                                               !! solve with host terms (bsl_ive); else unused
+      type(host_state)      :: host            !! host-resolved terms (self%gg%host%on)
    end type gauss_state
 
    type :: solid_earth
@@ -147,7 +173,7 @@ module vilma_coupling
 
 contains
 
-   subroutine solid_earth_init(self, z_bed_eq, h_ice_eq, grid, h_ice_init)
+   subroutine solid_earth_init(self, z_bed_eq, h_ice_eq, grid, h_ice_init, w, I_g, C)
       !! Build the model from its parameter record (self%par, set by the host before
       !! this call) and set the reference state. The model builds and owns its Gauss
       !! transform grid (from self%par%lmax/nlat/nphi) and, when `grid` differs from
@@ -160,7 +186,15 @@ contains
       real(wp),             intent(in)           :: h_ice_eq(:,:)  !! reference grounded ice [m] (host grid)
       type(grid_class),     intent(in), optional :: grid           !! host lon-lat grid; absent => data already on Gauss
       real(wp),             intent(in), optional :: h_ice_init(:,:)!! current ice at t0 (host grid); default h_ice_eq
+      !! w, I_g, C (optional, together): host-resolved terms of the REFERENCE state, per unit
+      !! cell area (see the module header). z_bed_eq and h_ice_eq are then those of the 1 − w
+      !! part; the reference F is 0 by definition. Not with solver="v1", sle_fixed_ocean or
+      !! h_ice_init. On a lon-lat host grid the host must be global (the remap's mass factor
+      !! is a full-sphere one).
+      real(wp),             intent(in), optional :: w(:,:), I_g(:,:), C(:,:)
+      real(wp), allocatable :: F0(:,:)
       integer  :: np, nl
+      logical  :: hosted, hcover
 
       call solid_earth_finalize(self)                       ! clean slate (safe on a fresh object)
 
@@ -182,6 +216,21 @@ contains
       self%remap = .false.
       if (present(grid)) self%remap = .not. grid_is_gauss(grid, self%sht)
       if (self%remap) call remap_init(self%map, self%sht, real(grid%G%x, wp), real(grid%G%y, wp))
+
+      ! host-resolved terms: all or none, and only for the native solver, a migrating coastline
+      ! and no start slice other than the reference
+      hosted = present(w)
+      if (hosted .neqv. (present(I_g) .and. present(C))) &
+         error stop 'solid_earth_init: host terms w, I_g, C come together'
+      if (hosted) then
+         if (self%use_vilma_v1)         error stop 'solid_earth_init: host terms are not available with solver="v1"'
+         if (self%par%sle_fixed_ocean)  error stop 'solid_earth_init: host terms need sle_fixed_ocean = .false.'
+         if (present(h_ice_init))       error stop 'solid_earth_init: host terms and h_ice_init are not combined'
+         if (self%remap) then
+            if (.not. grid_is_global(grid)) &
+               error stop 'solid_earth_init: host terms on a lon-lat grid need a global host grid'
+         end if
+      end if
 
       ! reference (equilibrium) state on the host grid (kept at full host resolution),
       ! and its Gauss-grid image used by the physics.
@@ -220,11 +269,34 @@ contains
       self%gg%rsl   = 0.0_wp
       self%gg%z_bed = self%gg%z_bed_eq
       self%gg%dz_bed = 0.0_wp;  self%gg%dz_ss = 0.0_wp;  self%dphi = 0.0_wp
+      allocate(self%gg%dIg(np,nl), source=0.0_wp)
       ! The reference ocean function is a run constant (z_bed_eq and h_ice_eq are
       ! fixed from here on), so build it once and keep it. The initial C is that
       ! same field, which is exactly what the old unconditional call produced.
-      call ocean_function(self%gg%z_bed_eq, self%gg%h_ice_eq, self%gg%C0, &
-                          self%par%rho_ice, self%par%rho_water)
+      if (hosted) then
+         ! host reference on the Gauss grid; the first ramp starts from it (F is 0 there)
+         allocate(F0(size(w,1), size(w,2)), source=0.0_wp)
+         call host_to_gauss(self, w, I_g, C, F0, self%gg%host%ref, 'reference')
+         self%gg%host%on = .true.
+         call host_copy(self%gg%host%ref, self%gg%host%last)
+         self%gg%host%last%F = 0.0_wp
+      end if
+      hcover = .false.
+      if (hosted) hcover = any(self%gg%host%ref%w > 0.0_wp)
+      if (hcover) then
+         ! total reference ocean fraction: the host's plus the own part's, whose ice is
+         ! read only where the own part exists (w = 1 cells ignore h_ice_eq)
+         call ocean_function(self%gg%z_bed_eq, merge(self%gg%h_ice_eq, 0.0_wp, self%gg%host%ref%w < 1.0_wp), &
+                             self%gg%C0, self%par%rho_ice, self%par%rho_water)
+         where (self%gg%host%ref%w < 1.0_wp)
+            self%gg%C0 = self%gg%host%ref%C + (1.0_wp - self%gg%host%ref%w)*self%gg%C0
+         elsewhere
+            self%gg%C0 = self%gg%host%ref%C
+         end where
+      else
+         call ocean_function(self%gg%z_bed_eq, self%gg%h_ice_eq, self%gg%C0, &
+                             self%par%rho_ice, self%par%rho_water)
+      end if
       self%gg%C = self%gg%C0
 
       ! host-grid current state at the reference
@@ -366,7 +438,7 @@ contains
       if (self%rotation%enabled) call rotation_set_rate(self%rotation, response_radial_rate(self%resp))
    end subroutine apply_visc_nodes
 
-   subroutine solid_earth_update(self, h_ice, dt_yr)
+   subroutine solid_earth_update(self, h_ice, dt_yr, w, I_g, C, F)
       !! Advance the model from time to time+dt_yr [years] under the ice thickness
       !! h_ice (host grid) and store the results in the derived type: se%rsl, se%z_bed
       !! (host grid) and se%gg%* (Gauss grid). The ice load is ramped linearly from the
@@ -376,13 +448,25 @@ contains
       type(solid_earth), intent(inout) :: self
       real(wp),           intent(in)    :: h_ice(:,:)   !! grounded-ice thickness [m] (host grid)
       real(wp),           intent(in)    :: dt_yr        !! interval to advance [years]
+      !! w, I_g, C, F (optional, together, host grid): host-resolved terms at the new time, per
+      !! unit cell area (see the module header). They replace the host's part of the cell;
+      !! h_ice is then the ice of the 1 − w part. Present if and only if they were at init;
+      !! they ramp from the previous call's values (the reference at the first).
+      real(wp),           intent(in), optional :: w(:,:), I_g(:,:), C(:,:), F(:,:)
       real(wp), allocatable :: ice_new(:,:)
       complex(wp), allocatable :: u_lm(:), N_lm(:)
+      type(sle_host) :: host_new
       real(wp) :: dt, t0, t1
       integer  :: np, nl
+      logical  :: hosted, active
       integer(kind=8) :: pc0, pc1, prate            ! PROFILE: see %t_remap
 
       np = self%sht%nphi;  nl = self%sht%nlat
+      hosted = present(w)
+      if (hosted .neqv. (present(I_g) .and. present(C) .and. present(F))) &
+         error stop 'solid_earth_update: host terms w, I_g, C, F come together'
+      if (hosted .neqv. self%gg%host%on) &
+         error stop 'solid_earth_update: host terms must be given at every update if and only if at init'
       dt = dt_yr*sec_per_year                       ! interface is years; integrator is seconds
       t0 = self%time*sec_per_year;  t1 = t0 + dt
 
@@ -434,7 +518,34 @@ contains
       end if
 
       allocate(u_lm(self%sht%nlm), N_lm(self%sht%nlm))
-      if (self%rotation%enabled) then
+      ! Host terms: on the Gauss grid, checked. With none anywhere (reference, last update,
+      ! new) the host-free statements below run, so a host with w ≡ 0 is bit-identical to
+      ! none; the terms are recorded as the next ramp start either way.
+      active = .false.
+      if (hosted) then
+         call system_clock(pc0)
+         call host_to_gauss(self, w, I_g, C, F, host_new, 'update')
+         call system_clock(pc1);  self%t_remap = self%t_remap + real(pc1-pc0,wp)/prate
+         active = any(self%gg%host%ref%w > 0.0_wp) .or. any(self%gg%host%last%w > 0.0_wp) &
+                  .or. any(host_new%w > 0.0_wp)
+      end if
+      if (active) then
+         if (self%rotation%enabled) then
+            call stepper_advance(self%stepper, self%sht, self%resp, self%sle, self%gg%z_bed_eq, &
+                                      self%gg%h_ice, ice_new, self%gg%h_ice_eq, t0, t1, &
+                                      self%gg%rsl, self%gg%C, rot=self%rotation, sigma_out=self%sigma_lm, &
+                                      u_out=u_lm, N_out=N_lm, dphi_out=self%dphi, &
+                                      host_ref=self%gg%host%ref, host0=self%gg%host%last, host1=host_new, &
+                                      dIg_out=self%gg%dIg)
+         else
+            call stepper_advance(self%stepper, self%sht, self%resp, self%sle, self%gg%z_bed_eq, &
+                                      self%gg%h_ice, ice_new, self%gg%h_ice_eq, t0, t1, &
+                                      self%gg%rsl, self%gg%C, sigma_out=self%sigma_lm, &
+                                      u_out=u_lm, N_out=N_lm, dphi_out=self%dphi, &
+                                      host_ref=self%gg%host%ref, host0=self%gg%host%last, host1=host_new, &
+                                      dIg_out=self%gg%dIg)
+         end if
+      else if (self%rotation%enabled) then
          ! Rotational feedback, stepped with the solid Earth: every SLE solve in the
          ! stepper converges the rotation ↔ sea-level fixed point at the end of its own
          ! sub-step (vilma_rotation: rotation_open_step / trial / close_step).
@@ -448,6 +559,7 @@ contains
                                    self%gg%rsl, self%gg%C, sigma_out=self%sigma_lm, &
                                    u_out=u_lm, N_out=N_lm, dphi_out=self%dphi)
       end if
+      if (hosted) call host_copy(host_new, self%gg%host%last)
 
       ! bed change u and sea-surface change N + Δφ at t1; rsl = N − u + Δφ = dz_ss − dz_bed
       call sht_grid_synthesis(self%sht, u_lm, self%gg%dz_bed)
@@ -458,7 +570,7 @@ contains
       self%gg%z_bed         = self%gg%z_bed_eq - self%gg%rsl
       self%worst_mass_resid = self%stepper%worst_mass_resid
       self%time             = self%time + dt_yr
-      call update_bsl(self)
+      call update_bsl(self, active)
 
       self%h_ice = h_ice
       call system_clock(pc0)
@@ -489,7 +601,7 @@ contains
       self%z_bed = self%z_bed_eq - self%rsl
    end subroutine solid_earth_sync_host
 
-   subroutine solid_earth_spinup(self, h_ice_lgm)
+   subroutine solid_earth_spinup(self, h_ice_lgm, w, I_g, C, F)
       !! Bring the model to isostatic equilibrium under the start-slice (LGM) ice load,
       !! HOLDING the reference (z_bed_eq, h_ice_eq) as the datum, so the transient that
       !! follows measures rsl/bsl against the reference. Driven entirely by self%par:
@@ -504,8 +616,13 @@ contains
       !! Both phases relax to bed-stationary convergence; the relaxation interval is
       !! chosen internally (no user dt). A no-op if both are disabled. On return the
       !! model is always in its full configuration, ready for the transient.
+      !!
+      !! w, I_g, C, F (optional, together): host-resolved terms of the start slice, held over
+      !! every pass like the ice (see solid_earth_update); h_ice_lgm is then the ice of the
+      !! 1 − w part. Present if and only if they were at init.
       type(solid_earth), intent(inout) :: self
       real(wp),           intent(in)    :: h_ice_lgm(:,:)   !! start-slice (LGM) ice [m] (host grid)
+      real(wp),           intent(in), optional :: w(:,:), I_g(:,:), C(:,:), F(:,:)
       real(wp), allocatable :: visc_node(:,:), visc_unif(:,:)
       integer :: r, nh
       logical :: pre_1d
@@ -531,7 +648,7 @@ contains
          error stop 'solid_earth_spinup: unsupported with solver="v1" (see message above)'
       end if
 
-      call solid_earth_update(self, h_ice_lgm, 0.0_wp)       ! seed the entering ice = start (LGM) ice
+      call solid_earth_update(self, h_ice_lgm, 0.0_wp, w, I_g, C, F)   ! seed the entering ice = start (LGM) ice
 
       if (pre_1d) then
          ! 1-D phase: replace the lateral viscosity with its lateral geometric mean
@@ -546,14 +663,14 @@ contains
             end do
             call apply_visc_nodes(self, self%sht, visc_unif)
          end if
-         call relax_hold(self, h_ice_lgm, -1.0_wp, "1-D ")    ! converge; internal pass cap only
+         call relax_hold(self, h_ice_lgm, -1.0_wp, "1-D ", w, I_g, C, F)   ! converge; internal pass cap only
          if (self%par%l_visc_3d) call solid_earth_enable_visc_3d(self, self%sht)  ! restore the real 3-D field
       end if
 
-      if (t_max > 0.0_wp) call relax_hold(self, h_ice_lgm, t_max, "full")
+      if (t_max > 0.0_wp) call relax_hold(self, h_ice_lgm, t_max, "full", w, I_g, C, F)
    end subroutine solid_earth_spinup
 
-   subroutine relax_hold(self, h_ice_lgm, t_cap, label)
+   subroutine relax_hold(self, h_ice_lgm, t_cap, label, w, I_g, C, F)
       !! Hold h_ice_lgm and relax to bed-stationary convergence, advancing in an
       !! internally-grown interval (the adaptive stepper sub-steps within it). t_cap<0:
       !! no time cap (internal pass cap only, for the fast 1-D phase). t_cap>0: a cap
@@ -563,6 +680,7 @@ contains
       real(wp),           intent(in)    :: h_ice_lgm(:,:)
       real(wp),           intent(in)    :: t_cap
       character(len=*),   intent(in)    :: label
+      real(wp),           intent(in), optional :: w(:,:), I_g(:,:), C(:,:), F(:,:)   !! host terms, held
       real(wp), allocatable :: z_prev(:,:)
       real(wp) :: pass_dt, t_done, rmean, rmax, rrate, wall0, wall1, mean_dt, tol
       integer  :: it, nsub0, nsub, np, nl
@@ -585,7 +703,7 @@ contains
          if (pass_dt <= 0.0_wp) exit
          nsub0 = self%stepper%n_accept
          call cpu_time(wall0)
-         call solid_earth_update(self, h_ice_lgm, pass_dt)
+         call solid_earth_update(self, h_ice_lgm, pass_dt, w, I_g, C, F)
          call cpu_time(wall1)
          t_done  = t_done + pass_dt
          nsub    = max(1, self%stepper%n_accept - nsub0)
@@ -606,7 +724,7 @@ contains
               rrate, ' m/yr, ', rrate/tol, 'x tol)'
    end subroutine relax_hold
 
-   subroutine update_bsl(self)
+   subroutine update_bsl(self, host)
       !! Diagnose the barystatic sea level from the current (Gauss-grid) state, two ways.
       !!
       !! bsl: the ocean mean of C·rsl, ∫C·rsl dA / ∫C dA, the mean relative-sea-level
@@ -624,10 +742,21 @@ contains
       !! term: over cells that flooded since the reference, bsl_ive therefore reads
       !! high by their below-flotation volume -- about 10 m on the LGM-datum
       !! deglaciation -- and is not the barystatic rise.
+      !!
+      !! host (default .false.): the last solve carried host-resolved terms, so C is the
+      !! total ocean fraction and the grounded-ice increment is the solve's own (gg%dIg, host
+      !! columns included); bsl_ive is its integral. bsl is the same expression either way.
       type(solid_earth), intent(inout) :: self
+      logical, optional, intent(in)    :: host
       real(wp) :: c_int
+      logical  :: hmode
+      hmode = .false.;  if (present(host)) hmode = host
       c_int = sht_grid_surface_integral(self%sht, self%gg%C)
-      if (c_int > 0.0_wp) then
+      if (c_int > 0.0_wp .and. hmode) then
+         self%bsl     = sht_grid_surface_integral(self%sht, self%gg%C*self%gg%rsl) / c_int
+         self%bsl_ive = -(self%par%rho_ice/self%par%rho_water) * sht_grid_surface_integral(self%sht, &
+                           self%gg%dIg) / c_int
+      else if (c_int > 0.0_wp) then
          self%bsl     = sht_grid_surface_integral(self%sht, self%gg%C*self%gg%rsl) / c_int
          self%bsl_ive = -(self%par%rho_ice/self%par%rho_water) * sht_grid_surface_integral(self%sht, &
                            self%gg%h_ice   *(1.0_wp - self%gg%C) &
@@ -660,6 +789,9 @@ contains
       if (allocated(self%gg%dz_ss))    deallocate(self%gg%dz_ss)
       if (allocated(self%gg%C))        deallocate(self%gg%C)
       if (allocated(self%gg%C0))       deallocate(self%gg%C0)
+      if (allocated(self%gg%dIg))      deallocate(self%gg%dIg)
+      call host_free(self%gg%host%ref);  call host_free(self%gg%host%last)
+      self%gg%host%on = .false.
       if (allocated(self%z_bed_eq))    deallocate(self%z_bed_eq)
       if (allocated(self%h_ice_eq))    deallocate(self%h_ice_eq)
       if (allocated(self%h_ice))       deallocate(self%h_ice)
@@ -670,6 +802,131 @@ contains
       self%dphi = 0.0_wp
       self%time = 0.0_wp
    end subroutine solid_earth_finalize
+
+   ! --- host-resolved terms ----------------------------------------------------
+
+   elemental logical function is_finite(x)
+      !! Not NaN or Inf, by the exponent bits: the compiler may assume finite arithmetic
+      !! (-ffast-math), which folds the comparison and ieee_is_finite away.
+      real(wp), intent(in) :: x
+      integer(int64), parameter :: EXPO = int(z'7FF0000000000000', int64)
+      is_finite = (iand(transfer(x, 0_int64), EXPO) /= EXPO)
+   end function is_finite
+
+   logical function solid_earth_host_check(w, I_g, C, F, msg, tol) result(good)
+      !! Are host-resolved terms (Gauss grid, per unit cell area) admissible: all finite,
+      !! -tol ≤ w ≤ 1 + tol, I_g ≥ 0, -tol ≤ C ≤ w + tol (tol default 1e-9, the round-off the
+      !! model then clips), and w ≤ 0 means I_g = F = 0. A host with several regions sums
+      !! them first, so w ≤ 1 and C ≤ w are checked on the sums. On failure msg names the
+      !! first violation.
+      real(wp),         intent(in)  :: w(:,:), I_g(:,:), C(:,:), F(:,:)
+      character(len=*), intent(out) :: msg
+      real(wp), optional, intent(in) :: tol
+      real(wp) :: tl
+      integer  :: i, j
+      tl = HOST_TOL;  if (present(tol)) tl = tol
+      good = .false.;  msg = ''
+      if (any(shape(I_g) /= shape(w)) .or. any(shape(C) /= shape(w)) .or. any(shape(F) /= shape(w))) then
+         msg = 'host terms differ in shape';  return
+      end if
+      do j = 1, size(w,2)
+         do i = 1, size(w,1)
+            if (.not. (is_finite(w(i,j)) .and. is_finite(I_g(i,j)) .and. is_finite(C(i,j)) .and. is_finite(F(i,j)))) then
+               write(msg,'(a,2i6)') 'host term not finite at', i, j;  return
+            end if
+            if (w(i,j) < -tl .or. w(i,j) > 1.0_wp + tl) then
+               write(msg,'(a,2i6,es12.4)') 'host w outside [0,1] at', i, j, w(i,j);  return
+            end if
+            if (I_g(i,j) < 0.0_wp) then
+               write(msg,'(a,2i6,es12.4)') 'host I_g < 0 at', i, j, I_g(i,j);  return
+            end if
+            if (C(i,j) < -tl .or. C(i,j) > w(i,j) + tl) then
+               write(msg,'(a,2i6,2es12.4)') 'host C outside [0,w] at', i, j, C(i,j), w(i,j);  return
+            end if
+            if (w(i,j) <= 0.0_wp .and. (I_g(i,j) /= 0.0_wp .or. F(i,j) /= 0.0_wp)) then
+               write(msg,'(a,2i6)') 'host I_g or F not 0 where w = 0 at', i, j;  return
+            end if
+         end do
+      end do
+      good = .true.
+   end function solid_earth_host_check
+
+   subroutine host_to_gauss(self, w, I_g, C, F, hg, what)
+      !! Host-resolved terms from the host grid onto the Gauss grid, clipped and checked. A
+      !! lon-lat host is remapped: the fractions w and C without the mass factor, clipped to
+      !! [0,1] and [0,w] (to_gauss_frac, also for a Gauss host), I_g conservatively with it,
+      !! F without it (not rescaled).
+      type(solid_earth), intent(in)    :: self
+      real(wp),          intent(in)    :: w(:,:), I_g(:,:), C(:,:), F(:,:)
+      type(sle_host),    intent(inout) :: hg
+      character(len=*),  intent(in)    :: what     !! 'reference' or 'update', for the message
+      character(len=160) :: msg
+      integer :: np, nl
+      np = self%sht%nphi;  nl = self%sht%nlat
+      call host_free(hg)
+      allocate(hg%w(np,nl), hg%I_g(np,nl), hg%C(np,nl), hg%F(np,nl))
+      call to_gauss_frac(self, w, hg%w)
+      call to_gauss_frac(self, C, hg%C, upper=hg%w)
+      call to_gauss(self, I_g, hg%I_g, conserve_mass=.true.)
+      call to_gauss(self, F,   hg%F,   conserve_mass=.false.)
+      if (.not. solid_earth_host_check(hg%w, hg%I_g, hg%C, hg%F, msg)) then
+         write(*,'(a)') ' solid_earth: host terms ('//what//'): '//trim(msg)
+         error stop 'solid_earth: host terms not admissible (see message above)'
+      end if
+   end subroutine host_to_gauss
+
+   subroutine to_gauss_frac(self, f_host, f_gauss, upper)
+      !! A fraction onto the Gauss grid: the conservative remap without the mass factor
+      !! (a copy for a Gauss host), then clipped to [0, upper] (default 1). Round-off beyond
+      !! the bounds (HOST_TOL) is clipped, on either path; anything larger or non-finite stops.
+      type(solid_earth), intent(in)  :: self
+      real(wp),          intent(in)  :: f_host(:,:)
+      real(wp),          intent(out) :: f_gauss(:,:)
+      real(wp), optional, intent(in) :: upper(:,:)
+      real(wp), allocatable :: hi(:,:)
+      allocate(hi(size(f_gauss,1), size(f_gauss,2)))
+      hi = 1.0_wp;  if (present(upper)) hi = upper
+      call to_gauss(self, f_host, f_gauss, conserve_mass=.false.)
+      if (.not. all(is_finite(f_gauss)) .or. any(f_gauss < -HOST_TOL) .or. any(f_gauss > hi + HOST_TOL)) &
+         error stop 'solid_earth: host fraction (w or C) outside its bounds by more than round-off, or not finite'
+      f_gauss = min(max(f_gauss, 0.0_wp), hi)
+   end subroutine to_gauss_frac
+
+   subroutine host_copy(a, b)
+      !! b = a, allocating b as needed.
+      type(sle_host), intent(in)    :: a
+      type(sle_host), intent(inout) :: b
+      call host_free(b)
+      if (allocated(a%w))   allocate(b%w,   source=a%w)
+      if (allocated(a%I_g)) allocate(b%I_g, source=a%I_g)
+      if (allocated(a%C))   allocate(b%C,   source=a%C)
+      if (allocated(a%F))   allocate(b%F,   source=a%F)
+   end subroutine host_copy
+
+   subroutine host_free(h)
+      type(sle_host), intent(inout) :: h
+      if (allocated(h%w))   deallocate(h%w)
+      if (allocated(h%I_g)) deallocate(h%I_g)
+      if (allocated(h%C))   deallocate(h%C)
+      if (allocated(h%F))   deallocate(h%F)
+   end subroutine host_free
+
+   logical function grid_is_global(grid) result(g)
+      !! A lon-lat host grid that covers the whole sphere: its cells span 360 degrees in
+      !! longitude and reach to within a row of each pole.
+      type(grid_class), intent(in) :: grid
+      integer  :: nx, ny
+      real(wp) :: dx0, dx1, dy0, dy1, span
+      nx = grid%G%nx;  ny = grid%G%ny
+      g = .false.
+      if (nx < 2 .or. ny < 2) return
+      dx0 = real(grid%G%x(2) - grid%G%x(1), wp);  dx1 = real(grid%G%x(nx) - grid%G%x(nx-1), wp)
+      dy0 = real(grid%G%y(2) - grid%G%y(1), wp);  dy1 = real(grid%G%y(ny) - grid%G%y(ny-1), wp)
+      span = real(grid%G%x(nx) - grid%G%x(1), wp) + 0.5_wp*(dx0 + dx1)
+      g = abs(span - 360.0_wp) < 0.5_wp*max(abs(dx0), abs(dx1)) &
+          .and. real(grid%G%y(1), wp)  - 0.5_wp*dy0 <= -90.0_wp + 0.5_wp*abs(dy0) + 1.0e-3_wp &
+          .and. real(grid%G%y(ny), wp) + 0.5_wp*dy1 >=  90.0_wp - 0.5_wp*abs(dy1) - 1.0e-3_wp
+   end function grid_is_global
 
    ! --- internals --------------------------------------------------------------
 

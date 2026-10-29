@@ -13,8 +13,11 @@ module vilma_io
    !! (nlam,ne,nk), the model time, and the adaptive controller's next-step Δt
    !! suggestion dt_try (so a restarted run sub-steps the same path → bit-for-bit
    !! continuation). With rotation enabled, the polar motion m and both degree-2
-   !! channels' memory stress (rot_*) are persisted too. Static (written once,
-   !! checked on read): the reference state z_bed_eq, h_ice_eq. Diagnostic: h_ice,
+   !! channels' memory stress (rot_*) are persisted too, and with host-resolved terms the
+   !! terms of the last update (w_prev, I_g_prev, C_prev, F_prev: the next ramp start).
+   !! Static (written once, checked on read): the reference state z_bed_eq, h_ice_eq and,
+   !! with host terms, w_ref, I_g_ref, C_host_ref; the global attribute host_terms (1 or 0)
+   !! says whether the run had host terms, and a read into the other kind stops. Diagnostic: h_ice,
    !! rsl, z_bed, dz_bed, dz_ss, C_ocean (lon,lat) and the scalars bsl, bsl_ive, dphi — written
    !! for inspection and restored if present.
    use vilma_precision,    only: wp
@@ -44,6 +47,10 @@ module vilma_io
    character(len=12), parameter :: VE_MEM_VARS(9) = [character(len=12) :: &
         "tau_a_re", "tau_a_im", "tau_b_re", "tau_b_im", "tau_c_re", "tau_c_im", &
         "sigma_n_re", "sigma_n_im", "sigma_primed"]
+
+   !! Host-resolved terms of the last update, appended to a restart like the rotation state.
+   character(len=12), parameter :: HOST_VARS(4) = [character(len=12) :: &
+        "w_prev", "I_g_prev", "C_prev", "F_prev"]
 
    character(len=256), save              :: table_file = "input/vilma-variables.md"
    type(var_io_type), allocatable, save  :: vtable(:)
@@ -123,6 +130,10 @@ contains
          end block
          ! rotation prognostic state (m + both channels' memory), if enabled
          if (self%rotation%enabled) call write_rotation(self, filename, n, ncid)
+         ! host terms of the last update (the next ramp start), if the run has them
+         if (self%gg%host%on) then
+            do q = 1, size(HOST_VARS);  call write_one(self, filename, trim(HOST_VARS(q)), n, ncid);  end do
+         end if
       end if
 
       call nc_close(ncid)
@@ -265,6 +276,12 @@ contains
 
       call put2d(self, filename, "z_bed_eq",  self%gg%z_bed_eq,  static=.true.)
       call put2d(self, filename, "h_ice_eq", self%gg%h_ice_eq, static=.true.)
+      if (self%gg%host%on) then
+         call put2d(self, filename, "w_ref",       self%gg%host%ref%w,   static=.true.)
+         call put2d(self, filename, "I_g_ref",     self%gg%host%ref%I_g, static=.true.)
+         call put2d(self, filename, "C_host_ref",  self%gg%host%ref%C,   static=.true.)
+      end if
+      call nc_write_attr(filename, "host_terms", merge(1, 0, self%gg%host%on))
 
       call write_visc_attrs(self, filename)
    end subroutine write_init
@@ -332,6 +349,10 @@ contains
       case ("rot_m_re"); call put_scalar(filename, name, real(self%rotation%m, wp), n, ncid)
       case ("rot_m_im"); call put_scalar(filename, name, aimag(self%rotation%m),    n, ncid)
       case ("dt_try");   call put_scalar(filename, name, self%stepper%dt_try/sec_per_year, n, ncid)
+      case ("w_prev");   call put2d(self, filename, name, self%gg%host%last%w,   n=n, ncid=ncid)
+      case ("I_g_prev"); call put2d(self, filename, name, self%gg%host%last%I_g, n=n, ncid=ncid)
+      case ("C_prev");   call put2d(self, filename, name, self%gg%host%last%C,   n=n, ncid=ncid)
+      case ("F_prev");   call put2d(self, filename, name, self%gg%host%last%F,   n=n, ncid=ncid)
       case ("sigma_n_re"); call put_sigma(self, filename, name, want_re=.true.,  n=n, ncid=ncid)
       case ("sigma_n_im"); call put_sigma(self, filename, name, want_re=.false., n=n, ncid=ncid)
       case ("sigma_primed")
@@ -449,10 +470,15 @@ contains
          n = nt
       end if
 
+      ! a file with host terms goes into a model with them, and one without into one without
+      call check_host_kind(self, filename)
+
       ! kind-specific prognostic memory + (where applicable) reference/diagnostics
       select case (self%resp%kind)
       case (RESP_VE);    call read_ve_state(self, filename, n, np, nl)
-      case default;      call read_diagnostics(self, filename, n, np, nl)  ! memoryless
+      case default
+         call read_diagnostics(self, filename, n, np, nl)                  ! memoryless
+         call restore_host(self, filename, n, np, nl)
       end select
 
       ! restore the clock and the adaptive controller's step-size seed. self%time is
@@ -565,6 +591,7 @@ contains
          call get3d(filename, "tau_c_re", self%resp%Cre, ne, nl_f, nk, n)
          call get3d(filename, "tau_c_im", self%resp%Cim, ne, nl_f, nk, n)
          call read_diagnostics(self, filename, n, np, nl)
+         call restore_host(self, filename, n, np, nl)     ! the next ramp starts where the file's run left off
          ! restore the trapezoidal start-of-step load σ_n (the other prognostic piece
          ! of the implicit scheme); without it the first step would re-derive σ_n to
          ! only the SLE solver tolerance, breaking bit-for-bit continuation.
@@ -587,7 +614,47 @@ contains
       call nc_read(filename, "h_ice_eq", ref)
       if (maxval(abs(ref - self%gg%h_ice_eq)) > tol) &
          error stop 'vilma_restart_read: h_ice_eq does not match the initialised model'
+      if (self%gg%host%on) then
+         call nc_read(filename, "w_ref", ref)
+         if (maxval(abs(ref - self%gg%host%ref%w)) > 1.0e-9_wp) &
+            error stop 'vilma_restart_read: host reference w does not match the initialised model'
+         call nc_read(filename, "I_g_ref", ref)
+         if (maxval(abs(ref - self%gg%host%ref%I_g)) > tol) &
+            error stop 'vilma_restart_read: host reference I_g does not match the initialised model'
+         call nc_read(filename, "C_host_ref", ref)
+         if (maxval(abs(ref - self%gg%host%ref%C)) > 1.0e-9_wp) &
+            error stop 'vilma_restart_read: host reference C does not match the initialised model'
+      end if
    end subroutine check_reference
+
+   subroutine check_host_kind(self, filename)
+      !! Stop if the file and the model disagree on host-resolved terms. A file from before
+      !! host terms has no host_terms attribute and counts as 0.
+      type(solid_earth), intent(in) :: self
+      character(len=*),   intent(in) :: filename
+      integer :: in_file
+      in_file = 0
+      if (nc_exists_attr(filename, "host_terms")) call nc_read_attr(filename, "host_terms", in_file)
+      if ((in_file == 1) .neqv. self%gg%host%on) then
+         write(*,'(a,i0,a,l1)') ' vilma_restart_read: the file has host_terms = ', in_file, &
+              ', the model has host terms: ', self%gg%host%on
+         error stop 'vilma_restart_read: host terms in the file and in the model do not match'
+      end if
+   end subroutine check_host_kind
+
+   subroutine restore_host(self, filename, n, np, nl)
+      !! Restore the host terms of the last update (the next ramp start) at slice n. Only a
+      !! same-resolution restart gets here: a cross-resolution one leaves them at the
+      !! reference, and the caller re-seeds with a dt = 0 update, as for the ice.
+      type(solid_earth), intent(inout) :: self
+      character(len=*),   intent(in)    :: filename
+      integer,            intent(in)    :: n, np, nl
+      if (.not. self%gg%host%on) return
+      call get2d(filename, "w_prev",   self%gg%host%last%w,   np, nl, n)
+      call get2d(filename, "I_g_prev", self%gg%host%last%I_g, np, nl, n)
+      call get2d(filename, "C_prev",   self%gg%host%last%C,   np, nl, n)
+      call get2d(filename, "F_prev",   self%gg%host%last%F,   np, nl, n)
+   end subroutine restore_host
 
    subroutine read_diagnostics(self, filename, n, np, nl)
       !! Restore the (lon,lat) diagnostic state so the restarted object reports

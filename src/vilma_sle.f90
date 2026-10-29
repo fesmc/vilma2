@@ -38,8 +38,18 @@ module vilma_sle
    implicit none
    private
 
-   public :: sle_solver, sle_result, ocean_function
+   public :: sle_solver, sle_result, sle_host, ocean_function
    public :: sle_solve, sle_result_grids
+
+   type :: sle_host
+      !! Host-resolved terms on the Gauss grid (nphi,nlat), each per unit Gauss-cell area.
+      !! Where w = 0 the other three are 0. host_ref (the reference state) needs w, I_g
+      !! and C only: its F is zero by definition and not read.
+      real(wp), allocatable :: w(:,:)     !! fraction of the cell in the host region, 0..1
+      real(wp), allocatable :: I_g(:,:)   !! w·H·f_g: grounded-ice column [m]
+      real(wp), allocatable :: C(:,:)     !! w·(1 − f_g): ocean fraction, 0..w
+      real(wp), allocatable :: F(:,:)     !! w·ζ⁽⁰⁾·(C − C_ref): flooded-area fill [m]
+   end type sle_host
 
    type :: sle_result
       !! Diagnostics returned by a solve.
@@ -133,7 +143,7 @@ module vilma_sle
 contains
 
    subroutine sle_solve(self, sht, resp, d_ice, ice, topo0, rsl, C, res, &
-                        report_only, sigma_lm, rot, rot_dt)
+                        report_only, sigma_lm, rot, rot_dt, host, host_ref, dIg_out)
       !! Solve for the relative-sea-level change rsl [m] driven by a grounded-ice
       !! thickness change d_ice [m], on a reference topography topo0 [m] (solid
       !! surface relative to the reference sea surface; ocean where < 0).
@@ -191,13 +201,33 @@ contains
       !! no-rotation result.
       type(rotation_state), optional, intent(inout) :: rot
       real(wp),             optional, intent(in)    :: rot_dt
+      !! host, host_ref (optional, together): host-resolved terms at this state and at the
+      !! reference (see sle_host). With them, d_ice, ice and topo0 describe the own part of
+      !! each cell, 1 − w, as an area mean over that part (cells with w = 1 ignore ice and
+      !! d_ice). In terms of a = 1 − w and a0 = 1 − w_ref, the hats the host terms, and
+      !! C_own the ocean function of the own part:
+      !!
+      !!     C    = Ĉ + a·C_own                          the returned C and the C of the load
+      !!     ΔI_g = (Î_g − Î_g0) + [a·ice·(1−C_own) − a0·(ice−d_ice)·(1−C0_own)]
+      !!     fill = F̂ + a·ζ⁽⁰⁾·(C_own − C0_own)          the subgrid term, in place of ζ⁽⁰⁾(C − C0)
+      !!
+      !! Only the own part moves the coastline, so the outer loop counts flips of C_own where
+      !! a > 0 and ends after one pass when w = 1 everywhere. Own-part terms are masked by
+      !! a > 0, not multiplied by it, so ice left undefined where w = 1 does no harm. Not
+      !! with fixed_ocean. Without host the statements below are exactly those of the
+      !! host-free solve (bit-identical).
+      type(sle_host), optional, intent(in) :: host, host_ref
+      !! dIg_out (optional): the grounded-ice increment ΔI_g [m] of the closing load, the
+      !! field the melt source integrates; a host needs it for the ice-volume equivalent.
+      real(wp),       optional, intent(out) :: dIg_out(:,:)
 
       real(wp), allocatable :: load(:,:), Sraw(:,:), rsl_new(:,:)
       real(wp), allocatable :: C0(:,:), wcorr(:,:), C_next(:,:), d_ice_g(:,:)
+      real(wp), allocatable :: C_own(:,:), a(:,:), a0(:,:), fill(:,:), ice_o(:,:), ice_o0(:,:)
       complex(wp), allocatable :: load_lm(:), u_lm(:), N_lm(:), S_lm(:)
       real(wp) :: rho_ratio, ice_int, dphi, C_int, Cs_int, zeta_int, smax, dmax
       integer  :: im, io, ii, np, nl, n_mem
-      logical  :: ronly, rotate
+      logical  :: ronly, rotate, hmode
       integer(kind=8) :: pc0, pc1, pca, pcb, prate   ! PROFILE: see %t_total
 
       call system_clock(pc0, prate)
@@ -208,6 +238,24 @@ contains
       allocate(C0(np,nl), wcorr(np,nl), C_next(np,nl), d_ice_g(np,nl))
       allocate(load_lm(sht%nlm), S_lm(sht%nlm))
       allocate(u_lm(sht%nlm), N_lm(sht%nlm), source=(0.0_wp, 0.0_wp))
+
+      ! host mode: a = 1 − w (own-part weight now), a0 = 1 − w_ref; C_own is the own part's
+      ! ocean function, C_next then holds its next coastline. ice_o and ice_o0 are the own
+      ! ice now and at the reference, zero where the own part is absent, so the flotation
+      ! test never sees what a caller left there (NaN would trap a debug build).
+      hmode = present(host)
+      if (hmode .neqv. present(host_ref)) error stop 'sle_solve: host and host_ref go together'
+      if (hmode) then
+         if (self%fixed_ocean) error stop 'sle_solve: host terms need a migrating coastline (fixed_ocean = .false.)'
+         if (.not. (allocated(host%w) .and. allocated(host%I_g) .and. allocated(host%C) .and. allocated(host%F) &
+                    .and. allocated(host_ref%w) .and. allocated(host_ref%I_g) .and. allocated(host_ref%C))) &
+            error stop 'sle_solve: host terms not allocated (host: w, I_g, C, F; host_ref: w, I_g, C)'
+         allocate(C_own(np,nl), a(np,nl), a0(np,nl), fill(np,nl), ice_o(np,nl), ice_o0(np,nl))
+         a  = 1.0_wp - host%w
+         a0 = 1.0_wp - host_ref%w
+         ice_o  = merge(ice, 0.0_wp, a > 0.0_wp)
+         ice_o0 = merge(ice - d_ice, 0.0_wp, a0 > 0.0_wp)
+      end if
 
       rho_ratio = self%rho_ice/self%rho_water
       ! Cold start zeroes rsl; warm start keeps the incoming field as the initial
@@ -225,8 +273,13 @@ contains
       ! reference state: bathymetry ζ⁽⁰⁾ = topo0 (rsl = 0 at t0) and the reference
       ! ice ice − d_ice (= 0 for an ice-free reference ⇒ O⁽⁰⁾ = (topo0 < 0); = ice
       ! when d_ice = 0 ⇒ grounded reference ice is excluded, so a no-change solve
-      ! leaves C ≡ C⁽⁰⁾ and the subgrid term vanishes).
-      call ocean_function(topo0, ice - d_ice, C0, self%rho_ice, self%rho_water)
+      ! leaves C ≡ C⁽⁰⁾ and the subgrid term vanishes). With a host this is the own
+      ! part's reference ocean function, C0_own.
+      if (hmode) then
+         call ocean_function(topo0, ice_o0, C0, self%rho_ice, self%rho_water)
+      else
+         call ocean_function(topo0, ice - d_ice, C0, self%rho_ice, self%rho_water)
+      end if
 
       ronly = .false.;  if (present(report_only)) ronly = report_only
       rotate = .false.
@@ -254,7 +307,20 @@ contains
 
       do im = 1, n_mem
       do io = 1, self%n_outer
-         if (self%fixed_ocean) then
+         if (hmode) then
+            ! own part: the same migration as below, on C_own; the host's ocean fraction
+            ! is fixed by the host, and the two make up C
+            if (io == 1) then
+               call ocean_function(topo0 - rsl, ice_o, C_own, self%rho_ice, self%rho_water)
+            else
+               C_own = C_next
+            end if
+            where (a > 0.0_wp)
+               C = host%C + a*C_own
+            elsewhere
+               C = host%C
+            end where
+         else if (self%fixed_ocean) then
             ! Fixed ocean geometry (Martinec 2018 §2.1): hold the coastline at the
             ! reference O⁽⁰⁾ for all time (no migration). Computed once.
             if (io == 1) C = C0
@@ -293,7 +359,21 @@ contains
          ! The below-flotation part is not double counted: the water that fills
          ! such a newly flooded cell from its bed is removed again by the subgrid
          ! term ζ⁽⁰⁾(C − C⁽⁰⁾) below, leaving exactly the above-flotation volume.
-         d_ice_g = ice*(1.0_wp - C) - (ice - d_ice)*(1.0_wp - C0)
+         if (hmode) then
+            ! host columns plus the own part, each endpoint against its own C_own, C0_own
+            where (a > 0.0_wp .and. a0 > 0.0_wp)
+               d_ice_g = (host%I_g - host_ref%I_g) &
+                         + (a*(ice*(1.0_wp - C_own)) - a0*((ice - d_ice)*(1.0_wp - C0)))
+            elsewhere (a > 0.0_wp)
+               d_ice_g = (host%I_g - host_ref%I_g) + a*(ice*(1.0_wp - C_own))
+            elsewhere (a0 > 0.0_wp)
+               d_ice_g = (host%I_g - host_ref%I_g) - a0*((ice - d_ice)*(1.0_wp - C0))
+            elsewhere
+               d_ice_g = host%I_g - host_ref%I_g
+            end where
+         else
+            d_ice_g = ice*(1.0_wp - C) - (ice - d_ice)*(1.0_wp - C0)
+         end if
 
          C_int = sht_grid_surface_integral(sht, C)
          if (C_int <= 0.0_wp) exit          ! no ocean: nothing to redistribute
@@ -312,8 +392,19 @@ contains
          ! Constant over the inner loop (depends only on the coastline C, C⁽⁰⁾). It
          ! also enters the mass balance via ζ̄⁽⁰⁾ = ∫ζ⁽⁰⁾(C−C⁽⁰⁾) (eqs 19-20).
          if (self%subgrid) then
-            wcorr    = -self%rho_water * topo0 * (C - C0)
-            zeta_int = sht_grid_surface_integral(sht, topo0*(C - C0))
+            if (hmode) then
+               ! the host's fill plus the own part's, ζ⁽⁰⁾(C_own − C0_own) over its share a
+               where (a > 0.0_wp)
+                  fill = host%F + a*(topo0*(C_own - C0))
+               elsewhere
+                  fill = host%F
+               end where
+               wcorr    = -self%rho_water * fill
+               zeta_int = sht_grid_surface_integral(sht, fill)
+            else
+               wcorr    = -self%rho_water * topo0 * (C - C0)
+               zeta_int = sht_grid_surface_integral(sht, topo0*(C - C0))
+            end if
          else
             wcorr = 0.0_wp;  zeta_int = 0.0_wp
          end if
@@ -370,8 +461,13 @@ contains
          ! C_next is promoted to C at the TOP of the next pass, never here. On the
          ! final pass C must stay the coastline that rsl was converged against,
          ! because the closing load (and wcorr, zeta_int) below are built from both.
-         call ocean_function(topo0 - rsl, ice, C_next, self%rho_ice, self%rho_water)
-         res%n_coast_flip = count(C_next /= C)
+         if (hmode) then
+            call ocean_function(topo0 - rsl, ice_o, C_next, self%rho_ice, self%rho_water)
+            res%n_coast_flip = count(C_next /= C_own .and. a > 0.0_wp)   ! only the own part moves
+         else
+            call ocean_function(topo0 - rsl, ice, C_next, self%rho_ice, self%rho_water)
+            res%n_coast_flip = count(C_next /= C)
+         end if
          if (res%n_coast_flip == 0) exit
       end do
 
@@ -415,6 +511,7 @@ contains
          res%mass_resid = abs(Cs_int)
       end if
       res%u_lm = u_lm;  res%N_lm = N_lm;  res%esl = dphi   ! converged fields + offset
+      if (present(dIg_out)) dIg_out = d_ice_g              ! ΔI_g of the closing load
 
       call system_clock(pc1);  self%t_total = self%t_total + real(pc1-pc0,wp)/prate
 
