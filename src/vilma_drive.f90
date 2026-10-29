@@ -35,7 +35,7 @@ module vilma_drive
                            solid_earth_spinup, solid_earth_check_solver, VILMA_UNSET
    use vilma_remap,     only: remap_ll_gauss, remap_init, remap_to_gauss
    use vilma_io,        only: vilma_write_step, vilma_restart_write, vilma_restart_read, vilma_write_horizontal
-   use ncio,         only: nc_read, nc_size, nc_exists_var
+   use ncio,         only: nc_read, nc_size, nc_exists_var, nc_set_lossless
    use iso_fortran_env, only: error_unit
    implicit none
    private
@@ -94,6 +94,7 @@ contains
       call vilma_ctl_load(c, cfg_file)
       call vilma_par_print(p)
       call vilma_ctl_print(c)
+      call nc_set_lossless(c%write_lossless)        ! diagnostics: table precision unless set
 
       ! Solver backend check, before any work: an unknown &vilma solver, or
       ! solver="v1" in a binary built without the optional VILMA1 backend (the

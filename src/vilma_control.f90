@@ -43,6 +43,10 @@ module vilma_control
       ! file on the same grid and time axis as file_out; empty = not written. Its
       ! own file because each field is as large as rsl, and most runs need none.
       character(len=512) :: file_hor     = ""                  !! horizontal output (off when empty)
+      ! Diagnostic output is rounded to the `prec` column of input/vilma-variables.md.
+      ! Restarts are always lossless; write_lossless forces the diagnostics lossless too
+      ! (bit-for-bit comparisons). It sets ncio's global nc_set_lossless.
+      logical            :: write_lossless = .false.          !! write all output lossless
 
       ! --- forcing time window --------------------------------------------------
       ! Time fields are SI [s] in the record; the nml supplies them in YEARS and
@@ -121,6 +125,9 @@ contains
       c%file_out = expand_path(c%file_out)
       call nml_read(filename, g, "file_hor",      c%file_hor)
       if (len_trim(c%file_hor) > 0) c%file_hor = expand_path(c%file_hor)
+      ! optional (default .false.), so existing run configs keep working
+      if (nml_has_param(filename, g, "write_lossless")) &
+         call nml_read(filename, g, "write_lossless", c%write_lossless)
 
       ! time window (YEARS in the nml -> SI seconds in the record)
       time_init_yr = c%time_init/sec_per_year
@@ -171,6 +178,7 @@ contains
       write(u,'(a,a)')     '   output:   ', trim(c%file_out)
       if (len_trim(c%file_hor) > 0) &
          write(u,'(a,a)')  '   horizontal: ', trim(c%file_hor)
+      if (c%write_lossless) write(u,'(a)') '   write_lossless: diagnostics written without rounding'
       if (len_trim(c%restart_in_file) > 0) &
          write(u,'(a,a)')  '   restart:  ', trim(c%restart_in_file)
    end subroutine vilma_ctl_print

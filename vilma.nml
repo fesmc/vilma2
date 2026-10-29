@@ -25,6 +25,8 @@
     ! --- step output --------------------------------------------------
     file_out      = "vilma_out.nc"
     file_hor      = ""     ! horizontal displacement (total + toroidal) to its own file; "" = off
+    write_lossless = .false. ! .true.: no output rounding (the prec column of input/vilma-variables.md);
+                             ! restarts are always lossless
     time_init     = -1.0e30            ! [years] (<= forcing start => full range)
     time_end      =  1.0e30            ! [years] (>= forcing end   => full range)
 

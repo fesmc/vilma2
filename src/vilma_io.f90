@@ -9,6 +9,12 @@ module vilma_io
    !! markdown table (input/vilma-variables.md) parsed by variable_io. The
    !! table is both the I/O metadata source and the human documentation.
    !!
+   !! Output precision: the table's `prec` column gives each variable's ncio rounding
+   !! (prec_abs / prec_rel), applied by the diagnostic writers (vilma_write_step,
+   !! vilma_write_horizontal). Restarts are always lossless: vilma_restart_write passes
+   !! lossless=.true. down to every put*. ncio's nc_set_lossless forces lossless
+   !! diagnostics too (&ctl write_lossless of the standalone driver).
+   !!
    !! Prognostic (restored on restart): the Maxwell memory-stress fields tau_*
    !! (nlam,ne,nk), the model time, and the adaptive controller's next-step Δt
    !! suggestion dt_try (so a restarted run sub-steps the same path → bit-for-bit
@@ -69,6 +75,18 @@ contains
       if (.not. allocated(vtable)) call load_var_io_table(vtable, trim(table_file))
    end subroutine ensure_table
 
+   function table_var(name, lossless) result(v)
+      !! Table row of variable `name`, with its precision reset to lossless when
+      !! lossless=.true. (restart files; default .false.: the row's own prec).
+      character(len=*), intent(in) :: name
+      logical, optional, intent(in) :: lossless
+      type(var_io_type) :: v
+      call find_var_io_in_table(v, name, vtable, with_error=.true.)
+      if (present(lossless)) then
+         if (lossless) v = var_io_lossless(v)
+      end if
+   end function table_var
+
    ! --- writing ---------------------------------------------------------------
 
    subroutine vilma_restart_write(self, time, filename, folder, init)
@@ -76,6 +94,7 @@ contains
       !! trim(folder)//"/"//trim(filename) (folder is created if needed). Defaults:
       !! folder="." and filename="vilma_restart.nc". With init=.true. (default) the file
       !! is (re)created; with init=.false. the snapshot is appended at a new time index.
+      !! Always lossless: no variable is rounded, whatever the table's prec column says.
       type(solid_earth), intent(in) :: self
       real(wp),           intent(in) :: time
       character(len=*), optional, intent(in) :: filename, folder
@@ -84,30 +103,34 @@ contains
       fn = "vilma_restart.nc";  if (present(filename)) fn = trim(filename)
       fd = ".";              if (present(folder))   fd = trim(folder)
       call execute_command_line("mkdir -p '"//fd//"'")
-      call vilma_write_step(self, fd//"/"//fn, time, init=init)
+      call vilma_write_step(self, fd//"/"//fn, time, init=init, lossless=.true.)
    end subroutine vilma_restart_write
 
-   subroutine vilma_write_step(self, filename, time, nms, init)
+   subroutine vilma_write_step(self, filename, time, nms, init, lossless)
       !! General step writer. Writes the variables named in nms (default: all
       !! time-varying variables) at the time index for `time`, appending along
       !! the unlimited time axis. The model time should be passed as `time` for
-      !! a restart to round-trip the clock.
+      !! a restart to round-trip the clock. Each variable is rounded to the prec of
+      !! its table row, unless lossless=.true. (default .false.; the restart writer
+      !! passes .true.) or ncio's nc_set_lossless is on.
       type(solid_earth), intent(in) :: self
       character(len=*),   intent(in) :: filename
       real(wp),           intent(in) :: time
       character(len=*), optional, intent(in) :: nms(:)
       logical,          optional, intent(in) :: init
-      logical :: do_init
+      logical,          optional, intent(in) :: lossless
+      logical :: do_init, ll
       integer :: ncid, n, q
       real(wp) :: tyr
 
       call ensure_table()
       do_init = .true.;  if (present(init)) do_init = init
+      ll = .false.;      if (present(lossless)) ll = lossless
 
       ! the coupling clock (se%time) and this output time axis are both in YEARS.
       tyr = time
 
-      if (do_init) call write_init(self, filename, time)
+      if (do_init) call write_init(self, filename, time, ll)
 
       call nc_open(filename, ncid, writable=.true.)
       if (do_init) then
@@ -118,7 +141,7 @@ contains
       end if
 
       if (present(nms)) then
-         do q = 1, size(nms);  call write_one(self, filename, trim(nms(q)), n, ncid);  end do
+         do q = 1, size(nms);  call write_one(self, filename, trim(nms(q)), n, ncid, ll);  end do
       else
          block
             character(len=12), allocatable :: vars(:)
@@ -126,13 +149,13 @@ contains
             case (RESP_VE);    vars = [VE_MEM_VARS,    COMMON_VARS]
             case default;      vars = COMMON_VARS            ! elastic / null: memoryless
             end select
-            do q = 1, size(vars);  call write_one(self, filename, trim(vars(q)), n, ncid);  end do
+            do q = 1, size(vars);  call write_one(self, filename, trim(vars(q)), n, ncid, ll);  end do
          end block
          ! rotation prognostic state (m + both channels' memory), if enabled
-         if (self%rotation%enabled) call write_rotation(self, filename, n, ncid)
+         if (self%rotation%enabled) call write_rotation(self, filename, n, ncid, ll)
          ! host terms of the last update (the next ramp start), if the run has them
          if (self%gg%host%on) then
-            do q = 1, size(HOST_VARS);  call write_one(self, filename, trim(HOST_VARS(q)), n, ncid);  end do
+            do q = 1, size(HOST_VARS);  call write_one(self, filename, trim(HOST_VARS(q)), n, ncid, ll);  end do
          end if
       end if
 
@@ -185,6 +208,7 @@ contains
          n = nc_time_index(filename, "time", time, ncid)
          call nc_write(filename, "time", time, dim1="time", start=[n], count=[1], ncid=ncid)
       end if
+      ! diagnostics: rounded to the table's prec (all lossless under nc_set_lossless)
       call put_hor(filename, "u_east",      sph + tph,    n, ncid, np, nl)
       call put_hor(filename, "u_north",     -(sth + tth), n, ncid, np, nl)
       call put_hor(filename, "u_east_tor",  tph,          n, ncid, np, nl)
@@ -197,12 +221,13 @@ contains
       real(wp),         intent(in) :: dat(:,:)
       integer,          intent(in) :: n, ncid, np, nl
       type(var_io_type) :: v
-      call find_var_io_in_table(v, name, vtable, with_error=.true.)
+      v = table_var(name)
       call nc_write(filename, name, dat, ncid=ncid, dim1="lon", dim2="lat", dim3="time", &
-           start=[1,1,n], count=[np, nl, 1], units=trim(v%units), long_name=trim(v%long_name))
+           start=[1,1,n], count=[np, nl, 1], units=trim(v%units), long_name=trim(v%long_name), &
+           prec_abs=v%prec_abs, prec_rel=v%prec_rel)
    end subroutine put_hor
 
-   subroutine write_rotation(self, filename, n, ncid)
+   subroutine write_rotation(self, filename, n, ncid, lossless)
       !! Write the rotation solver's prognostic state at time slice n: the polar
       !! motion m (two scalars) and both degree-2 channels' packed memory stress
       !! (NLAM, ne_rot, ROT_NCOMP). Serialization is owned by vilma_rotation; this just
@@ -210,37 +235,41 @@ contains
       type(solid_earth), intent(in) :: self
       character(len=*),   intent(in) :: filename
       integer,            intent(in) :: n, ncid
+      logical,            intent(in) :: lossless
       complex(wp) :: m
       real(wp), allocatable :: load_mem(:,:,:), tidal_mem(:,:,:)
       integer :: ne
       ne = rotation_ne(self%rotation)
       allocate(load_mem(NLAM, ne, ROT_NCOMP), tidal_mem(NLAM, ne, ROT_NCOMP))
       call rotation_get_memory(self%rotation, m, load_mem, tidal_mem)
-      call put_scalar(filename, "rot_m_re", real(m, wp),  n, ncid)
-      call put_scalar(filename, "rot_m_im", aimag(m),     n, ncid)
-      call put_rotmem(filename, "rot_load_mem",  load_mem,  ne, n, ncid)
-      call put_rotmem(filename, "rot_tidal_mem", tidal_mem, ne, n, ncid)
+      call put_scalar(filename, "rot_m_re", real(m, wp),  n, ncid, lossless)
+      call put_scalar(filename, "rot_m_im", aimag(m),     n, ncid, lossless)
+      call put_rotmem(filename, "rot_load_mem",  load_mem,  ne, n, ncid, lossless)
+      call put_rotmem(filename, "rot_tidal_mem", tidal_mem, ne, n, ncid, lossless)
    end subroutine write_rotation
 
-   subroutine put_rotmem(filename, name, dat, ne, n, ncid)
+   subroutine put_rotmem(filename, name, dat, ne, n, ncid, lossless)
       !! Write a packed degree-2 channel memory field (nlam, ne_rot, nrc) at slice n.
       character(len=*), intent(in) :: filename, name
       real(wp),         intent(in) :: dat(:,:,:)
       integer,          intent(in) :: ne, n, ncid
+      logical,          intent(in) :: lossless
       type(var_io_type) :: v
-      call find_var_io_in_table(v, name, vtable, with_error=.true.)
+      v = table_var(name, lossless)
       call nc_write(filename, name, dat, ncid=ncid, &
            dim1="nlam_rot", dim2="ne_rot", dim3="nrc", dim4="time", &
            start=[1,1,1,n], count=[NLAM, ne, ROT_NCOMP, 1], &
-           units=trim(v%units), long_name=trim(v%long_name))
+           units=trim(v%units), long_name=trim(v%long_name), &
+           prec_abs=v%prec_abs, prec_rel=v%prec_rel)
    end subroutine put_rotmem
 
-   subroutine write_init(self, filename, time)
+   subroutine write_init(self, filename, time, lossless)
       !! Create the file and its dimensions (lon, lat, nlam, ne, nk, time) and
       !! write the static reference fields.
       type(solid_earth), intent(in) :: self
       character(len=*),   intent(in) :: filename
       real(wp),           intent(in) :: time
+      logical,            intent(in) :: lossless
       real(wp), allocatable :: lon_deg(:), lat_deg(:)
 
       lon_deg = self%sht%lon * rad2deg
@@ -274,12 +303,12 @@ contains
       call nc_write_dim(filename, "time", x=time, dx=1.0_wp, nx=1, &
            units="years", unlimited=.true.)
 
-      call put2d(self, filename, "z_bed_eq",  self%gg%z_bed_eq,  static=.true.)
-      call put2d(self, filename, "h_ice_eq", self%gg%h_ice_eq, static=.true.)
+      call put2d(self, filename, "z_bed_eq",  self%gg%z_bed_eq,  static=.true., lossless=lossless)
+      call put2d(self, filename, "h_ice_eq", self%gg%h_ice_eq, static=.true., lossless=lossless)
       if (self%gg%host%on) then
-         call put2d(self, filename, "w_ref",       self%gg%host%ref%w,   static=.true.)
-         call put2d(self, filename, "I_g_ref",     self%gg%host%ref%I_g, static=.true.)
-         call put2d(self, filename, "C_host_ref",  self%gg%host%ref%C,   static=.true.)
+         call put2d(self, filename, "w_ref",       self%gg%host%ref%w,   static=.true., lossless=lossless)
+         call put2d(self, filename, "I_g_ref",     self%gg%host%ref%I_g, static=.true., lossless=lossless)
+         call put2d(self, filename, "C_host_ref",  self%gg%host%ref%C,   static=.true., lossless=lossless)
       end if
       call nc_write_attr(filename, "host_terms", merge(1, 0, self%gg%host%on))
 
@@ -318,27 +347,28 @@ contains
       end do
    end function visc_3d_checksum
 
-   subroutine write_one(self, filename, name, n, ncid)
+   subroutine write_one(self, filename, name, n, ncid, lossless)
       !! Dispatch a single variable name to its array + dimensions.
       type(solid_earth), intent(in) :: self
       character(len=*),   intent(in) :: filename, name
       integer,            intent(in) :: n, ncid
+      logical,            intent(in) :: lossless
       select case (name)
-      case ("tau_a_re"); call put3d(self, filename, name, self%resp%Are, n, ncid)
-      case ("tau_a_im"); call put3d(self, filename, name, self%resp%Aim, n, ncid)
-      case ("tau_b_re"); call put3d(self, filename, name, self%resp%Bre, n, ncid)
-      case ("tau_b_im"); call put3d(self, filename, name, self%resp%Bim, n, ncid)
-      case ("tau_c_re"); call put3d(self, filename, name, self%resp%Cre, n, ncid)
-      case ("tau_c_im"); call put3d(self, filename, name, self%resp%Cim, n, ncid)
-      case ("h_ice");    call put2d(self, filename, name, self%gg%h_ice, n=n, ncid=ncid)
-      case ("rsl");      call put2d(self, filename, name, self%gg%rsl,   n=n, ncid=ncid)
-      case ("z_bed");    call put2d(self, filename, name, self%gg%z_bed, n=n, ncid=ncid)
-      case ("dz_bed");   call put2d(self, filename, name, self%gg%dz_bed, n=n, ncid=ncid)
-      case ("dz_ss");    call put2d(self, filename, name, self%gg%dz_ss,  n=n, ncid=ncid)
-      case ("C_ocean");  call put2d(self, filename, name, self%gg%C,     n=n, ncid=ncid)
-      case ("bsl");      call put_scalar(filename, name, self%bsl, n, ncid)
-      case ("bsl_ive");  call put_scalar(filename, name, self%bsl_ive, n, ncid)
-      case ("dphi");     call put_scalar(filename, name, self%dphi, n, ncid)
+      case ("tau_a_re"); call put3d(self, filename, name, self%resp%Are, n, ncid, lossless)
+      case ("tau_a_im"); call put3d(self, filename, name, self%resp%Aim, n, ncid, lossless)
+      case ("tau_b_re"); call put3d(self, filename, name, self%resp%Bre, n, ncid, lossless)
+      case ("tau_b_im"); call put3d(self, filename, name, self%resp%Bim, n, ncid, lossless)
+      case ("tau_c_re"); call put3d(self, filename, name, self%resp%Cre, n, ncid, lossless)
+      case ("tau_c_im"); call put3d(self, filename, name, self%resp%Cim, n, ncid, lossless)
+      case ("h_ice");    call put2d(self, filename, name, self%gg%h_ice, n=n, ncid=ncid, lossless=lossless)
+      case ("rsl");      call put2d(self, filename, name, self%gg%rsl,   n=n, ncid=ncid, lossless=lossless)
+      case ("z_bed");    call put2d(self, filename, name, self%gg%z_bed, n=n, ncid=ncid, lossless=lossless)
+      case ("dz_bed");   call put2d(self, filename, name, self%gg%dz_bed, n=n, ncid=ncid, lossless=lossless)
+      case ("dz_ss");    call put2d(self, filename, name, self%gg%dz_ss,  n=n, ncid=ncid, lossless=lossless)
+      case ("C_ocean");  call put2d(self, filename, name, self%gg%C,     n=n, ncid=ncid, lossless=lossless)
+      case ("bsl");      call put_scalar(filename, name, self%bsl, n, ncid, lossless)
+      case ("bsl_ive");  call put_scalar(filename, name, self%bsl_ive, n, ncid, lossless)
+      case ("dphi");     call put_scalar(filename, name, self%dphi, n, ncid, lossless)
       ! Polar motion m = m1 + i*m2 [rad]. Already prognostic and already
       ! serialized into restarts by write_rotation; these two cases let the
       ! DIAGNOSTIC output file carry it as well, via an explicit nms list.
@@ -346,45 +376,48 @@ contains
       ! its list only if se%rotation%enabled, so a rotation=.false. run and the
       ! VILMA1 backend (which keeps its own internal rotation and never touches
       ! this state) omit the variables rather than writing a fabricated zero.
-      case ("rot_m_re"); call put_scalar(filename, name, real(self%rotation%m, wp), n, ncid)
-      case ("rot_m_im"); call put_scalar(filename, name, aimag(self%rotation%m),    n, ncid)
-      case ("dt_try");   call put_scalar(filename, name, self%stepper%dt_try/sec_per_year, n, ncid)
-      case ("w_prev");   call put2d(self, filename, name, self%gg%host%last%w,   n=n, ncid=ncid)
-      case ("I_g_prev"); call put2d(self, filename, name, self%gg%host%last%I_g, n=n, ncid=ncid)
-      case ("C_prev");   call put2d(self, filename, name, self%gg%host%last%C,   n=n, ncid=ncid)
-      case ("F_prev");   call put2d(self, filename, name, self%gg%host%last%F,   n=n, ncid=ncid)
-      case ("sigma_n_re"); call put_sigma(self, filename, name, want_re=.true.,  n=n, ncid=ncid)
-      case ("sigma_n_im"); call put_sigma(self, filename, name, want_re=.false., n=n, ncid=ncid)
+      case ("rot_m_re"); call put_scalar(filename, name, real(self%rotation%m, wp), n, ncid, lossless)
+      case ("rot_m_im"); call put_scalar(filename, name, aimag(self%rotation%m),    n, ncid, lossless)
+      case ("dt_try");   call put_scalar(filename, name, self%stepper%dt_try/sec_per_year, n, ncid, lossless)
+      case ("w_prev");   call put2d(self, filename, name, self%gg%host%last%w,   n=n, ncid=ncid, lossless=lossless)
+      case ("I_g_prev"); call put2d(self, filename, name, self%gg%host%last%I_g, n=n, ncid=ncid, lossless=lossless)
+      case ("C_prev");   call put2d(self, filename, name, self%gg%host%last%C,   n=n, ncid=ncid, lossless=lossless)
+      case ("F_prev");   call put2d(self, filename, name, self%gg%host%last%F,   n=n, ncid=ncid, lossless=lossless)
+      case ("sigma_n_re"); call put_sigma(self, filename, name, want_re=.true.,  n=n, ncid=ncid, lossless=lossless)
+      case ("sigma_n_im"); call put_sigma(self, filename, name, want_re=.false., n=n, ncid=ncid, lossless=lossless)
       case ("sigma_primed")
          call put_scalar(filename, name, &
               merge(1.0_wp, 0.0_wp, allocated(self%resp%sigma_n) .and. self%resp%sigma_primed), &
-              n, ncid)
+              n, ncid, lossless)
       case default
          error stop 'vilma_io: unknown variable "'//trim(name)//'"'
       end select
    end subroutine write_one
 
-   subroutine put3d(self, filename, name, dat, n, ncid)
+   subroutine put3d(self, filename, name, dat, n, ncid, lossless)
       !! Write a (nlam,ne,nk) Maxwell-memory field at time slice n.
       type(solid_earth), intent(in) :: self
       character(len=*),   intent(in) :: filename, name
       real(wp),           intent(in) :: dat(:,:,:)
       integer,            intent(in) :: n, ncid
+      logical,            intent(in) :: lossless
       type(var_io_type) :: v
-      call find_var_io_in_table(v, name, vtable, with_error=.true.)
+      v = table_var(name, lossless)
       call nc_write(filename, name, dat, ncid=ncid, &
            dim1="nlam", dim2="ne", dim3="nk", dim4="time", &
            start=[1,1,1,n], count=[self%resp%nlam, self%resp%ne, self%resp%nk, 1], &
-           units=trim(v%units), long_name=trim(v%long_name))
+           units=trim(v%units), long_name=trim(v%long_name), &
+           prec_abs=v%prec_abs, prec_rel=v%prec_rel)
    end subroutine put3d
 
-   subroutine put_sigma(self, filename, name, want_re, n, ncid)
+   subroutine put_sigma(self, filename, name, want_re, n, ncid, lossless)
       !! Write the real or imaginary part of the trapezoidal start-of-step load σ_n
       !! (a spectral (nlm) vector) at time slice n; zeros if σ_n is not yet tracked.
       type(solid_earth), intent(in) :: self
       character(len=*),   intent(in) :: filename, name
       logical,            intent(in) :: want_re
       integer,            intent(in) :: n, ncid
+      logical,            intent(in) :: lossless
       type(var_io_type)     :: v
       real(wp), allocatable :: dat(:)
       integer :: nlm
@@ -397,41 +430,47 @@ contains
       else
          dat = 0.0_wp
       end if
-      call find_var_io_in_table(v, name, vtable, with_error=.true.)
+      v = table_var(name, lossless)
       call nc_write(filename, name, dat, ncid=ncid, dim1="nlm", dim2="time", &
-           start=[1,n], count=[nlm,1], units=trim(v%units), long_name=trim(v%long_name))
+           start=[1,n], count=[nlm,1], units=trim(v%units), long_name=trim(v%long_name), &
+           prec_abs=v%prec_abs, prec_rel=v%prec_rel)
    end subroutine put_sigma
 
-   subroutine put_scalar(filename, name, val, n, ncid)
+   subroutine put_scalar(filename, name, val, n, ncid, lossless)
       !! Write a single time-varying scalar (controller state) at time slice n.
       character(len=*), intent(in) :: filename, name
       real(wp),         intent(in) :: val
       integer,          intent(in) :: n, ncid
+      logical,          intent(in) :: lossless
       type(var_io_type) :: v
-      call find_var_io_in_table(v, name, vtable, with_error=.true.)
+      v = table_var(name, lossless)
       call nc_write(filename, name, val, ncid=ncid, dim1="time", &
-           start=[n], count=[1], units=trim(v%units), long_name=trim(v%long_name))
+           start=[n], count=[1], units=trim(v%units), long_name=trim(v%long_name), &
+           prec_abs=v%prec_abs, prec_rel=v%prec_rel)
    end subroutine put_scalar
 
-   subroutine put2d(self, filename, name, dat, n, ncid, static)
+   subroutine put2d(self, filename, name, dat, n, ncid, static, lossless)
       !! Write a (lon,lat) field — static (no time) or at time slice n.
       type(solid_earth), intent(in) :: self
       character(len=*),   intent(in) :: filename, name
       real(wp),           intent(in) :: dat(:,:)
       integer, optional,  intent(in) :: n, ncid
-      logical, optional,  intent(in) :: static
+      logical, optional,  intent(in) :: static, lossless
       type(var_io_type) :: v
-      logical :: is_static
-      is_static = .false.;  if (present(static)) is_static = static
-      call find_var_io_in_table(v, name, vtable, with_error=.true.)
+      logical :: is_static, ll
+      is_static = .false.;  if (present(static))   is_static = static
+      ll        = .false.;  if (present(lossless)) ll = lossless
+      v = table_var(name, ll)
       if (is_static) then
          call nc_write(filename, name, dat, dim1="lon", dim2="lat", &
-              units=trim(v%units), long_name=trim(v%long_name))
+              units=trim(v%units), long_name=trim(v%long_name), &
+              prec_abs=v%prec_abs, prec_rel=v%prec_rel)
       else
          call nc_write(filename, name, dat, ncid=ncid, &
               dim1="lon", dim2="lat", dim3="time", &
               start=[1,1,n], count=[self%sht%nphi, self%sht%nlat, 1], &
-              units=trim(v%units), long_name=trim(v%long_name))
+              units=trim(v%units), long_name=trim(v%long_name), &
+              prec_abs=v%prec_abs, prec_rel=v%prec_rel)
       end if
    end subroutine put2d
 
