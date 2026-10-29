@@ -1,5 +1,7 @@
 # configme manifest for VILMA2.
+# fesm-utils at phase0-kryos (contains dev) while VILMA2 is coupled in kryos;
+# back to dev once phase0-kryos is merged there.
 package = "vilma2"
 deps = [
-    "fesm-utils:dev",
+    "fesm-utils:phase0-kryos",
 ]
