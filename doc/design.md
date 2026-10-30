@@ -75,7 +75,9 @@ phase, Gauss grid, phi-contiguous layout; spectral arrays hold `m >= 0`.
   `rsl = dz_ss - dz_bed`: the bed change `dz_bed = u` and the sea-surface change
   `dz_ss = N + Δφ` (`se%dz_bed`, `se%dz_ss`, with the uniform shift `se%dphi`), on
   the host and Gauss grids; they come from the same final SLE solve as `rsl`
-  (VILMA1 backend: unset).
+  (VILMA1 backend: unset). The ocean function is on the host grid too (`se%C`).
+  Every host-grid field is in the host's own order: a host on the Gauss grid passes
+  through exactly, rows reversed when its latitude ascends; `se%gg` is internal.
 - Host (CLIMBER-X) maps between its grid and the model's lat-lon Gauss grid with
   conservative (in) / bilinear (out) SCRIP weights; **all SH transforms stay
   inside this model**.
@@ -539,7 +541,10 @@ the `fesm-utils` symlink at a `dev` checkout and build its utils lib.
 
 **Driver (`vilma_drive`).** General forced-transient loop, fields read per
 (file, var, time-index) so experiments mix and match. `remap_input=.true.` (default)
-remaps each forcing slice online; `.false.` is the legacy Gauss-grid path. The offline
+remaps each forcing slice online; `.false.` is the legacy Gauss-grid path: the file's
+lon/lat axes must be the Gauss grid's, its row order is read from the latitude axis
+(ascending rows are reversed into the SHTns layout), and a file without the axes stops.
+A reference file whose axes are the Gauss grid's is read the same way in either mode. The offline
 `vilma_remap` tool pre-bakes a Gauss forcing with the same engine (identical
 results) for workflows that prefer it. `time_init/time_end` clip the record.
 `vilma.x cfg.nml [defaults.nml]` allows a sparse run config over `vilma.nml`.

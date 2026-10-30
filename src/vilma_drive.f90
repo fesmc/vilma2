@@ -14,7 +14,11 @@ module vilma_drive
    !!                       conservatively remapped onto the model Gauss grid per slice
    !!                       (vilma_remap); raw datasets stay on disk, no preprocessing.
    !!   remap_input=.false.: the forcing is already on the Gauss grid (host remapped,
-   !!                       or produced by the offline vilma_remap tool).
+   !!                       or produced by the offline vilma_remap tool). Its lon/lat
+   !!                       axes must be the Gauss grid's; the row order is read from
+   !!                       the latitude axis (ascending rows are reversed into the
+   !!                       SHTns layout), and a file without the axes stops.
+   !! A reference file whose axes are the Gauss grid's is read the same way in either mode.
    !!
    !! Reference state (i_eq), mirroring CLIMBER-X i_equilibrium. RSL is measured
    !! against the relaxed reference z_bed_eq, so i_eq=1 yields rsl ~0 at present day.
@@ -33,7 +37,7 @@ module vilma_drive
    use vilma_sht,       only: sht_grid, sht_grid_destroy, sht_grid_init
    use vilma_coupling,  only: solid_earth_finalize, solid_earth_update, solid_earth_init, solid_earth, &
                            solid_earth_spinup, solid_earth_check_solver, VILMA_UNSET
-   use vilma_remap,     only: remap_ll_gauss, remap_init, remap_to_gauss
+   use vilma_remap,     only: remap_ll_gauss, remap_init, remap_to_gauss, gauss_axes_rows, rows_copy, ROWS_NONE
    use vilma_io,        only: vilma_write_step, vilma_restart_write, vilma_restart_read, vilma_write_horizontal
    use ncio,         only: nc_read, nc_size, nc_exists_var, nc_set_lossless
    use iso_fortran_env, only: error_unit
@@ -347,13 +351,11 @@ contains
       logical :: remap
       remap = c%remap_input
 
-      ! forcing file: time axis + ice always; lon/lat only when remapping online.
+      ! forcing file: time axis, ice and the lon/lat axes (the remap's source grid, or the
+      ! row order of a Gauss-grid file); likewise every 2-D input below.
       call require_var(c%file_forcing, c%name_time, 'file_forcing/name_time')
       call require_var(c%file_forcing, c%name_ice,  'file_forcing/name_ice')
-      if (remap) then
-         call require_var(c%file_forcing, c%name_lon, 'file_forcing/name_lon')
-         call require_var(c%file_forcing, c%name_lat, 'file_forcing/name_lat')
-      end if
+      call require_axes(c, c%file_forcing, 'file_forcing')
 
       ! relaxed reference state (z_bed_eq, h_ice_eq), per i_eq -- see read_bed /
       ! setup_reference for which (file, var) each case reads.
@@ -363,17 +365,25 @@ contains
             call require_var(c%file_forcing, c%name_zbed_eq, 'file_forcing/name_zbed_eq')
          else
             call require_var(c%file_ref, c%name_zbed_eq, 'file_ref/name_zbed_eq')
+            call require_axes(c, c%file_ref, 'file_ref')
          end if
       case (1)
          call require_var(c%z_bed_ref_file, c%name_z_bed_ref, 'z_bed_ref_file/name_z_bed_ref')
          call require_var(c%h_ice_ref_file, c%name_h_ice_ref, 'h_ice_ref_file/name_h_ice_ref')
+         call require_axes(c, c%z_bed_ref_file, 'z_bed_ref_file')
+         call require_axes(c, c%h_ice_ref_file, 'h_ice_ref_file')
       case (2)
          call require_var(c%z_bed_eq_file, c%name_z_bed_ref, 'z_bed_eq_file/name_z_bed_ref')
          call require_var(c%h_ice_eq_file, c%name_h_ice_ref, 'h_ice_eq_file/name_h_ice_ref')
+         call require_axes(c, c%z_bed_eq_file, 'z_bed_eq_file')
+         call require_axes(c, c%h_ice_eq_file, 'h_ice_eq_file')
       case (3)
          call require_var(c%z_bed_ref_file,   c%name_z_bed_ref, 'z_bed_ref_file/name_z_bed_ref')
          call require_var(c%rsl_restart_file, c%name_rsl,       'rsl_restart_file/name_rsl')
          call require_var(c%h_ice_ref_file,   c%name_h_ice_ref, 'h_ice_ref_file/name_h_ice_ref')
+         call require_axes(c, c%z_bed_ref_file,   'z_bed_ref_file')
+         call require_axes(c, c%rsl_restart_file, 'rsl_restart_file')
+         call require_axes(c, c%h_ice_ref_file,   'h_ice_ref_file')
       case default
          error stop 'vilma_run: i_eq must be 0, 1, 2, or 3'
       end select
@@ -407,6 +417,62 @@ contains
       end if
    end subroutine require_var
 
+   subroutine require_axes(c, file, what)
+      !! The lon/lat axes (c%name_lon, c%name_lat) of a 2-D input file must be present.
+      type(vilma_ctl_class), intent(in) :: c
+      character(len=*),      intent(in) :: file, what
+      call require_var(file, c%name_lon, what//'/name_lon')
+      call require_var(file, c%name_lat, what//'/name_lat')
+   end subroutine require_axes
+
+   integer function gauss_file_rows(c, sht, file) result(rows)
+      !! The row order of a file on the model's Gauss grid, from its lon/lat axes (c%name_lon,
+      !! c%name_lat; vilma_remap gauss_axes_rows): ROWS_NORTH_FIRST, ROWS_SOUTH_FIRST, or
+      !! ROWS_NONE when they are another grid's. Stops when the file has no such axes.
+      type(vilma_ctl_class), intent(in) :: c
+      type(sht_grid),        intent(in) :: sht
+      character(len=*),      intent(in) :: file
+      real(wp), allocatable :: lon(:), lat(:)
+      if (.not. (nc_exists_var(trim(file), trim(c%name_lon)) .and. nc_exists_var(trim(file), trim(c%name_lat)))) then
+         write(error_unit,'(a)') ' vilma: '//trim(file)//' has no axes "'//trim(c%name_lon)//'", "'// &
+                                 trim(c%name_lat)//'" (&ctl name_lon, name_lat):'
+         write(error_unit,'(a)') '   the row order of a field on the Gauss grid is read from its latitude axis'
+         flush(error_unit)
+         error stop 'vilma_run: input without lon/lat axes (see message above)'
+      end if
+      allocate(lon(nc_size(file, trim(c%name_lon))), lat(nc_size(file, trim(c%name_lat))))
+      call nc_read(file, trim(c%name_lon), lon)
+      call nc_read(file, trim(c%name_lat), lat)
+      rows = gauss_axes_rows(sht, lon, lat)
+   end function gauss_file_rows
+
+   subroutine read_gauss(c, sht, file, var, field, k)
+      !! Read var of a file on the model's Gauss grid (time slice k, if present) into field in
+      !! the SHTns layout: rows reversed when the file's latitude ascends. Stops when the file's
+      !! lon/lat axes are not the Gauss grid's.
+      type(vilma_ctl_class), intent(in)  :: c
+      type(sht_grid),        intent(in)  :: sht
+      character(len=*),      intent(in)  :: file, var
+      real(wp),              intent(out) :: field(:,:)
+      integer, optional,     intent(in)  :: k
+      real(wp), allocatable :: buf(:,:)
+      integer :: rows
+      rows = gauss_file_rows(c, sht, file)
+      if (rows == ROWS_NONE) then
+         write(error_unit,'(a,i0,a,i0,a)') ' vilma: the lon/lat axes of '//trim(file)// &
+              ' are not those of the model Gauss grid (', sht%nphi, ' x ', sht%nlat, ', longitudes from 0)'
+         flush(error_unit)
+         error stop 'vilma_run: input expected on the Gauss grid is on another grid (see message above)'
+      end if
+      allocate(buf(size(field,1), size(field,2)))
+      if (present(k)) then
+         call nc_read(file, trim(var), buf, start=[1,1,k], count=[size(buf,1), size(buf,2), 1])
+      else
+         call nc_read(file, trim(var), buf)
+      end if
+      call rows_copy(buf, field, rows)
+   end subroutine read_gauss
+
    subroutine build_remap(c, sht, rmap, nlon, nls)
       !! Read the source lon/lat axes from the forcing file and build the conservative
       !! lon-lat -> Gauss map. Returns the source dimensions for the work buffer.
@@ -425,7 +491,7 @@ contains
 
    subroutine read_ice(c, rmap, sht, remap, k, src, h_ice)
       !! Read ice slice k onto the Gauss grid. remap: read lon-lat then conservatively
-      !! remap (mass-conserving); else read the Gauss-grid slice directly.
+      !! remap (mass-conserving); else read the Gauss-grid slice (read_gauss).
       type(vilma_ctl_class),   intent(in)    :: c
       type(remap_ll_gauss),   intent(in)    :: rmap
       type(sht_grid),       intent(in)    :: sht
@@ -438,15 +504,14 @@ contains
                       start=[1,1,k], count=[size(src,1), size(src,2), 1])
          call remap_to_gauss(rmap, sht, src, h_ice, conserve_mass=.true.)
       else
-         call nc_read(c%file_forcing, trim(c%name_ice), h_ice, &
-                      start=[1,1,k], count=[size(h_ice,1), size(h_ice,2), 1])
+         call read_gauss(c, sht, c%file_forcing, c%name_ice, h_ice, k)
       end if
    end subroutine read_ice
 
    subroutine read_bed(c, rmap, sht, remap, k, src, z_bed)
       !! Read the reference bedrock. remap: slice k of name_zbed_eq from the forcing
       !! file (lon-lat-time), remapped (no mass rescale -- bed is geometry, not mass).
-      !! else: the 2D name_zbed_eq from file_ref (legacy Gauss-grid reference file).
+      !! else: the 2D name_zbed_eq from file_ref (legacy Gauss-grid reference file, read_gauss).
       type(vilma_ctl_class),   intent(in)    :: c
       type(remap_ll_gauss),   intent(in)    :: rmap
       type(sht_grid),       intent(in)    :: sht
@@ -460,7 +525,7 @@ contains
          call remap_to_gauss(rmap, sht, src, z_bed, conserve_mass=.false.)
       else
          if (len_trim(c%file_ref) == 0) error stop 'vilma_run: file_ref not set (remap_input=.false.)'
-         call nc_read(c%file_ref, trim(c%name_zbed_eq), z_bed)
+         call read_gauss(c, sht, c%file_ref, c%name_zbed_eq, z_bed)
       end if
    end subroutine read_bed
 
@@ -500,11 +565,12 @@ contains
 
    subroutine read_ref2d(c, sht, remap, file, varname, conserve, field)
       !! Read a 2D lon-lat reference field onto the Gauss grid. If the file is
-      !! already on the Gauss grid (its lon/lat dims match nphi/nlat — e.g. the
-      !! canonical reference at this run's resolution) it is read directly. Otherwise
-      !! a per-file conservative map is built from the file's own axes and applied
-      !! (conserve=.true. for ice) — the weights are cached (vilma_remap), so the build
-      !! cost is paid once. In legacy (remap=.false.) mode the field is read directly.
+      !! already on the Gauss grid (its lon/lat axes are the Gauss grid's, in either row
+      !! order — e.g. the canonical reference at this run's resolution) it is read as it is
+      !! (read_gauss). Otherwise a per-file conservative map is built from the file's own
+      !! axes and applied (conserve=.true. for ice) — the weights are cached (vilma_remap),
+      !! so the build cost is paid once. In legacy (remap=.false.) mode the file must be on
+      !! the Gauss grid.
       type(vilma_ctl_class),   intent(in)  :: c
       type(sht_grid),       intent(in)  :: sht
       logical,              intent(in)  :: remap, conserve
@@ -516,11 +582,11 @@ contains
       if (len_trim(file) == 0) &
          error stop 'vilma_run: reference file not set for the chosen i_eq'
       if (remap) then
-         nlon = nc_size(file, trim(c%name_lon));  nls = nc_size(file, trim(c%name_lat))
-         if (nlon == sht%nphi .and. nls == sht%nlat) then
-            call nc_read(file, trim(varname), field)   ! already on the Gauss grid
+         if (gauss_file_rows(c, sht, file) /= ROWS_NONE) then
+            call read_gauss(c, sht, file, varname, field)   ! already on the Gauss grid
             return
          end if
+         nlon = nc_size(file, trim(c%name_lon));  nls = nc_size(file, trim(c%name_lat))
          allocate(lon_s(nlon), lat_s(nls), buf(nlon, nls))
          call nc_read(file, trim(c%name_lon), lon_s)
          call nc_read(file, trim(c%name_lat), lat_s)
@@ -528,7 +594,7 @@ contains
          call remap_init(m, sht, lon_s, lat_s)
          call remap_to_gauss(m, sht, buf, field, conserve_mass=conserve)
       else
-         call nc_read(file, trim(varname), field)
+         call read_gauss(c, sht, file, varname, field)
       end if
    end subroutine read_ref2d
 
