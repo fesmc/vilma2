@@ -169,6 +169,15 @@ module vilma_coupling
       real(wp) :: dphi = 0.0_wp               !! uniform sea-surface shift Δφ [m] (the part of dz_ss that is not N)
       real(wp) :: bsl = 0.0_wp                !! barystatic sea level vs reference [m]: ocean mean of C·rsl
       real(wp) :: bsl_ive = 0.0_wp            !! ice-volume equivalent of the grounded-ice change [m] (see update_bsl)
+      !! Flooded-area fill of the last update's closing coastline [m³]: ∫fill dA over the sphere
+      !! (area a² dΩ, a = earth%r_earth), the term of the ocean mass balance
+      !!     ∫C·rsl dA = −(ρ_i/ρ_w)∫ΔI_g dA + ∫fill dA        (to the SLE's mass residual)
+      !! with fill = F + a·ζ⁽⁰⁾·(C_own − C0_own) outside the host region's own weight a = 1 − w, and
+      !! ζ⁽⁰⁾(C − C0) without host terms. fill_int_own is the own part's share (a·ζ⁽⁰⁾·(C_own −
+      !! C0_own); all of fill_int without host terms), so fill_int − fill_int_own is the host's ∫F dA.
+      !! VILMA_UNSET with solver="v1", which has no such term. Diagnostic, not prognostic.
+      real(wp) :: fill_int     = 0.0_wp
+      real(wp) :: fill_int_own = 0.0_wp
    end type solid_earth
 
 contains
@@ -269,6 +278,7 @@ contains
       self%gg%rsl   = 0.0_wp
       self%gg%z_bed = self%gg%z_bed_eq
       self%gg%dz_bed = 0.0_wp;  self%gg%dz_ss = 0.0_wp;  self%dphi = 0.0_wp
+      self%fill_int = 0.0_wp;  self%fill_int_own = 0.0_wp
       allocate(self%gg%dIg(np,nl), source=0.0_wp)
       ! The reference ocean function is a run constant (z_bed_eq and h_ice_eq are
       ! fixed from here on), so build it once and keep it. The initial C is that
@@ -456,7 +466,7 @@ contains
       real(wp), allocatable :: ice_new(:,:)
       complex(wp), allocatable :: u_lm(:), N_lm(:)
       type(sle_host) :: host_new
-      real(wp) :: dt, t0, t1
+      real(wp) :: dt, t0, t1, fsr(2)
       integer  :: np, nl
       logical  :: hosted, active
       integer(kind=8) :: pc0, pc1, prate            ! PROFILE: see %t_remap
@@ -490,6 +500,7 @@ contains
          self%time     = self%time + dt_yr
          ! VILMA1 returns only rsl: the split into bed and sea-surface change is not available
          self%gg%dz_bed = VILMA_UNSET;  self%gg%dz_ss = VILMA_UNSET;  self%dphi = VILMA_UNSET
+         self%fill_int = VILMA_UNSET;  self%fill_int_own = VILMA_UNSET
 
          ! Diagnostics VILMA1 does not hand back. DERIVED HONESTLY from VILMA1's own
          ! output, using the SAME formulas the native solver uses, so the two
@@ -536,14 +547,14 @@ contains
                                       self%gg%rsl, self%gg%C, rot=self%rotation, sigma_out=self%sigma_lm, &
                                       u_out=u_lm, N_out=N_lm, dphi_out=self%dphi, &
                                       host_ref=self%gg%host%ref, host0=self%gg%host%last, host1=host_new, &
-                                      dIg_out=self%gg%dIg)
+                                      dIg_out=self%gg%dIg, fill_out=fsr)
          else
             call stepper_advance(self%stepper, self%sht, self%resp, self%sle, self%gg%z_bed_eq, &
                                       self%gg%h_ice, ice_new, self%gg%h_ice_eq, t0, t1, &
                                       self%gg%rsl, self%gg%C, sigma_out=self%sigma_lm, &
                                       u_out=u_lm, N_out=N_lm, dphi_out=self%dphi, &
                                       host_ref=self%gg%host%ref, host0=self%gg%host%last, host1=host_new, &
-                                      dIg_out=self%gg%dIg)
+                                      dIg_out=self%gg%dIg, fill_out=fsr)
          end if
       else if (self%rotation%enabled) then
          ! Rotational feedback, stepped with the solid Earth: every SLE solve in the
@@ -552,14 +563,16 @@ contains
          call stepper_advance(self%stepper, self%sht, self%resp, self%sle, self%gg%z_bed_eq, &
                                    self%gg%h_ice, ice_new, self%gg%h_ice_eq, t0, t1, &
                                    self%gg%rsl, self%gg%C, rot=self%rotation, sigma_out=self%sigma_lm, &
-                                   u_out=u_lm, N_out=N_lm, dphi_out=self%dphi)
+                                   u_out=u_lm, N_out=N_lm, dphi_out=self%dphi, fill_out=fsr)
       else
          call stepper_advance(self%stepper, self%sht, self%resp, self%sle, self%gg%z_bed_eq, &
                                    self%gg%h_ice, ice_new, self%gg%h_ice_eq, t0, t1, &
                                    self%gg%rsl, self%gg%C, sigma_out=self%sigma_lm, &
-                                   u_out=u_lm, N_out=N_lm, dphi_out=self%dphi)
+                                   u_out=u_lm, N_out=N_lm, dphi_out=self%dphi, fill_out=fsr)
       end if
       if (hosted) call host_copy(host_new, self%gg%host%last)
+      ! the fill of the closing coastline in m³ (the unit-sphere integrals × a²)
+      self%fill_int = self%earth%r_earth**2*fsr(1);  self%fill_int_own = self%earth%r_earth**2*fsr(2)
 
       ! bed change u and sea-surface change N + Δφ at t1; rsl = N − u + Δφ = dz_ss − dz_bed
       call sht_grid_synthesis(self%sht, u_lm, self%gg%dz_bed)
@@ -800,6 +813,7 @@ contains
       if (allocated(self%dz_bed))      deallocate(self%dz_bed)
       if (allocated(self%dz_ss))       deallocate(self%dz_ss)
       self%dphi = 0.0_wp
+      self%fill_int = 0.0_wp;  self%fill_int_own = 0.0_wp
       self%time = 0.0_wp
    end subroutine solid_earth_finalize
 

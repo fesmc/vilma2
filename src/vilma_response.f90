@@ -211,6 +211,11 @@ module vilma_response
       ! memory factor Mk = MkPerDt·Δt exactly, so the adaptive controller can change
       ! Δt with no operator re-factor and no drift from repeated rescaling.
       real(wp), allocatable :: MkPerDt(:)                 !! (ne)
+      !! The radial (1-D) rate μ/η of the earth model, kept as the one reference every
+      !! lateral-viscosity enable starts from: MkPerDt, MkPerDt3 and the 3-D flags are then
+      !! a function of the radial structure and the field handed in last, never of the
+      !! fields enabled before it (the 1-D pre-spin-up enables a mean field, then the real one).
+      real(wp), allocatable :: MkPerDt_rad(:)             !! (ne)
       ! Controller state snapshots (§3c controller, lazily allocated): buffer A holds
       ! the entering state τ_n that a rejected/fine step restores to; buffer B holds the
       ! coarse τ_{n+1} for the step-doubling error estimate. Distinct from Are0 (which
@@ -563,7 +568,7 @@ contains
 
       ! degree-independent element fields: node radii, shear, Maxwell factor
       allocate(self%r(self%nr));  self%r = mesh%r
-      allocate(self%mu(self%ne), self%Mk(self%ne), self%MkPerDt(self%ne))
+      allocate(self%mu(self%ne), self%Mk(self%ne), self%MkPerDt(self%ne), self%MkPerDt_rad(self%ne))
       allocate(self%active1d(self%ne));  self%active1d = .true.   ! all spectral until 3-D split
       do e = 1, self%ne
          lay = mesh%elem_layer(e)
@@ -586,6 +591,7 @@ contains
             self%MkPerDt(e) = 0.0_wp
          end if
       end do
+      self%MkPerDt_rad = self%MkPerDt
 
       ! per-degree constants, operators, and unit-load response
       allocate(self%Jr(self%lmax), self%nrmc(NLAM,self%lmax))
@@ -1020,20 +1026,23 @@ contains
       allocate(self%MkPerDt3(sht%nphi, sht%nlat, self%ne))
       allocate(self%Mk3(sht%nphi, sht%nlat, self%ne))
       ne_grid = sht%nphi*sht%nlat
-      ! Build the per-grid rate from the ORIGINAL radial MkPerDt, THEN classify and (for
-      ! 1-D-effective elements) overwrite the scalar MkPerDt with the lateral-mean rate.
+      ! Build the per-grid rate from the radial MkPerDt_rad (never from a rate an earlier
+      ! enable left in MkPerDt), THEN classify and (for 1-D-effective elements) set the
+      ! scalar MkPerDt to the lateral-mean rate. Repeated enables then agree bit for bit
+      ! with a single one.
+      self%MkPerDt = self%MkPerDt_rad
       do e = 1, self%ne
-         self%MkPerDt3(:,:,e) = self%MkPerDt(e) * 10.0_wp**(-pert_elem(:,:,e))
+         self%MkPerDt3(:,:,e) = self%MkPerDt_rad(e) * 10.0_wp**(-pert_elem(:,:,e))
       end do
       self%active1d = .true.;  self%ne3d = 0
       do e = 1, self%ne
-         if (self%MkPerDt(e) == 0.0_wp) cycle             ! elastic/fluid: spectral, memory-free
+         if (self%MkPerDt_rad(e) == 0.0_wp) cycle         ! elastic/fluid: spectral, memory-free
          spread = maxval(pert_elem(:,:,e)) - minval(pert_elem(:,:,e))
          if (spread > self%visc3d_tol) then
             self%active1d(e) = .false.;  self%ne3d = self%ne3d + 1   ! genuinely 3-D
          else
             mean_pert = sum(pert_elem(:,:,e))/real(ne_grid, wp)      ! collapse to scalar
-            self%MkPerDt(e) = self%MkPerDt(e) * 10.0_wp**(-mean_pert)
+            self%MkPerDt(e) = self%MkPerDt_rad(e) * 10.0_wp**(-mean_pert)
          end if
       end do
       self%Mk  = self%MkPerDt * self%dt                   ! rescale 1-D scalar rates
@@ -1125,7 +1134,7 @@ contains
       !! vilma_read_visc_3d). Bridges node→element by the log10-mean of the two
       !! bracketing nodes (geometric mean of η), forms the per-element log10
       !! perturbation against the element's radial reference viscosity
-      !! η_radial(e) = μ(e)/MkPerDt(e), and calls enable_lateral_visc. Elastic/
+      !! η_radial(e) = μ(e)/MkPerDt_rad(e), and calls enable_lateral_visc. Elastic/
       !! fluid elements (MkPerDt=0) keep pert=0 — irrelevant, they stay memory-free.
       !!
       !! Lid rule (optional, all three arguments together): a Maxwell element lying
@@ -1151,8 +1160,8 @@ contains
       end if
       allocate(pert(sht%nphi, sht%nlat, self%ne));  pert = 0.0_wp
       do e = 1, self%ne
-         if (self%MkPerDt(e) == 0.0_wp) cycle             ! elastic/fluid: stay as-is
-         logeta_ref = log10(self%mu(e)/self%MkPerDt(e))    ! log10 η_radial(e) (μ/MkPerDt)
+         if (self%MkPerDt_rad(e) == 0.0_wp) cycle         ! elastic/fluid: stay as-is
+         logeta_ref = log10(self%mu(e)/self%MkPerDt_rad(e)) ! log10 η_radial(e) (μ/MkPerDt_rad)
          in_lid = self%r(e) >= r_lid - 1.0e-6_wp*self%r(self%nr)   ! element wholly above the lid base
          do j = 1, sht%nlat
             do i = 1, sht%nphi
@@ -1925,6 +1934,7 @@ contains
       if (allocated(self%sigma_n))    deallocate(self%sigma_n)
       if (allocated(self%sigma_next)) deallocate(self%sigma_next)
       if (allocated(self%MkPerDt))    deallocate(self%MkPerDt)
+      if (allocated(self%MkPerDt_rad)) deallocate(self%MkPerDt_rad)
       if (allocated(self%Are_s))      deallocate(self%Are_s, self%Aim_s, self%Bre_s, &
                                                  self%Bim_s, self%Cre_s, self%Cim_s)
       if (allocated(self%Are_c))      deallocate(self%Are_c, self%Aim_c, self%Bre_c, &

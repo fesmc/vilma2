@@ -373,6 +373,11 @@ test_dz_split: vilma-static | $(bindir)
 		-o $(bindir)/test_dz_split.x $(objdir)/libvilma.a $(LFLAGS)
 	@echo "    $(bindir)/test_dz_split.x is ready."
 
+test_restart_3d: vilma-static | $(bindir)
+	$(FC) $(DFLAGS) $(CPPFLAGS) $(FFLAGS) $(testdir)/test_restart_3d.f90 \
+		-o $(bindir)/test_restart_3d.x $(objdir)/libvilma.a $(LFLAGS)
+	@echo "    $(bindir)/test_restart_3d.x is ready."
+
 test_restart: vilma-static | $(bindir)
 	$(FC) $(DFLAGS) $(CPPFLAGS) $(FFLAGS) $(testdir)/test_restart.f90 \
 		-o $(bindir)/test_restart.x $(objdir)/libvilma.a $(LFLAGS)
@@ -446,6 +451,11 @@ diag_tensor_grid: vilma-static | $(bindir)
 		-o $(bindir)/diag_tensor_grid.x $(objdir)/libvilma.a $(LFLAGS)
 	@echo "    $(bindir)/diag_tensor_grid.x is ready."
 
+diag_restart_3d: vilma-static | $(bindir)
+	$(FC) $(DFLAGS) $(CPPFLAGS) $(FFLAGS) $(testdir)/diag_restart_3d.f90 \
+		-o $(bindir)/diag_restart_3d.x $(objdir)/libvilma.a $(LFLAGS)
+	@echo "    $(bindir)/diag_restart_3d.x is ready."
+
 diag_visc3d_paths: vilma-static | $(bindir)
 	$(FC) $(DFLAGS) $(CPPFLAGS) $(FFLAGS) $(testdir)/diag_visc3d_paths.f90 \
 		-o $(bindir)/diag_visc3d_paths.x $(objdir)/libvilma.a $(LFLAGS)
@@ -457,7 +467,7 @@ bench_visc3d: vilma-static | $(bindir)
 		-o $(bindir)/bench_visc3d.x $(objdir)/libvilma.a $(LFLAGS)
 	@echo "    $(bindir)/bench_visc3d.x is ready."
 
-TESTS = test_params test_drive test_band test_sht test_earth test_mesh test_integrals test_assembly test_love test_relax test_tidal test_rotation test_rotation_sle test_response test_sle test_sle_host test_host_ramp test_host_bitident test_host_terms test_restart_host test_host_convergence test_flotation test_flotation_load test_marine_reference test_etd1 test_ve_response test_tensor_sh test_response_3d test_toroidal test_sle_ve test_benchmark_love test_coupling test_dz_split test_bsl test_density test_couple_remap test_spinup test_restart test_io_prec test_benchmark_disc test_benchmark_martinec test_field test_sle_subgrid test_visc_load test_visc_lid test_rotinv test_remap
+TESTS = test_params test_drive test_band test_sht test_earth test_mesh test_integrals test_assembly test_love test_relax test_tidal test_rotation test_rotation_sle test_response test_sle test_sle_host test_host_ramp test_host_bitident test_host_terms test_restart_host test_host_convergence test_flotation test_flotation_load test_marine_reference test_etd1 test_ve_response test_tensor_sh test_response_3d test_toroidal test_sle_ve test_benchmark_love test_coupling test_dz_split test_bsl test_density test_couple_remap test_spinup test_restart test_restart_3d test_io_prec test_benchmark_disc test_benchmark_martinec test_field test_sle_subgrid test_visc_load test_visc_lid test_rotinv test_remap
 
 check: $(TESTS)
 	@echo ""

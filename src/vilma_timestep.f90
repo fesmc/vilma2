@@ -79,7 +79,7 @@ contains
 
    subroutine stepper_advance(self, sht, resp, sle, topo0, ice0, ice1, ice_ref, &
                               t0, t1, rsl, C, rot, sigma_out, u_out, N_out, dphi_out, &
-                              host_ref, host0, host1, dIg_out)
+                              host_ref, host0, host1, dIg_out, fill_out)
       !! Advance the VE+SLE model from t0 to t1 with the ice load interpolated linearly
       !! ice(t) = ice0 + (t−t0)/(t1−t0)·(ice1−ice0), absolute; the SLE load is
       !! d_ice(t) = ice(t) − ice_ref (total change from the reference state). Δt is
@@ -119,12 +119,15 @@ contains
       type(sle_host), optional, intent(in)    :: host_ref, host0, host1
       !! dIg_out (optional): the grounded-ice increment ΔI_g [m] of the final SLE solve (t1).
       real(wp),       optional, intent(out)   :: dIg_out(:,:)
+      !! fill_out (optional): the flooded-area fill of the final SLE solve (t1) integrated over
+      !! the unit sphere [m sr]: (1) the whole fill, (2) the own part's share (sle_result).
+      real(wp),       optional, intent(out)   :: fill_out(2)
 
       type(sle_result)      :: res
       type(sle_host)        :: host_now
       real(wp), allocatable :: rsl_n(:,:), ice_now(:,:), dice_now(:,:), dIg_last(:,:)
       complex(wp), allocatable :: sig0(:), sig_last(:), u_last(:), N_last(:)
-      real(wp) :: dphi_last
+      real(wp) :: dphi_last, fill_last(2)
       real(wp) :: t, dt, err_inf, tau_inf, errsc, fac, ricfac, expo, span
       real(wp) :: rate, dt_stab, tau0, tau_run, scale
       integer  :: p, np, nl, n_sub
@@ -143,7 +146,7 @@ contains
       ! the final (t1) solve's load. Always allocated so solve_at can fill it cheaply.
       allocate(sig_last(sht%nlm), u_last(sht%nlm), N_last(sht%nlm), dIg_last(sht%nphi,sht%nlat))
       dIg_last = 0.0_wp
-      dphi_last = 0.0_wp
+      dphi_last = 0.0_wp;  fill_last = 0.0_wp
       self%worst_mass_resid = 0.0_wp             ! per-interval diagnostic (reset each advance)
 
       ! Zero-length interval: no time or memory advance, but still refresh the diagnostic
@@ -184,6 +187,7 @@ contains
          call solve(dice_now, ice_now, sig_last, 0.0_wp, host1, report_only=.true.)
          self%worst_mass_resid = res%mass_resid
          u_last = res%u_lm;  N_last = res%N_lm;  dphi_last = res%esl
+         fill_last = [res%fill_int, res%fill_own]
          call hand_back()
          return
       end if
@@ -349,6 +353,7 @@ contains
          if (present(N_out))     N_out     = N_last
          if (present(dphi_out))  dphi_out  = dphi_last
          if (present(dIg_out))   dIg_out   = dIg_last
+         if (present(fill_out))  fill_out  = fill_last
       end subroutine hand_back
 
       subroutine solve(dice, ice, sigma, h, hn, report_only)
@@ -392,6 +397,7 @@ contains
          end if
          self%worst_mass_resid = max(self%worst_mass_resid, res%mass_resid)
          u_last = res%u_lm;  N_last = res%N_lm;  dphi_last = res%esl
+         fill_last = [res%fill_int, res%fill_own]
       end subroutine solve_at
 
    end subroutine stepper_advance
