@@ -8,7 +8,7 @@ the netCDF variable name, its dimensions, units, and a long_name. The time axis
 The prognostic state restored on restart depends on the response kind: the
 Maxwell memory-stress fields `tau_*` (+ `sigma_n_*`) for `RESP_VE`, plus the
 adaptive controller's next-step Δt
-seed `dt_try` for both. The reference fields `z_bed_eq`/`h_ice_eq` are static
+seed `dt_try_s` (`dt_try` is the same in years, for reading) for both. The reference fields `z_bed_eq`/`h_ice_eq` are static
 (written once) and checked on read, and so are the host reference terms
 `w_ref`, `I_g_ref`, `C_host_ref` of a run with host-resolved terms; the host terms
 of the last update (`w_prev`, `I_g_prev`, `C_prev`, `F_prev`: the next ramp start)
@@ -61,3 +61,4 @@ prognostic state, the masks and the time series stay lossless.
 | 36 | F_prev       | lon, lat      | m      | Host terms of the last update: F (ramp start)    | -         |
 | 37 | fill_int     | time          | m3     | Flooded-area fill of the last update, whole sphere: the term of the ocean mass balance | -         |
 | 38 | fill_int_own | time          | m3     | Flooded-area fill, own part's share (a zeta0 (C_own - C0_own)) | -         |
+| 39 | dt_try_s     | time          | s      | Adaptive time-stepping next-step Δt suggestion, in seconds (exact; dt_try is the same in years) | -         |

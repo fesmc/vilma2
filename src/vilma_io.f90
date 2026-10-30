@@ -48,9 +48,9 @@ module vilma_io
    ! the Maxwell stress tensor + trapezoidal σ_n; RESP_ELASTIC/RESP_NULL are
    ! memoryless (COMMON_VARS only).
    ! Static reference fields are written once in the init branch.
-   character(len=12), parameter :: COMMON_VARS(12) = [character(len=12) :: &
-        "h_ice", "rsl", "z_bed", "dz_bed", "dz_ss", "C_ocean", "dt_try", "bsl", "bsl_ive", "dphi", &
-        "fill_int", "fill_int_own"]
+   character(len=12), parameter :: COMMON_VARS(13) = [character(len=12) :: &
+        "h_ice", "rsl", "z_bed", "dz_bed", "dz_ss", "C_ocean", "dt_try", "dt_try_s", "bsl", "bsl_ive", &
+        "dphi", "fill_int", "fill_int_own"]
    character(len=12), parameter :: VE_MEM_VARS(9) = [character(len=12) :: &
         "tau_a_re", "tau_a_im", "tau_b_re", "tau_b_im", "tau_c_re", "tau_c_im", &
         "sigma_n_re", "sigma_n_im", "sigma_primed"]
@@ -382,6 +382,7 @@ contains
       case ("rot_m_re"); call put_scalar(filename, name, real(self%rotation%m, wp), n, ncid, lossless)
       case ("rot_m_im"); call put_scalar(filename, name, aimag(self%rotation%m),    n, ncid, lossless)
       case ("dt_try");   call put_scalar(filename, name, self%stepper%dt_try/sec_per_year, n, ncid, lossless)
+      case ("dt_try_s"); call put_scalar(filename, name, self%stepper%dt_try, n, ncid, lossless)
       case ("w_prev");   call put2d(self, filename, name, self%gg%host%last%w,   n=n, ncid=ncid, lossless=lossless)
       case ("I_g_prev"); call put2d(self, filename, name, self%gg%host%last%I_g, n=n, ncid=ncid, lossless=lossless)
       case ("C_prev");   call put2d(self, filename, name, self%gg%host%last%C,   n=n, ncid=ncid, lossless=lossless)
@@ -527,8 +528,15 @@ contains
       ! in years (file units); the response's internal clock is in SI seconds.
       self%resp%time = tvals(n)*sec_per_year
       self%time      = tvals(n)
-      call nc_read(filename, "dt_try", self%stepper%dt_try, start=[n], count=[1])
-      self%stepper%dt_try = self%stepper%dt_try*sec_per_year   ! file stores years
+      ! dt_try_s is the seed itself, in seconds. dt_try is the same in years, for reading: years
+      ! and back is not exact, and the adaptive (implicit) stepper sub-steps by it, so a file
+      ! from before dt_try_s continues to round-off only.
+      if (nc_exists_var(filename, "dt_try_s")) then
+         call nc_read(filename, "dt_try_s", self%stepper%dt_try, start=[n], count=[1])
+      else
+         call nc_read(filename, "dt_try", self%stepper%dt_try, start=[n], count=[1])
+         self%stepper%dt_try = self%stepper%dt_try*sec_per_year   ! file stores years
+      end if
 
       ! rotation prognostic state, if this run has rotation on AND the file carries
       ! it (an older, rotation-off restart lacks the rot_* vars → cold-start rotation)
