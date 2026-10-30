@@ -169,6 +169,7 @@ module vilma_coupling
       real(wp) :: dphi = 0.0_wp               !! uniform sea-surface shift Δφ [m] (the part of dz_ss that is not N)
       real(wp) :: bsl = 0.0_wp                !! barystatic sea level vs reference [m]: ocean mean of C·rsl
       real(wp) :: bsl_ive = 0.0_wp            !! ice-volume equivalent of the grounded-ice change [m] (see update_bsl)
+      real(wp) :: bsl_ive_host = 0.0_wp       !! bsl_ive's host part [m]: the host columns' grounded-ice change; 0 without host terms
       !! Flooded-area fill of the last update's closing coastline [m³]: ∫fill dA over the sphere
       !! (area a² dΩ, a = earth%r_earth), the term of the ocean mass balance
       !!     ∫C·rsl dA = −(ρ_i/ρ_w)∫ΔI_g dA + ∫fill dA        (to the SLE's mass residual)
@@ -759,6 +760,12 @@ contains
       !! host (default .false.): the last solve carried host-resolved terms, so C is the
       !! total ocean fraction and the grounded-ice increment is the solve's own (gg%dIg, host
       !! columns included); bsl_ive is its integral. bsl is the same expression either way.
+      !!
+      !! bsl_ive_host: the host's own part of bsl_ive, -(ρ_i/ρ_w) ∫(I_g − I_g,ref) dA / ∫C dA over
+      !! the host columns (last update's I_g, the reference's I_g), the same normalisation as
+      !! bsl_ive. The host owns its flotation, so this part is the host's grounded-ice change as
+      !! the host counts it; bsl_ive − bsl_ive_host is the own part, 1 − w, by VILMA2's flotation.
+      !! 0 without host terms in the last solve.
       type(solid_earth), intent(inout) :: self
       logical, optional, intent(in)    :: host
       real(wp) :: c_int
@@ -769,14 +776,18 @@ contains
          self%bsl     = sht_grid_surface_integral(self%sht, self%gg%C*self%gg%rsl) / c_int
          self%bsl_ive = -(self%par%rho_ice/self%par%rho_water) * sht_grid_surface_integral(self%sht, &
                            self%gg%dIg) / c_int
+         self%bsl_ive_host = -(self%par%rho_ice/self%par%rho_water) * sht_grid_surface_integral(self%sht, &
+                           self%gg%host%last%I_g - self%gg%host%ref%I_g) / c_int
       else if (c_int > 0.0_wp) then
          self%bsl     = sht_grid_surface_integral(self%sht, self%gg%C*self%gg%rsl) / c_int
          self%bsl_ive = -(self%par%rho_ice/self%par%rho_water) * sht_grid_surface_integral(self%sht, &
                            self%gg%h_ice   *(1.0_wp - self%gg%C) &
                          - self%gg%h_ice_eq*(1.0_wp - self%gg%C0)) / c_int
+         self%bsl_ive_host = 0.0_wp
       else
          self%bsl     = 0.0_wp
          self%bsl_ive = 0.0_wp
+         self%bsl_ive_host = 0.0_wp
       end if
    end subroutine update_bsl
 

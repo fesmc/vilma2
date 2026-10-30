@@ -300,6 +300,27 @@ contains
       if (abs(fo) < 1.0e-3_wp*abs(ff) .or. abs(ff) < 1.0e-3_wp*abs(fo)) then
          write(*,'(a)') '     FAIL: one part of the fill is negligible, scenario does not test the split';  ok = .false.
       end if
+      ! bsl_ive_host: the host columns' part of bsl_ive, recomputed from the host terms
+      block
+         real(wp) :: ive_h, d_h
+         ive_h = -(rho_ice/rho_water)*sht_grid_surface_integral(sht, I1 - 0.0_wp*I1)/cint
+         d_h   = abs(se%bsl_ive_host - ive_h)
+         write(*,'(a,es11.3,a,es10.2,a,es11.3)') '     bsl_ive_host =', se%bsl_ive_host, '   |recomputed| =', d_h, &
+              '   bsl_ive =', se%bsl_ive
+         if (d_h > 1.0e-12_wp*max(abs(ive_h), 1.0e-30_wp) .or. abs(ive_h) < 1.0e-3_wp*abs(se%bsl_ive)) then
+            write(*,'(a)') '     FAIL: bsl_ive_host differs from the host integral, or the host part is negligible';  ok = .false.
+         end if
+      end block
+      call solid_earth_finalize(se)
+      ! without host terms bsl_ive_host is 0 (bsl_ive is not)
+      hz = merge(100.0_wp, 0.0_wp, z_eq > 0.0_wp)
+      se%par = p
+      call solid_earth_init(se, z_eq, 0.0_wp*hz)
+      call solid_earth_update(se, hz, 500.0_wp)
+      write(*,'(a,es11.3,a,es11.3)') '     no host terms: bsl_ive_host =', se%bsl_ive_host, '   bsl_ive =', se%bsl_ive
+      if (se%bsl_ive_host /= 0.0_wp .or. se%bsl_ive == 0.0_wp) then
+         write(*,'(a)') '     FAIL: bsl_ive_host not 0 without host terms';  ok = .false.
+      end if
       call solid_earth_finalize(se)
       step = 0
    end subroutine check_balance

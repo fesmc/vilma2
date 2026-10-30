@@ -125,7 +125,8 @@ contains
       ! (1) the last snapshot into a fresh model
       call solid_earth_init(b, z_eq, h_eq, w=wr, I_g=Ir, C=Cr)
       call vilma_restart_read(b, FHOST)
-      d_res  = max(maxval(abs(b%rsl - a%rsl)), maxval(abs(b%gg%C - a%gg%C)), abs(b%bsl - a%bsl), abs(b%bsl_ive - a%bsl_ive))
+      d_res  = max(maxval(abs(b%rsl - a%rsl)), maxval(abs(b%gg%C - a%gg%C)), abs(b%bsl - a%bsl), abs(b%bsl_ive - a%bsl_ive), &
+                   abs(b%bsl_ive_host - a%bsl_ive_host))
       d_last = max(maxval(abs(b%gg%host%last%w - a%gg%host%last%w)), maxval(abs(b%gg%host%last%I_g - a%gg%host%last%I_g)), &
                    maxval(abs(b%gg%host%last%C - a%gg%host%last%C)), maxval(abs(b%gg%host%last%F - a%gg%host%last%F)))
       write(*,'(a)') ' (1) state restore'
