@@ -36,6 +36,14 @@ module vilma_remap
 
    public :: remap_ll_gauss
    public :: remap_init, remap_to_gauss, remap_to_ll
+   public :: gauss_axes_rows, rows_copy
+   public :: ROWS_NONE, ROWS_NORTH_FIRST, ROWS_SOUTH_FIRST
+
+   !! Row order of a field on the model's Gauss grid (gauss_axes_rows). The model's own layout
+   !! (SHTns, se%gg) is north first; a lon-lat host on that grid usually runs south first.
+   integer, parameter :: ROWS_NONE        =  0   !! the axes are not those of the Gauss grid
+   integer, parameter :: ROWS_NORTH_FIRST =  1   !! latitude descending: the SHTns layout
+   integer, parameter :: ROWS_SOUTH_FIRST = -1   !! latitude ascending: rows reversed
 
    real(wp), parameter :: RAD2DEG = 57.295779513082323_wp
    real(wp), parameter :: FOURPI  = 12.566370614359172_wp
@@ -166,5 +174,46 @@ contains
       call map_field(self%to_ll, "f", g_asc, f_ll, method="bilinear", mask2=m2)
       where (.not. m2) f_ll = 0.0_wp                      ! uncovered host cells (full-sphere Gauss src: none)
    end subroutine remap_to_ll
+
+   integer function gauss_axes_rows(sht, lon, lat) result(rows)
+      !! Are lon(:), lat(:) [degrees] the axes of the Gauss grid sht (same sizes, every value
+      !! within 1e-6 degree; longitudes as SHTns has them, from 0), and in which row order:
+      !! ROWS_NORTH_FIRST (latitude descending, the SHTns layout), ROWS_SOUTH_FIRST (ascending)
+      !! or ROWS_NONE (another grid).
+      type(sht_grid), intent(in) :: sht
+      real(wp),       intent(in) :: lon(:), lat(:)
+      real(wp), parameter :: TOL = 1.0e-6_wp           ! degrees
+      real(wp) :: lat_n(sht%nlat)                      ! the SHTns latitudes, north first
+      rows = ROWS_NONE
+      if (size(lon) /= sht%nphi .or. size(lat) /= sht%nlat) return
+      if (any(abs(lon - sht%lon*RAD2DEG) > TOL)) return
+      lat_n = 90.0_wp - sht%colat*RAD2DEG
+      if (all(abs(lat - lat_n) <= TOL)) then
+         rows = ROWS_NORTH_FIRST
+      else if (all(abs(lat - lat_n(sht%nlat:1:-1)) <= TOL)) then
+         rows = ROWS_SOUTH_FIRST
+      end if
+   end function gauss_axes_rows
+
+   subroutine rows_copy(a, b, rows)
+      !! b = a between the SHTns layout and a field on the Gauss grid in row order rows: a copy
+      !! (ROWS_NORTH_FIRST) or the rows reversed (ROWS_SOUTH_FIRST); the same either way round.
+      real(wp), intent(in)  :: a(:,:)
+      real(wp), intent(out) :: b(:,:)
+      integer,  intent(in)  :: rows
+      integer :: j, n
+      if (any(shape(a) /= shape(b))) error stop 'vilma_remap: rows_copy between fields of different shape'
+      n = size(a,2)
+      select case (rows)
+      case (ROWS_NORTH_FIRST)
+         b = a
+      case (ROWS_SOUTH_FIRST)
+         do j = 1, n
+            b(:, j) = a(:, n - j + 1)
+         end do
+      case default
+         error stop 'vilma_remap: rows_copy needs ROWS_NORTH_FIRST or ROWS_SOUTH_FIRST'
+      end select
+   end subroutine rows_copy
 
 end module vilma_remap
