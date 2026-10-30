@@ -5,6 +5,9 @@ program test_drive
    !!   (1) one output slice per forcing slice,
    !!   (2) the bed subsides under the growing ice cap (z_bed < z_bed_eq),
    !!   (3) the ocean draws down (rsl < 0 in the far field).
+   !! Then the legacy Gauss-grid reader (remap_input=.false.) with the same files stored
+   !! with latitude ascending (rows reversed): read with i_eq = 0 (file_ref) and i_eq = 2
+   !! (z_bed_eq_file, h_ice_eq_file), the output must equal that of the north-first files.
    use vilma_precision,       only: wp
    use vilma_constants,       only: rad2deg, pi
    use vilma_sht,             only: sht_grid, sht_grid_init, sht_grid_destroy
@@ -19,14 +22,20 @@ program test_drive
    character(len=*), parameter :: OUT   = "libvilma/include/test_drive_out.nc"
    character(len=*), parameter :: HOR   = "libvilma/include/test_drive_hor.nc"
    character(len=*), parameter :: CFG   = "libvilma/include/test_drive.nml"
+   character(len=*), parameter :: REFA  = "libvilma/include/test_drive_ref_asc.nc"
+   character(len=*), parameter :: FORCEA = "libvilma/include/test_drive_force_asc.nc"
+   character(len=*), parameter :: OUTA0 = "libvilma/include/test_drive_out_asc0.nc"
+   character(len=*), parameter :: OUTA2 = "libvilma/include/test_drive_out_asc2.nc"
+   character(len=*), parameter :: CFGA  = "libvilma/include/test_drive_asc.nml"
    character(len=*), parameter :: DEFS  = "input/vilma_defaults.nml"
 
    type(sht_grid), target :: sht
    real(wp), allocatable  :: lon_deg(:), lat_deg(:), z_bed_eq(:,:), h_ice_eq(:,:)
    real(wp), allocatable  :: h_ice(:,:,:), tyr(:), zb(:,:), rsl(:,:)
    real(wp), allocatable  :: ue(:,:), un(:,:), uet(:,:), unt(:,:)
+   real(wp), allocatable  :: a3(:,:,:), b3(:,:,:)
    real(wp) :: thd, sub
-   integer  :: i, j, k, u, jice, jocean, nout
+   integer  :: i, j, k, jice, jocean, nout
    logical  :: ok
 
    ok = .true.
@@ -72,39 +81,7 @@ program test_drive
 
    ! --- run config: sparse &vilma (overlaid on the physics defaults) + a COMPLETE
    ! --- &ctl group (the run config owns &ctl in full; it has no defaults file).
-   open(newunit=u, file=CFG, status="replace", action="write")
-   write(u,'(a)')    "&vilma"
-   write(u,'(a,i0)') "    lmax = ", LMAX
-   write(u,'(a,i0)') "    nlat = ", NLAT
-   write(u,'(a,i0)') "    nphi = ", NPHI
-   write(u,'(a)')    "/"
-   write(u,'(a)')    "&ctl"
-   write(u,'(a)')    '    file_forcing = "'//FORCE//'"'
-   write(u,'(a)')    '    name_ice     = "h_ice"'
-   write(u,'(a)')    '    name_time    = "time"'
-   write(u,'(a)')    '    file_ref     = "'//REF//'"'
-   write(u,'(a)')    '    name_zbed_eq = "z_bed_eq"'
-   write(u,'(a)')    '    name_hice_ref = "h_ice_eq"'
-   write(u,'(a)')    '    file_out     = "'//OUT//'"'
-   write(u,'(a)')    '    file_hor     = "'//HOR//'"'
-   write(u,'(a)')    "    time_init    = -1.0e30"
-   write(u,'(a)')    "    time_end     =  1.0e30"
-   write(u,'(a)')    "    remap_input  = .false."   ! input already on the Gauss grid
-   write(u,'(a)')    '    name_lon     = "lon"'
-   write(u,'(a)')    '    name_lat     = "lat"'
-   write(u,'(a)')    "    i_eq         = 0"         ! start slice (ice-free) is the reference
-   write(u,'(a)')    '    z_bed_ref_file   = ""'
-   write(u,'(a)')    '    h_ice_ref_file   = ""'
-   write(u,'(a)')    '    z_bed_eq_file    = ""'
-   write(u,'(a)')    '    h_ice_eq_file    = ""'
-   write(u,'(a)')    '    rsl_restart_file = ""'
-   write(u,'(a)')    '    name_z_bed_ref = "bedrock_topography"'
-   write(u,'(a)')    '    name_h_ice_ref = "ice_thickness"'
-   write(u,'(a)')    '    name_rsl       = "rsl"'
-   write(u,'(a)')    '    restart_in_file = ""'
-   write(u,'(a)')    "/"
-   close(u)
-
+   call write_cfg(CFG, FORCE, REF, OUT, HOR, 0)
    call vilma_run(CFG, defaults_file=DEFS)
 
    ! --- checks -----------------------------------------------------------------
@@ -155,6 +132,25 @@ program test_drive
       write(*,'(a)') '   FAIL: an axisymmetric load on a radial Earth moved east or toroidally'; ok = .false.
    end if
 
+   ! --- the legacy reader with latitude ascending: the same fields, rows reversed -------
+   call nc_create(REFA, overwrite=.true.)
+   call nc_write_dim(REFA, "lon", x=lon_deg, units="degrees_east")
+   call nc_write_dim(REFA, "lat", x=lat_deg(sht%nlat:1:-1), units="degrees_north")
+   call nc_write(REFA, "z_bed_eq", z_bed_eq(:, sht%nlat:1:-1), dim1="lon", dim2="lat")
+   call nc_write(REFA, "h_ice_eq", h_ice_eq(:, sht%nlat:1:-1), dim1="lon", dim2="lat")
+   call nc_create(FORCEA, overwrite=.true.)
+   call nc_write_dim(FORCEA, "lon",  x=lon_deg, units="degrees_east")
+   call nc_write_dim(FORCEA, "lat",  x=lat_deg(sht%nlat:1:-1), units="degrees_north")
+   call nc_write_dim(FORCEA, "time", x=tyr,     units="years", unlimited=.true.)
+   call nc_write(FORCEA, "h_ice", h_ice(:, sht%nlat:1:-1, :), dim1="lon", dim2="lat", dim3="time")
+   allocate(a3(sht%nphi,sht%nlat,NT), b3(sht%nphi,sht%nlat,NT))
+   call write_cfg(CFGA, FORCEA, REFA, OUTA0, "", 0)
+   call vilma_run(CFGA, defaults_file=DEFS)
+   call same_output(OUTA0, 'ascending files, i_eq = 0')
+   call write_cfg(CFGA, FORCEA, REFA, OUTA2, "", 2)
+   call vilma_run(CFGA, defaults_file=DEFS)
+   call same_output(OUTA2, 'ascending files, i_eq = 2')
+
    call sht_grid_destroy(sht)
 
    write(*,'(a)') ''
@@ -169,6 +165,73 @@ program test_drive
    call radial_fe_finalize()
 
 contains
+
+   subroutine write_cfg(cfg, force, ref, out, hor, i_eq)
+      !! A sparse &vilma and a complete &ctl: the legacy Gauss-grid input (remap_input=.false.),
+      !! the reference from file_ref (i_eq = 0, the ice-free start slice) or from
+      !! z_bed_eq_file / h_ice_eq_file (i_eq = 2, the same fields).
+      character(len=*), intent(in) :: cfg, force, ref, out, hor
+      integer,          intent(in) :: i_eq
+      integer :: u
+      open(newunit=u, file=cfg, status="replace", action="write")
+      write(u,'(a)')    "&vilma"
+      write(u,'(a,i0)') "    lmax = ", LMAX
+      write(u,'(a,i0)') "    nlat = ", NLAT
+      write(u,'(a,i0)') "    nphi = ", NPHI
+      write(u,'(a)')    "/"
+      write(u,'(a)')    "&ctl"
+      write(u,'(a)')    '    file_forcing = "'//force//'"'
+      write(u,'(a)')    '    name_ice     = "h_ice"'
+      write(u,'(a)')    '    name_time    = "time"'
+      write(u,'(a)')    '    file_ref     = "'//ref//'"'
+      write(u,'(a)')    '    name_zbed_eq = "z_bed_eq"'
+      write(u,'(a)')    '    name_hice_ref = "h_ice_eq"'
+      write(u,'(a)')    '    file_out     = "'//out//'"'
+      write(u,'(a)')    '    file_hor     = "'//hor//'"'
+      write(u,'(a)')    "    write_lossless = .true."
+      write(u,'(a)')    "    time_init    = -1.0e30"
+      write(u,'(a)')    "    time_end     =  1.0e30"
+      write(u,'(a)')    "    remap_input  = .false."   ! input already on the Gauss grid
+      write(u,'(a)')    '    name_lon     = "lon"'
+      write(u,'(a)')    '    name_lat     = "lat"'
+      write(u,'(a,i0)') "    i_eq         = ", i_eq
+      write(u,'(a)')    '    z_bed_ref_file   = ""'
+      write(u,'(a)')    '    h_ice_ref_file   = ""'
+      if (i_eq == 2) then
+         write(u,'(a)') '    z_bed_eq_file    = "'//ref//'"'
+         write(u,'(a)') '    h_ice_eq_file    = "'//ref//'"'
+         write(u,'(a)') '    name_z_bed_ref = "z_bed_eq"'
+         write(u,'(a)') '    name_h_ice_ref = "h_ice_eq"'
+      else
+         write(u,'(a)') '    z_bed_eq_file    = ""'
+         write(u,'(a)') '    h_ice_eq_file    = ""'
+         write(u,'(a)') '    name_z_bed_ref = "bedrock_topography"'
+         write(u,'(a)') '    name_h_ice_ref = "ice_thickness"'
+      end if
+      write(u,'(a)')    '    rsl_restart_file = ""'
+      write(u,'(a)')    '    name_rsl       = "rsl"'
+      write(u,'(a)')    '    restart_in_file = ""'
+      write(u,'(a)')    "/"
+      close(u)
+   end subroutine write_cfg
+
+   subroutine same_output(file, what)
+      !! rsl, z_bed and dz_bed of file (all slices) equal those of OUT, bit for bit.
+      character(len=*), intent(in) :: file, what
+      character(len=8), parameter :: VARS(3) = [character(len=8) :: "rsl", "z_bed", "dz_bed"]
+      integer :: q
+      if (nc_size(file, "time") /= NT) then
+         write(*,'(a)') '   FAIL: '//what//': expected one output slice per forcing slice'; ok = .false.;  return
+      end if
+      do q = 1, size(VARS)
+         call nc_read(OUT,  trim(VARS(q)), a3)
+         call nc_read(file, trim(VARS(q)), b3)
+         write(*,'(a,es10.2)') '   '//what//': max|'//trim(VARS(q))//' - north-first run| =', maxval(abs(b3 - a3))
+         if (any(b3 /= a3)) then
+            write(*,'(a)') '   FAIL: '//what//' differs from the north-first files'; ok = .false.
+         end if
+      end do
+   end subroutine same_output
 
    integer function nearest_row(colat_deg) result(jbest)
       real(wp), intent(in) :: colat_deg

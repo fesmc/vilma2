@@ -16,11 +16,16 @@ module vilma_coupling
    !! Grids. If `grid` (a coords lon-lat grid) is passed at init and differs from the
    !! model's Gauss grid, the model builds a conservative (host->Gauss) + bilinear
    !! (Gauss->host) map pair (vilma_remap) and drives h_ice in / rsl out through it.
-   !! If `grid` is absent (or already the Gauss grid) the fields are taken as-is
-   !! (passthrough). Either way the host reads se%rsl / se%z_bed / se%bsl on the SAME
-   !! grid it supplied; the Gauss-grid working state lives in se%gg (se%gg%rsl, ...).
+   !! If `grid` IS the Gauss grid, in either row order (latitude ascending, south first,
+   !! as coords builds it, or descending, the SHTns layout), the fields pass through as an
+   !! exact copy, the rows reversed for an ascending host (se%host_rows). If `grid` is
+   !! absent the fields are taken to be in the SHTns layout (north first). Either way every
+   !! host-grid field in and out is on the SAME grid, in the same order, as the host
+   !! supplied: the host reads se%rsl, se%z_bed, se%dz_bed, se%dz_ss, se%C and the scalars
+   !! (se%bsl, ...), never se%gg, the Gauss-grid working state in the SHTns layout.
    !! Only the smooth perturbations are mapped back to the host: rsl, and its two parts
-   !! dz_bed = u (bed change) and dz_ss = N + Δφ (sea-surface change), rsl = dz_ss − dz_bed.
+   !! dz_bed = u (bed change) and dz_ss = N + Δφ (sea-surface change), rsl = dz_ss − dz_bed;
+   !! and the ocean function C (bilinear and clipped to [0,1] on the remap path).
    !! se%z_bed is reconstructed as se%z_bed_eq - se%rsl on the host's own
    !! (high-resolution) bed, so host bed detail is preserved.
    !!
@@ -52,7 +57,8 @@ module vilma_coupling
    use vilma_timestep,        only: stepper_advance, adaptive_stepper
    use vilma_rotation,        only: rotation_destroy, rotation_init, rotation_state, &
                                     rotation_set_rate
-   use vilma_remap,           only: remap_ll_gauss, remap_init, remap_to_gauss, remap_to_ll
+   use vilma_remap,           only: remap_ll_gauss, remap_init, remap_to_gauss, remap_to_ll, &
+                                    gauss_axes_rows, rows_copy, ROWS_NONE, ROWS_NORTH_FIRST
    use vilma_v1,           only: vilma_v1_backend, vilma_v1_init, vilma_v1_update, vilma_v1_finalize, &
                                  vilma_v1_require
    use coords,             only: grid_class
@@ -93,9 +99,10 @@ module vilma_coupling
    end type host_state
 
    type :: gauss_state
-      !! Model fields on the model's own Gauss grid, where the physics runs. When the
-      !! host supplies data already on the Gauss grid (passthrough), these mirror the
-      !! host-grid fields one-to-one.
+      !! Model fields on the model's own Gauss grid, where the physics runs, in the SHTns
+      !! layout (rows north first). Internal: a host reads the host-grid fields. When the host
+      !! supplies data already on the Gauss grid (passthrough), these are the host-grid fields,
+      !! rows reversed for a host with ascending latitude.
       real(wp), allocatable :: z_bed_eq(:,:)   !! relaxed bedrock [m] (nphi,nlat)
       real(wp), allocatable :: h_ice_eq(:,:)   !! reference grounded ice [m]
       real(wp), allocatable :: h_ice(:,:)      !! current grounded-ice thickness [m]
@@ -144,6 +151,9 @@ module vilma_coupling
       ! host-grid coupling: remap between the host grid and the model Gauss grid
       logical                  :: remap = .false.  !! host grid /= Gauss grid?
       type(remap_ll_gauss)     :: map               !! conservative-in / bilinear-out map pair
+      !! Row order of a host on the Gauss grid (no remap): ROWS_NORTH_FIRST (also when no grid
+      !! is given) copies, ROWS_SOUTH_FIRST (latitude ascending) reverses the rows in and out.
+      integer                  :: host_rows = ROWS_NORTH_FIRST
 
       !! PROFILE: wall-clock [s] for the two pieces of solid_earth_update that are
       !! neither the solver nor the SLE, and so otherwise vanish into the driver's
@@ -154,7 +164,7 @@ module vilma_coupling
          !! (excluding the Gauss<->VILMA1 remap, which is in %t_remap); for the native
          !! solver it is left 0 because the finer-grained split above already covers it.
 
-      ! host-grid I/O fields (== the gg fields when passthrough); the host reads these
+      ! host-grid I/O fields (the gg fields in the host's row order when passthrough); the host reads these
       real(wp), allocatable    :: z_bed_eq(:,:)  !! relaxed bedrock [m], host grid (kept at full host resolution)
       real(wp), allocatable    :: h_ice_eq(:,:)  !! reference grounded ice [m], host grid
       real(wp), allocatable    :: h_ice(:,:)     !! current grounded ice [m], host grid
@@ -162,6 +172,7 @@ module vilma_coupling
       real(wp), allocatable    :: z_bed(:,:)     !! bedrock = z_bed_eq − rsl [m], host grid
       real(wp), allocatable    :: dz_bed(:,:)    !! bed change u [m], host grid (rsl = dz_ss − dz_bed)
       real(wp), allocatable    :: dz_ss(:,:)     !! sea-surface change N + Δφ [m], host grid
+      real(wp), allocatable    :: C(:,:)         !! ocean function [1], host grid (total with host terms)
 
       ! clock + diagnostics
       real(wp) :: time = 0.0_wp               !! model time [years]
@@ -222,9 +233,13 @@ contains
       self%time = 0.0_wp
 
       ! host<->Gauss remap: build it when a host grid is supplied that is not the Gauss
-      ! grid; otherwise the host fields are taken to be on the Gauss grid already.
-      self%remap = .false.
-      if (present(grid)) self%remap = .not. grid_is_gauss(grid, self%sht)
+      ! grid; otherwise the host fields are on the Gauss grid already, in the row order of
+      ! the grid's latitude axis (north first, the SHTns layout, when no grid is given).
+      self%remap = .false.;  self%host_rows = ROWS_NORTH_FIRST
+      if (present(grid)) then
+         self%host_rows = gauss_axes_rows(self%sht, real(grid%G%x, wp), real(grid%G%y, wp))
+         self%remap = (self%host_rows == ROWS_NONE)
+      end if
       if (self%remap) call remap_init(self%map, self%sht, real(grid%G%x, wp), real(grid%G%y, wp))
 
       ! host-resolved terms: all or none, and only for the native solver, a migrating coastline
@@ -310,11 +325,11 @@ contains
       end if
       self%gg%C = self%gg%C0
 
-      ! host-grid current state at the reference
-      allocate(self%rsl(size(z_bed_eq,1), size(z_bed_eq,2)), source=0.0_wp)
-      allocate(self%z_bed, source=z_bed_eq)
-      allocate(self%dz_bed(size(z_bed_eq,1), size(z_bed_eq,2)), source=0.0_wp)
-      allocate(self%dz_ss(size(z_bed_eq,1), size(z_bed_eq,2)), source=0.0_wp)
+      ! host-grid current state at the reference (rsl = 0, z_bed = z_bed_eq), from the Gauss state
+      allocate(self%rsl(size(z_bed_eq,1), size(z_bed_eq,2)), self%z_bed(size(z_bed_eq,1), size(z_bed_eq,2)), &
+               self%dz_bed(size(z_bed_eq,1), size(z_bed_eq,2)), self%dz_ss(size(z_bed_eq,1), size(z_bed_eq,2)), &
+               self%C(size(z_bed_eq,1), size(z_bed_eq,2)))
+      call solid_earth_sync_host(self)
 
       ! VILMA1 backend: hand it the SAME reference and start-slice ice, already on
       ! the model Gauss grid. vilma_v1 owns the second remap leg (model Gauss <->
@@ -593,25 +608,23 @@ contains
    end subroutine solid_earth_update
 
    subroutine solid_earth_sync_host(self)
-      !! Refresh the host-grid output fields from the Gauss-grid state: map the smooth
-      !! rsl, dz_bed and dz_ss perturbations back (bilinear, or copy when passthrough;
-      !! bilinear is linear, so rsl = dz_ss − dz_bed holds on the host grid too) and reconstruct
-      !! z_bed on the host's own (high-resolution) bed so its detail survives. update()
-      !! calls this each step; vilma_restart_read calls it after restoring the gg state.
+      !! Refresh the host-grid output fields from the Gauss-grid state (to_host): the smooth
+      !! rsl, dz_bed and dz_ss perturbations (bilinear, or the passthrough copy in the host's
+      !! row order; bilinear is linear, so rsl = dz_ss − dz_bed holds on the host grid too), the
+      !! ocean function C (bilinear clipped to [0,1] on the remap path: a fraction, smooth on the
+      !! host grid; its host-grid integral is not VILMA2's ocean area, which is the Gauss-grid
+      !! one), and z_bed reconstructed on the host's own (high-resolution) bed so its detail
+      !! survives. init and update() call this; vilma_restart_read calls it after restoring the gg state.
       type(solid_earth), intent(inout) :: self
-      if (self%remap) then
-         call remap_to_ll(self%map, self%gg%rsl, self%rsl)
-         if (self%use_vilma_v1) then            ! dz_* are unset: keep the fill value exact
-            self%dz_bed = VILMA_UNSET;  self%dz_ss = VILMA_UNSET
-         else
-            call remap_to_ll(self%map, self%gg%dz_bed, self%dz_bed)
-            call remap_to_ll(self%map, self%gg%dz_ss,  self%dz_ss)
-         end if
+      call to_host(self, self%gg%rsl, self%rsl)
+      if (self%use_vilma_v1) then               ! dz_* are unset: keep the fill value exact
+         self%dz_bed = VILMA_UNSET;  self%dz_ss = VILMA_UNSET
       else
-         self%rsl    = self%gg%rsl
-         self%dz_bed = self%gg%dz_bed
-         self%dz_ss  = self%gg%dz_ss
+         call to_host(self, self%gg%dz_bed, self%dz_bed)
+         call to_host(self, self%gg%dz_ss,  self%dz_ss)
       end if
+      call to_host(self, self%gg%C, self%C)
+      if (self%remap) self%C = min(max(self%C, 0.0_wp), 1.0_wp)
       self%z_bed = self%z_bed_eq - self%rsl
    end subroutine solid_earth_sync_host
 
@@ -823,6 +836,8 @@ contains
       if (allocated(self%z_bed))       deallocate(self%z_bed)
       if (allocated(self%dz_bed))      deallocate(self%dz_bed)
       if (allocated(self%dz_ss))       deallocate(self%dz_ss)
+      if (allocated(self%C))           deallocate(self%C)
+      self%host_rows = ROWS_NORTH_FIRST
       self%dphi = 0.0_wp
       self%fill_int = 0.0_wp;  self%fill_int_own = 0.0_wp
       self%time = 0.0_wp
@@ -902,7 +917,7 @@ contains
 
    subroutine to_gauss_frac(self, f_host, f_gauss, upper)
       !! A fraction onto the Gauss grid: the conservative remap without the mass factor
-      !! (a copy for a Gauss host), then clipped to [0, upper] (default 1). Round-off beyond
+      !! (the passthrough copy for a Gauss host), then clipped to [0, upper] (default 1). Round-off beyond
       !! the bounds (HOST_TOL) is clipped, on either path; anything larger or non-finite stops.
       type(solid_earth), intent(in)  :: self
       real(wp),          intent(in)  :: f_host(:,:)
@@ -956,8 +971,9 @@ contains
    ! --- internals --------------------------------------------------------------
 
    subroutine to_gauss(self, f_host, f_gauss, conserve_mass)
-      !! Bring a host-grid field onto the Gauss grid: conservative remap when a host
-      !! grid is in play, else a straight copy (passthrough).
+      !! Bring a host-grid field onto the Gauss grid (SHTns layout): conservative remap when
+      !! a host grid is in play, else the exact passthrough copy, rows reversed for a host
+      !! with ascending latitude (self%host_rows).
       type(solid_earth), intent(in)  :: self
       real(wp),          intent(in)  :: f_host(:,:)
       real(wp),          intent(out) :: f_gauss(:,:)
@@ -965,9 +981,22 @@ contains
       if (self%remap) then
          call remap_to_gauss(self%map, self%sht, f_host, f_gauss, conserve_mass=conserve_mass)
       else
-         f_gauss = f_host
+         call rows_copy(f_host, f_gauss, self%host_rows)
       end if
    end subroutine to_gauss
+
+   subroutine to_host(self, f_gauss, f_host)
+      !! A Gauss-grid field (SHTns layout) onto the host grid: bilinear when a host grid is in
+      !! play, else the exact passthrough copy in the host's row order (the inverse of to_gauss).
+      type(solid_earth), intent(in)  :: self
+      real(wp),          intent(in)  :: f_gauss(:,:)
+      real(wp),          intent(out) :: f_host(:,:)
+      if (self%remap) then
+         call remap_to_ll(self%map, f_gauss, f_host)
+      else
+         call rows_copy(f_gauss, f_host, self%host_rows)
+      end if
+   end subroutine to_host
 
    subroutine build_sht(p, sht)
       !! Build the Gauss-Legendre transform grid from the parameter record. When
@@ -988,27 +1017,5 @@ contains
          call sht_grid_init(sht, p%lmax, nlat=nlat, nphi=nphi, mres=p%mres)
       end if
    end subroutine build_sht
-
-   logical function grid_is_gauss(grid, sht) result(same)
-      !! True when the host grid IS the model's Gauss grid (same dims and matching
-      !! lon/lat axes), so no remap is needed and the host fields pass straight through.
-      type(grid_class), intent(in) :: grid
-      type(sht_grid),   intent(in) :: sht
-      real(wp), parameter :: TOL = 1.0e-6_wp           ! degrees
-      real(wp), parameter :: RAD2DEG = 57.295779513082323_wp
-      integer :: j
-      same = .false.
-      if (grid%G%nx /= sht%nphi .or. grid%G%ny /= sht%nlat) return
-      ! longitudes (SHTns lon is ascending in [0,360))
-      do j = 1, sht%nphi
-         if (abs(real(grid%G%x(j),wp) - sht%lon(j)*RAD2DEG) > TOL) return
-      end do
-      ! latitudes: SHTns colat is north-first (descending lat); the host axis is
-      ! ascending, so compare against the reversed Gauss colat row.
-      do j = 1, sht%nlat
-         if (abs(real(grid%G%y(j),wp) - (90.0_wp - sht%colat(sht%nlat - j + 1)*RAD2DEG)) > TOL) return
-      end do
-      same = .true.
-   end function grid_is_gauss
 
 end module vilma_coupling
