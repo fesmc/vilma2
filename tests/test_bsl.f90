@@ -10,6 +10,9 @@ program test_bsl
    !!   (2) the SLE's mass balance ties the two: ∫C·rsl dA = −(ρ_i/ρ_w)∫ΔI_g dA + ∫F dA
    !!       with the flooded-area fill F = z_bed_eq·(C − C0), so
    !!       bsl − bsl_ive = ∫F dA / ∫C dA, to the SLE's mass residual;
+   !!   (4) the exported fill integral se%fill_int [m³] is ∫F dA, and with it the balance
+   !!       closes to round-off: ∫C·rsl dA − fill_int = bsl_ive·∫C dA (the melt term); without
+   !!       host terms the own part's share is all of it;
    !!   (3) the two differ while the shelf is grounded (C /= C0, so the fill is not
    !!       zero), so the rename is not a no-op: the water that fills newly submerged
    !!       area, or is displaced from it, does not move the barystatic level.
@@ -28,6 +31,7 @@ program test_bsl
    type(solid_earth)       :: se
    real(wp), allocatable   :: z_eq(:,:), h_eq(:,:), h_on(:,:), h_off(:,:)
    real(wp) :: c_int, bsl_ref, fill, err1, err2, worst1, worst2, max_gap
+   real(wp) :: scl, a2, lhs, melt, err3, err4, worst3, worst4
    integer  :: i, j, step
    logical  :: ok
 
@@ -61,7 +65,8 @@ program test_bsl
 
    write(*,'(a,es8.1,a)') ' bsl: ocean mean of C*rsl, and its tie to bsl_ive; tolerance ', TOL, ' m'
    write(*,'(a)') '       step      bsl [m]   bsl_ive [m]   (bsl-ive) [m]   |(1)| [m]   |(2)| [m]'
-   worst1 = 0.0_wp;  worst2 = 0.0_wp;  max_gap = 0.0_wp
+   worst1 = 0.0_wp;  worst2 = 0.0_wp;  max_gap = 0.0_wp;  worst3 = 0.0_wp;  worst4 = 0.0_wp
+   a2 = se%earth%r_earth**2
    do step = 1, 2*NSTEP                      ! build the load up, then take it away
       if (step <= NSTEP) then
          call solid_earth_update(se, h_on, 1.0e3_wp)
@@ -74,6 +79,15 @@ program test_bsl
       err1 = abs(se%bsl - bsl_ref)
       err2 = abs((se%bsl - se%bsl_ive) - fill)
       worst1 = max(worst1, err1);  worst2 = max(worst2, err2)
+      ! (4) the exported fill integral [m³] and the balance with it
+      fill = a2*sht_grid_surface_integral(sht, z_eq*(se%gg%C - se%gg%C0))
+      lhs  = a2*sht_grid_surface_integral(sht, se%gg%C*se%gg%rsl)
+      melt = a2*c_int*se%bsl_ive
+      scl  = a2*sht_grid_surface_integral(sht, abs(se%gg%C*se%gg%rsl)) + abs(fill) + abs(melt) + 1.0e-30_wp
+      err3 = abs(se%fill_int - fill)/scl
+      err4 = abs(lhs - se%fill_int - melt)/scl
+      if (se%fill_int_own /= se%fill_int) err3 = 1.0_wp
+      worst3 = max(worst3, err3);  worst4 = max(worst4, err4)
       max_gap = max(max_gap, abs(se%bsl_ive - se%bsl))
       write(*,'(i9,4f14.6,2es12.2)') step, se%bsl, se%bsl_ive, se%bsl - se%bsl_ive, fill, err1, err2
    end do
@@ -83,6 +97,13 @@ program test_bsl
    end if
    if (worst2 > TOL) then
       write(*,'(a)') '   FAIL: bsl - bsl_ive does not match the flooded-area fill'; ok = .false.
+   end if
+   write(*,'(a,es10.2,a,es10.2)') ' fill_int vs recomputed (rel to scale):', worst3, '   balance with fill_int:', worst4
+   if (worst3 > 1.0e-10_wp) then
+      write(*,'(a)') '   FAIL: fill_int is not the fill integral'; ok = .false.
+   end if
+   if (worst4 > 1.0e-10_wp) then
+      write(*,'(a)') '   FAIL: the ocean mass balance does not close with fill_int'; ok = .false.
    end if
    if (max_gap < 1.0e-3_wp) then
       write(*,'(a)') '   FAIL: bsl and bsl_ive never differ (no coastline change to tell them apart)'; ok = .false.

@@ -59,3 +59,5 @@ prognostic state, the masks and the time series stay lossless.
 | 34 | I_g_prev     | lon, lat      | m      | Host terms of the last update: I_g (ramp start)  | -         |
 | 35 | C_prev       | lon, lat      | 1      | Host terms of the last update: C (ramp start)    | -         |
 | 36 | F_prev       | lon, lat      | m      | Host terms of the last update: F (ramp start)    | -         |
+| 37 | fill_int     | time          | m3     | Flooded-area fill of the last update, whole sphere: the term of the ocean mass balance | -         |
+| 38 | fill_int_own | time          | m3     | Flooded-area fill, own part's share (a zeta0 (C_own - C0_own)) | -         |

@@ -232,7 +232,7 @@ contains
       type(solid_earth) :: se
       real(wp), allocatable :: z_eq(:,:), h_eq(:,:), h1(:,:), w1(:,:), I1(:,:), C1(:,:), F1(:,:), I0(:,:), C0(:,:), Cr(:,:)
       real(wp), allocatable :: a(:,:), Cown(:,:), C0own(:,:), fill(:,:), hz(:,:)
-      real(wp) :: lhs, melt, fi, cint, scale
+      real(wp) :: lhs, melt, fi, cint, scale, a2, fo, ff, e_tot, e_own, e_hst, e_bal
       real(wp) :: nan
       integer  :: step
       nan = ieee_value(1.0_wp, ieee_quiet_nan)
@@ -279,6 +279,26 @@ contains
       end if
       if (abs(fi) < 1.0e-3_wp*abs(melt)) then
          write(*,'(a)') '     FAIL: fill negligible, scenario does not test it';  ok = .false.
+      end if
+      ! the exported fill integral [m³], whole and own part's share, and the balance with it
+      a2 = se%earth%r_earth**2
+      ff = a2*sht_grid_surface_integral(sht, F1)
+      fo = a2*sht_grid_surface_integral(sht, merge(a*z_eq*(Cown - C0own), 0.0_wp, a > 0.0_wp))
+      e_tot = abs(se%fill_int - a2*fi)/abs(a2*fi)
+      e_own = abs(se%fill_int_own - fo)/abs(fo)
+      e_hst = abs((se%fill_int - se%fill_int_own) - ff)/abs(ff)
+      e_bal = abs(a2*lhs - (a2*melt + se%fill_int))/(a2*scale)
+      write(*,'(a,es11.3,a,es11.3,a)') '     fill_int =', se%fill_int, ' m3   own part =', se%fill_int_own, ' m3'
+      write(*,'(a,es10.2,a,es10.2,a,es10.2,a,es10.2)') '     rel error: total ', e_tot, '   own ', e_own, &
+           '   host F ', e_hst, '   balance with fill_int ', e_bal
+      if (max(e_tot, e_own, e_hst) > 1.0e-9_wp) then
+         write(*,'(a)') '     FAIL: exported fill integrals differ from the recomputed ones';  ok = .false.
+      end if
+      if (e_bal > 1.0e-10_wp) then
+         write(*,'(a)') '     FAIL: ocean mass balance does not close with fill_int';  ok = .false.
+      end if
+      if (abs(fo) < 1.0e-3_wp*abs(ff) .or. abs(ff) < 1.0e-3_wp*abs(fo)) then
+         write(*,'(a)') '     FAIL: one part of the fill is negligible, scenario does not test the split';  ok = .false.
       end if
       call solid_earth_finalize(se)
       step = 0

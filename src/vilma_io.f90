@@ -24,7 +24,7 @@ module vilma_io
    !! Static (written once, checked on read): the reference state z_bed_eq, h_ice_eq and,
    !! with host terms, w_ref, I_g_ref, C_host_ref; the global attribute host_terms (1 or 0)
    !! says whether the run had host terms, and a read into the other kind stops. Diagnostic: h_ice,
-   !! rsl, z_bed, dz_bed, dz_ss, C_ocean (lon,lat) and the scalars bsl, bsl_ive, dphi — written
+   !! rsl, z_bed, dz_bed, dz_ss, C_ocean (lon,lat) and the scalars bsl, bsl_ive, dphi, fill_int, fill_int_own — written
    !! for inspection and restored if present.
    use vilma_precision,    only: wp
    use vilma_constants,    only: rad2deg, sec_per_year
@@ -48,8 +48,9 @@ module vilma_io
    ! the Maxwell stress tensor + trapezoidal σ_n; RESP_ELASTIC/RESP_NULL are
    ! memoryless (COMMON_VARS only).
    ! Static reference fields are written once in the init branch.
-   character(len=12), parameter :: COMMON_VARS(10) = [character(len=12) :: &
-        "h_ice", "rsl", "z_bed", "dz_bed", "dz_ss", "C_ocean", "dt_try", "bsl", "bsl_ive", "dphi"]
+   character(len=12), parameter :: COMMON_VARS(12) = [character(len=12) :: &
+        "h_ice", "rsl", "z_bed", "dz_bed", "dz_ss", "C_ocean", "dt_try", "bsl", "bsl_ive", "dphi", &
+        "fill_int", "fill_int_own"]
    character(len=12), parameter :: VE_MEM_VARS(9) = [character(len=12) :: &
         "tau_a_re", "tau_a_im", "tau_b_re", "tau_b_im", "tau_c_re", "tau_c_im", &
         "sigma_n_re", "sigma_n_im", "sigma_primed"]
@@ -369,6 +370,8 @@ contains
       case ("bsl");      call put_scalar(filename, name, self%bsl, n, ncid, lossless)
       case ("bsl_ive");  call put_scalar(filename, name, self%bsl_ive, n, ncid, lossless)
       case ("dphi");     call put_scalar(filename, name, self%dphi, n, ncid, lossless)
+      case ("fill_int");     call put_scalar(filename, name, self%fill_int,     n, ncid, lossless)
+      case ("fill_int_own"); call put_scalar(filename, name, self%fill_int_own, n, ncid, lossless)
       ! Polar motion m = m1 + i*m2 [rad]. Already prognostic and already
       ! serialized into restarts by write_rotation; these two cases let the
       ! DIAGNOSTIC output file carry it as well, via an explicit nms list.
@@ -712,6 +715,11 @@ contains
       if (nc_exists_var(filename, "bsl_ive")) then
          call nc_read(filename, "bsl",     self%bsl,     start=[n], count=[1])
          call nc_read(filename, "bsl_ive", self%bsl_ive, start=[n], count=[1])
+      end if
+      ! the fill integrals (m³) of the last update; a file from before them leaves zero
+      if (nc_exists_var(filename, "fill_int") .and. nc_exists_var(filename, "fill_int_own")) then
+         call nc_read(filename, "fill_int",     self%fill_int,     start=[n], count=[1])
+         call nc_read(filename, "fill_int_own", self%fill_int_own, start=[n], count=[1])
       end if
       if (nc_exists_var(filename, "dz_bed") .and. nc_exists_var(filename, "dz_ss") .and. &
           nc_exists_var(filename, "dphi")) then

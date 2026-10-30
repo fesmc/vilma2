@@ -62,6 +62,13 @@ module vilma_sle
       real(wp) :: mass_resid   = 0.0_wp !! relative ocean-mass-conservation error
       real(wp) :: ocean_frac   = 0.0_wp !! ∫C dΩ / 4π
       real(wp) :: esl          = 0.0_wp !! eustatic offset Δφ [m] (uniform sea-surface shift)
+      !! The flooded-area fill of the closing coastline, integrated over the unit sphere
+      !! [m sr] (× the Earth radius squared: m³). fill is the term of the mass balance
+      !! ∫C·rsl dΩ = −(ρ_i/ρ_w)∫ΔI_g dΩ + ∫fill dΩ: the host's F plus the own part's
+      !! a·ζ⁽⁰⁾·(C_own − C0_own) with host terms, ζ⁽⁰⁾(C − C0) without. fill_own is the own
+      !! part's share (all of it without host terms). Both are 0 without subgrid.
+      real(wp) :: fill_int     = 0.0_wp !! ∫fill dΩ [m sr]
+      real(wp) :: fill_own     = 0.0_wp !! the own part's share of it [m sr]
       !! Converged solid uplift and geoid rise [m], spectral (nlm). The solve only ever
       !! needs their difference on the grid, so the fields themselves stay spectral;
       !! sle_result_grids synthesises them for a caller that wants grids.
@@ -225,7 +232,7 @@ contains
       real(wp), allocatable :: C0(:,:), wcorr(:,:), C_next(:,:), d_ice_g(:,:)
       real(wp), allocatable :: C_own(:,:), a(:,:), a0(:,:), fill(:,:), ice_o(:,:), ice_o0(:,:)
       complex(wp), allocatable :: load_lm(:), u_lm(:), N_lm(:), S_lm(:)
-      real(wp) :: rho_ratio, ice_int, dphi, C_int, Cs_int, zeta_int, smax, dmax
+      real(wp) :: rho_ratio, ice_int, dphi, C_int, Cs_int, zeta_int, zown_int, smax, dmax
       integer  :: im, io, ii, np, nl, n_mem
       logical  :: ronly, rotate, hmode
       integer(kind=8) :: pc0, pc1, pca, pcb, prate   ! PROFILE: see %t_total
@@ -263,7 +270,7 @@ contains
       if (.not. self%warm_start) rsl = 0.0_wp
       dphi = 0.0_wp;  ice_int = 0.0_wp
       d_ice_g = 0.0_wp
-      zeta_int = 0.0_wp;  wcorr = 0.0_wp
+      zeta_int = 0.0_wp;  wcorr = 0.0_wp;  zown_int = 0.0_wp
       res%n_inner_last = 0;  res%resid = 0.0_wp;  res%n_outer_done = 0
       res%n_coast_flip = 0
 
@@ -401,12 +408,19 @@ contains
                end where
                wcorr    = -self%rho_water * fill
                zeta_int = sht_grid_surface_integral(sht, fill)
+               where (a > 0.0_wp)
+                  fill = a*(topo0*(C_own - C0))          ! the own part's share alone
+               elsewhere
+                  fill = 0.0_wp
+               end where
+               zown_int = sht_grid_surface_integral(sht, fill)
             else
                wcorr    = -self%rho_water * topo0 * (C - C0)
                zeta_int = sht_grid_surface_integral(sht, topo0*(C - C0))
+               zown_int = zeta_int
             end if
          else
-            wcorr = 0.0_wp;  zeta_int = 0.0_wp
+            wcorr = 0.0_wp;  zeta_int = 0.0_wp;  zown_int = 0.0_wp
          end if
 
          do ii = 1, self%n_inner
@@ -511,6 +525,7 @@ contains
          res%mass_resid = abs(Cs_int)
       end if
       res%u_lm = u_lm;  res%N_lm = N_lm;  res%esl = dphi   ! converged fields + offset
+      res%fill_int = zeta_int;  res%fill_own = zown_int    ! the closing coastline's fill
       if (present(dIg_out)) dIg_out = d_ice_g              ! ΔI_g of the closing load
 
       call system_clock(pc1);  self%t_total = self%t_total + real(pc1-pc0,wp)/prate
