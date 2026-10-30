@@ -2,7 +2,7 @@ program test_restart_3d
    !! Restart exactness with laterally varying viscosity (3-D, toroidal channels, rotation on),
    !! lmax 16: a run restored mid-way continues the uninterrupted one bit for bit, at every
    !! step after the restore, in the sea-level fields, the scalars, the fill integrals and the
-   !! memory. Two cases:
+   !! memory. Three cases:
    !!
    !!   (a) the plain 3-D run;
    !!   (b) the 3-D run entered through the 1-D pre-spin-up (&vilma pre_spinup_1d), which
@@ -11,6 +11,9 @@ program test_restart_3d
    !!       carries must not depend on the enables before the last one. (It did: the rates
    !!       were rebuilt from the previous enable's, a round-off off the radial ones, and a
    !!       restart continued at round-off, not exactly. Checked here on the rates, too.)
+   !!       The memory is also compared right after the restore, with values far below 1e-30 put
+   !!       in it: a reader that flushes them to zero (as fesm-utils' ncio did before it returned values
+   !!       as stored) fails this check.
    !!   (c) as (b) with the implicit (trapezoidal) scheme, whose adaptive stepper sub-steps by the
    !!       restored dt_try (which the restart used to round-trip through years, inexactly).
    use vilma_precision,       only: wp
@@ -67,9 +70,10 @@ contains
       type(vilma_param_class) :: p
       type(solid_earth) :: a, c
       real(wp), allocatable :: rsl(:,:,:), dzb(:,:,:), dzs(:,:,:), zb(:,:,:), cc(:,:,:)
+      real(wp), allocatable :: mem0(:,:,:,:)
       real(wp) :: sc(4,K1+K2), t1, f
-      integer  :: k, nbad
-      logical  :: rates_ok, mem_ok
+      integer  :: k, nbad, tiny
+      logical  :: rates_ok, mem_ok, rest_ok
 
       p%lmax = LMAX;  p%nlat = 2*LMAX;  p%nphi = 4*LMAX
       p%earth_response = "ve";  p%rotation = .true.
@@ -88,7 +92,14 @@ contains
          zb(:,:,k) = a%z_bed;  cc(:,:,k) = a%gg%C
          sc(:,k) = [a%bsl, a%dphi, a%fill_int, a%worst_mass_resid]
          if (k == K1) then
+            ! values far below 1e-30 in all six arrays, as the decayed high-degree slots of a production
+            ! run hold them (a reader that flushes such values to zero fails the check)
+            a%resp%Are(1,50,5) = 1.0e-35_wp;   a%resp%Aim(2,60,7) = -3.0e-120_wp;  a%resp%Bre(3,70,2) = 2.0e-31_wp
+            a%resp%Bim(4,80,9) = -5.0e-60_wp;  a%resp%Cre(1,90,3) = 7.0e-300_wp;   a%resp%Cim(2,100,4) = -1.0e-33_wp
             t1 = a%time
+            allocate(mem0(a%resp%nlam, a%resp%ne, a%resp%nk, 6))
+            mem0(:,:,:,1) = a%resp%Are;  mem0(:,:,:,2) = a%resp%Aim;  mem0(:,:,:,3) = a%resp%Bre
+            mem0(:,:,:,4) = a%resp%Bim;  mem0(:,:,:,5) = a%resp%Cre;  mem0(:,:,:,6) = a%resp%Cim
             call vilma_restart_write(a, t1, filename=file, init=.true.)
          end if
       end do
@@ -96,6 +107,9 @@ contains
       ! a fresh model (no spin-up) restored at K1, then the same K2 steps
       c%par = p;  call solid_earth_init(c, z_bed_eq, h_ice_eq)
       call vilma_restart_read(c, file, time=t1)
+      rest_ok = all(c%resp%Are == mem0(:,:,:,1)) .and. all(c%resp%Aim == mem0(:,:,:,2)) .and. all(c%resp%Bre == mem0(:,:,:,3)) &
+               .and. all(c%resp%Bim == mem0(:,:,:,4)) .and. all(c%resp%Cre == mem0(:,:,:,5)) .and. all(c%resp%Cim == mem0(:,:,:,6))
+      tiny = count(abs(mem0) < 1.0e-30_wp .and. mem0 /= 0.0_wp)
       rates_ok = all(c%resp%MkPerDt == a%resp%MkPerDt) .and. all(c%resp%MkPerDt3 == a%resp%MkPerDt3) &
                  .and. all(c%resp%active1d .eqv. a%resp%active1d)
       nbad = 0
@@ -106,7 +120,8 @@ contains
                     .and. same(c%z_bed, zb(:,:,k)) .and. same(c%gg%C, cc(:,:,k)) &
                     .and. all([c%bsl, c%dphi, c%fill_int, c%worst_mass_resid] == sc(:,k)))) nbad = nbad + 1
       end do
-      mem_ok = all(c%resp%Are == a%resp%Are) .and. all(c%resp%Bim == a%resp%Bim) .and. all(c%resp%Cre == a%resp%Cre) &
+      mem_ok = all(c%resp%Are == a%resp%Are) .and. all(c%resp%Aim == a%resp%Aim) .and. all(c%resp%Bre == a%resp%Bre) &
+               .and. all(c%resp%Bim == a%resp%Bim) .and. all(c%resp%Cre == a%resp%Cre) .and. all(c%resp%Cim == a%resp%Cim) &
                .and. (c%rotation%m == a%rotation%m)
 
       write(*,'(a,a,a,i0,a,i0)') ' restart [', label, ']: lmax=', LMAX, '   channels=', a%resp%nlam
@@ -114,10 +129,15 @@ contains
            '   max|dz_bed|', maxval(abs(c%dz_bed - a%dz_bed)), '   |bsl|', abs(c%bsl - a%bsl)
       write(*,'(a,i0,a,l1,a,l1)') '     steps differing after the restore: ', nbad, '   viscosity rates identical: ', rates_ok, &
            '   memory identical: ', mem_ok
+      write(*,'(a,l1,a,i0,a)') '     memory right after the restore identical to the written one: ', rest_ok, &
+           '   (', tiny, ' nonzero values below 1e-30 in it)'
       if (a%resp%nlam /= 6) then
          write(*,'(a)') '     FAIL: the toroidal channels are not on, the case is not 3-D';  ok = .false.
       end if
-      if (nbad /= 0 .or. .not. rates_ok .or. .not. mem_ok) then
+      if (tiny == 0) then
+         write(*,'(a)') '     FAIL: no value below 1e-30 in the memory, the check is blind to a reader that flushes tiny values';  ok = .false.
+      end if
+      if (nbad /= 0 .or. .not. rates_ok .or. .not. mem_ok .or. .not. rest_ok) then
          write(*,'(a)') '     FAIL: the restarted run does not continue the uninterrupted one bit for bit';  ok = .false.
       end if
       call solid_earth_finalize(a);  call solid_earth_finalize(c)
