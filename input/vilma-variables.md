@@ -62,3 +62,4 @@ prognostic state, the masks and the time series stay lossless.
 | 37 | fill_int     | time          | m3     | Flooded-area fill of the last update, whole sphere: the term of the ocean mass balance | -         |
 | 38 | fill_int_own | time          | m3     | Flooded-area fill, own part's share (a zeta0 (C_own - C0_own)) | -         |
 | 39 | dt_try_s     | time          | s      | Adaptive time-stepping next-step Δt suggestion, in seconds (exact; dt_try is the same in years) | -         |
+| 40 | bsl_ive_host | time          | m      | bsl_ive's host part: -(rho_i/rho_w) int(I_g - I_g_ref) dA / int C dA over the host columns; 0 without host terms | -         |
