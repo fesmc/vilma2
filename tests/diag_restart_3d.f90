@@ -30,7 +30,9 @@ program diag_restart_3d
    type(solid_earth) :: a, c
    real(wp), allocatable :: z_eq(:,:), h_eq(:,:), h1(:,:), wr(:,:), Ir(:,:), Cr(:,:)
    real(wp), allocatable :: w0(:,:), I0(:,:), C0(:,:), F0(:,:), w1(:,:), I1(:,:), C1(:,:), F1(:,:)
-   real(wp), allocatable :: rsl(:,:,:), dzb(:,:,:), sc(:,:)
+   real(wp), allocatable :: rsl(:,:,:), dzb(:,:,:), sc(:,:), mem(:,:,:,:,:)
+   integer  :: nd, ndm
+   real(wp) :: dmax
    logical :: ex, fixdt
 
    call get_command_argument(1, arg);  read(arg,*) lmax
@@ -61,6 +63,8 @@ program diag_restart_3d
    if (spin == 1) call spin_model(a)
    do k = 1, k1+k2
       call step(a, k)
+      if (.not. allocated(mem)) allocate(mem(a%resp%nlam, a%resp%ne, a%resp%nk, 6, 0:k1+k2))
+      call getmem(a, mem(:,:,:,:,k))
       rsl(:,:,k) = a%rsl;  dzb(:,:,k) = a%dz_bed;  sc(:,k) = [a%bsl, a%dphi, a%fill_int, a%worst_mass_resid]
       write(*,'(a,i0,a,es10.3,a,es10.3)') ' A step ', k, ': bsl ', a%bsl, '  max|rsl| ', maxval(abs(a%rsl))
       if (k == k1) then
@@ -72,6 +76,8 @@ program diag_restart_3d
    c%par = p
    call init_model(c)
    call vilma_restart_read(c, trim(file), time=t1)
+   call cmpmem(c, mem(:,:,:,:,k1), nd, dmax)
+   write(*,'(a,i0,a,es10.2)') ' memory right after the restore: cells differing ', nd, '   max|diff| ', dmax
    write(*,'(a,2es24.16,l2)') ' dt_try A, C:', dtry, c%stepper%dt_try, dtry == c%stepper%dt_try
    if (fixdt) c%stepper%dt_try = dtry
    nbad = 0
@@ -80,7 +86,9 @@ program diag_restart_3d
       write(*,'(a,i0,a,es10.2,a,es10.2,a,es10.2,a,es10.2)') ' C step ', k, ': max|rsl - A| ', &
            maxval(abs(c%rsl - rsl(:,:,k))), '  max|dz_bed - A| ', maxval(abs(c%dz_bed - dzb(:,:,k))), &
            '  |bsl - A| ', abs(c%bsl - sc(1,k)), '  |fill_int - A| ', abs(c%fill_int - sc(3,k))
-      if (.not. (all(c%rsl == rsl(:,:,k)) .and. all(c%dz_bed == dzb(:,:,k)) .and. all([c%bsl, c%dphi, c%fill_int, c%worst_mass_resid] == sc(:,k)))) nbad = nbad + 1
+      call cmpmem(c, mem(:,:,:,:,k), nd, dmax)
+      write(*,'(a,i0,a,es10.2,a,i0)') '   memory: cells differing ', nd, '   max|diff| ', dmax, '   of ', size(mem(:,:,:,:,k))
+      if (.not. (all(c%rsl == rsl(:,:,k)) .and. all(c%dz_bed == dzb(:,:,k)) .and. all([c%bsl, c%dphi, c%fill_int, c%worst_mass_resid] == sc(:,k)) .and. nd == 0)) nbad = nbad + 1
    end do
    write(*,'(a,i0,a,i0)') ' updates differing after the restore: ', nbad, ' of ', k2
    inquire(file=trim(file), exist=ex)
@@ -89,6 +97,25 @@ program diag_restart_3d
    write(*,'(a)') ' BIT-IDENTICAL'
 
 contains
+
+   subroutine getmem(se, m)
+      type(solid_earth), intent(in) :: se
+      real(wp), intent(out) :: m(:,:,:,:)
+      m(:,:,:,1) = se%resp%Are;  m(:,:,:,2) = se%resp%Aim;  m(:,:,:,3) = se%resp%Bre
+      m(:,:,:,4) = se%resp%Bim;  m(:,:,:,5) = se%resp%Cre;  m(:,:,:,6) = se%resp%Cim
+   end subroutine getmem
+
+   subroutine cmpmem(se, m, nd, dmax)
+      !! Cells of the six memory arrays that differ from m (not equal bit for bit), and the largest difference.
+      type(solid_earth), intent(in) :: se
+      real(wp), intent(in)  :: m(:,:,:,:)
+      integer,  intent(out) :: nd
+      real(wp), intent(out) :: dmax
+      real(wp), allocatable :: x(:,:,:,:)
+      allocate(x(size(m,1), size(m,2), size(m,3), 6))
+      call getmem(se, x)
+      nd = count(x /= m);  dmax = maxval(abs(x - m))
+   end subroutine cmpmem
 
    subroutine init_model(se)
       type(solid_earth), intent(inout) :: se
