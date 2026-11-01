@@ -1,17 +1,18 @@
 program test_density
-   !! Ice and water densities are &vilma parameters (rho_ice, rho_water); the GIA
-   !! benchmark values (931, 1000) are the defaults. Checks:
+   !! Ice and water densities are &vilma parameters (rho_ice, rho_water), by default
+   !! 917, 1000 (the GIA benchmarks' 931 is set by the benchmark tests). Checks:
    !!
-   !!   (1) vilma_par_load: the defaults file gives 931 / 1000, a run config overrides them;
+   !!   (1) vilma_par_load: the defaults file and the in-code defaults give 917 / 1000, a
+   !!       run config overrides them;
    !!   (2) a host pair (910, 1028) reaches the whole model: the sea-level equation's mass
    !!       balance (bsl - bsl_ive = fill / ∫C, which uses the SLE's own ρ_i/ρ_w) holds
    !!       against bsl_ive formed here with that pair, and the ocean-mass residual of
    !!       every solve stays at round-off;
    !!   (3) flotation uses the pair: the reference ocean function of a 100 m ice column
-   !!       on 92 m of water is grounded at (931, 1000) (93100 > 92000 kg m^-2) and afloat
-   !!       at (910, 1028) (91000 < 94576).
+   !!       on 90 m of water is grounded at the defaults (917, 1000) (91700 > 90000 kg m^-2)
+   !!       and afloat at (910, 1028) (91000 < 92520).
    use vilma_precision, only: wp
-   use vilma_constants, only: pi, rho_ice, rho_water
+   use vilma_constants, only: pi
    use vilma_params,    only: vilma_param_class, vilma_par_load
    use vilma_radial_fe, only: radial_fe_finalize
    use vilma_sht,       only: sht_grid, sht_grid_init, sht_grid_destroy, sht_grid_surface_integral
@@ -20,6 +21,7 @@ program test_density
 
    integer, parameter :: LMAX = 16, NSTEP = 4
    real(wp), parameter :: TOL = 1.0e-8_wp               ! [m]
+   real(wp), parameter :: RHO_ICE_DEF = 917.0_wp, RHO_WATER_DEF = 1000.0_wp   ! [kg m^-3]
    type(sht_grid), target :: sht
    real(wp), allocatable  :: z_eq(:,:), h_eq(:,:), h_on(:,:)
    integer :: ish, jsh
@@ -32,13 +34,13 @@ program test_density
    ish = 1;  jsh = nearest_row(55.0_wp)          ! a shelf cell
 
    call check_load()
-   call run_pair("benchmark ", rho_ice, rho_water, .true.)
+   call run_pair("default   ", RHO_ICE_DEF, RHO_WATER_DEF, .true.)
    call run_pair("host pair ", 910.0_wp, 1028.0_wp, .false.)
 
    call sht_grid_destroy(sht)
    write(*,'(a)') ''
    if (ok) then
-      write(*,'(a)') ' PASS: densities are parameters; defaults are the GIA benchmark values'
+      write(*,'(a)') ' PASS: densities are parameters; defaults are 917, 1000'
    else
       write(*,'(a)') ' FAIL: density parameters'
       call radial_fe_finalize()
@@ -49,8 +51,8 @@ program test_density
 contains
 
    subroutine check_load()
-      !! (1) the nml route: defaults file, then a run config overriding both.
-      type(vilma_param_class) :: p
+      !! (1) the in-code defaults, the nml route: defaults file, then a run config overriding both.
+      type(vilma_param_class) :: p, p0
       character(len=*), parameter :: fn = "test_density.nml"
       integer :: u
       open(newunit=u, file=fn, status="replace", action="write")
@@ -60,10 +62,14 @@ contains
       write(u,'(a)') "  rho_water = 1028.0"
       write(u,'(a)') "/"
       close(u)
+      write(*,'(a,2f9.1)') ' density: in-code defaults rho_ice, rho_water   =', p0%rho_ice, p0%rho_water
+      if (p0%rho_ice /= RHO_ICE_DEF .or. p0%rho_water /= RHO_WATER_DEF) then
+         write(*,'(a)') '   FAIL: in-code defaults are not 917 / 1000'; ok = .false.
+      end if
       call vilma_par_load(p, "input/vilma_defaults.nml")
       write(*,'(a,2f9.1)') ' density: defaults file gives rho_ice, rho_water =', p%rho_ice, p%rho_water
-      if (p%rho_ice /= rho_ice .or. p%rho_water /= rho_water) then
-         write(*,'(a)') '   FAIL: defaults are not the benchmark values'; ok = .false.
+      if (p%rho_ice /= RHO_ICE_DEF .or. p%rho_water /= RHO_WATER_DEF) then
+         write(*,'(a)') '   FAIL: defaults file is not 917 / 1000'; ok = .false.
       end if
       call vilma_par_load(p, fn, defaults_file="input/vilma_defaults.nml")
       write(*,'(a,2f9.1)') ' density: run config gives rho_ice, rho_water =', p%rho_ice, p%rho_water
@@ -111,9 +117,9 @@ contains
       if (worst_mass > 1.0e-10_wp) then
          write(*,'(a)') '   FAIL: ocean mass not conserved'; ok = .false.
       end if
-      ! (3) flotation: grounded (C = 0) at the benchmark pair, afloat (C = 1) at the host pair
+      ! (3) flotation: grounded (C = 0) at the default pair, afloat (C = 1) at the host pair
       if (is_default .and. c0_shelf /= 0.0_wp) then
-         write(*,'(a)') '   FAIL: shelf ice should ground at 931/1000'; ok = .false.
+         write(*,'(a)') '   FAIL: shelf ice should ground at 917/1000'; ok = .false.
       end if
       if (.not. is_default .and. c0_shelf /= 1.0_wp) then
          write(*,'(a)') '   FAIL: shelf ice should float at 910/1028'; ok = .false.
@@ -122,9 +128,9 @@ contains
    end subroutine run_pair
 
    subroutine make_fields()
-      !! Reference: polar land cap (colat < 50, +500 m), a shelf at -92 m (50 <= colat
+      !! Reference: polar land cap (colat < 50, +500 m), a shelf at -90 m (50 <= colat
       !! < 62), deep ocean elsewhere. Reference ice: 100 m on the shelf (grounded only at
-      !! the benchmark pair). Load: that, plus 2 km on the cap (colat < 30).
+      !! the default pair). Load: that, plus 2 km on the cap (colat < 30).
       integer :: i, j
       real(wp) :: thd
       do j = 1, sht%nlat
@@ -133,7 +139,7 @@ contains
             if (thd < 50.0_wp) then
                z_eq(i,j) = 500.0_wp
             else if (thd < 62.0_wp) then
-               z_eq(i,j) = -92.0_wp
+               z_eq(i,j) = -90.0_wp
             else
                z_eq(i,j) = -4000.0_wp
             end if

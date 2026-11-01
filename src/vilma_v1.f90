@@ -58,7 +58,7 @@ module vilma_v1
    !! start time. A zero-length update (the driver's seed call) only records the
    !! entering ice, exactly as it does for the native solver.
    use vilma_precision, only: wp
-   use vilma_constants, only: rad2deg, rho_ice_gia => rho_ice, rho_water_gia => rho_water, sec_per_year
+   use vilma_constants, only: rad2deg, rho_ice_default => rho_ice, rho_water_default => rho_water, sec_per_year
    use vilma_params,    only: vilma_param_class
    use vilma_sht,       only: sht_grid, sht_grid_surface_integral
    use coords,       only: grid_class, grid_init, map_class, map_init, map_field
@@ -101,8 +101,8 @@ module vilma_v1
       integer :: nphi = 0, ngauss = 0!! model Gauss grid dimensions
       real(wp) :: t_kyr = 0.0_wp     !! VILMA1 clock: end of the last completed interval [kyr]
       integer  :: nsub = 1           !! VILMA1 sub-steps per coupling interval (p%vilma_v1_nsub)
-      real(wp) :: rho_ice   = rho_ice_gia    !! densities [kg m^-3] of the load file (p%rho_ice, p%rho_water)
-      real(wp) :: rho_water = rho_water_gia
+      real(wp) :: rho_ice   = rho_ice_default    !! densities [kg m^-3] of the load file (p%rho_ice, p%rho_water)
+      real(wp) :: rho_water = rho_water_default
 
       character(len=512) :: out_dir = ""       !! VILMA1 scratch/output directory
       real(wp), allocatable :: lon(:), lat(:)  !! VILMA1 grid axes [degrees]

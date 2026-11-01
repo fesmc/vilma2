@@ -13,7 +13,7 @@ module vilma_params
    !! window, online-remap and i_eq selectors, restart-in path — live in the separate
    !! `&ctl` group (vilma_control), which a host never reads.
    use vilma_precision, only: wp
-   use vilma_constants, only: sec_per_year, rho_ice_gia => rho_ice, rho_water_gia => rho_water
+   use vilma_constants, only: sec_per_year, rho_ice_default => rho_ice, rho_water_default => rho_water
    use nml
    implicit none
    private
@@ -76,9 +76,9 @@ module vilma_params
       integer  :: sle_max_mem_iter = 20
       logical  :: sle_fixed_ocean  = .false.
       logical  :: sle_subgrid      = .true.
-      real(wp) :: rho_ice   = rho_ice_gia    !! ice density [kg m^-3]: surface load, melt source, flotation
-      real(wp) :: rho_water = rho_water_gia  !! ocean water density [kg m^-3]: ocean load, melt source, flotation
-         !! The GIA benchmark values (931, 1000, vilma_constants) by default. A host that
+      real(wp) :: rho_ice   = rho_ice_default    !! ice density [kg m^-3]: surface load, melt source, flotation
+      real(wp) :: rho_water = rho_water_default  !! ocean water density [kg m^-3]: ocean load, melt source, flotation
+         !! 917, 1000 (vilma_constants) by default; the GIA benchmarks use 931, 1000. A host that
          !! has its own densities sets both, so that the mass it passes in and the sea
          !! level it takes out use the same pair; bsl is then in metres of that water.
 

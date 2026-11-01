@@ -72,7 +72,7 @@ contains
       !! Reference bed: land cap (colat < 50, +500 m), shelf ring (50..62, -100 m), bare
       !! shallow ring (62..70, -60 m), deep ocean (-4000 m); shelf = .false. makes both
       !! rings deep ocean, so that no coast can move. Ice: 2 km on the cap (colat < 30)
-      !! and 300 m on the shelf ring (grounded: 931*300 > 1000*100). The sea level falls
+      !! and 300 m on the shelf ring (grounded: 917*300 > 1000*100). The sea level falls
       !! by about 100 m under this load, so the bare ring emerges in the coastline loop.
       real(wp), intent(out) :: topo0(:,:), ice(:,:)
       logical,  intent(in)  :: shelf

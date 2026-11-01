@@ -23,10 +23,10 @@ program test_marine_reference
    !! Δφ and the SLE is pure water redistribution -- no Gibbs ringing, no Earth
    !! model, no tolerance beyond quadrature):
    !!
-   !!   M  colat<25    topo0= -500  h_eq=2000  grounded marine -> 0.931*2000-500
-   !!                                                           = 1362 m/area
-   !!   T  25..40      topo0= +200  h_eq=1000  terrestrial     -> 0.931*1000
-   !!                                                           =  931 m/area
+   !!   M  colat<25    topo0= -500  h_eq=2000  grounded marine -> 0.917*2000-500
+   !!                                                           = 1334 m/area
+   !!   T  25..40      topo0= +200  h_eq=1000  terrestrial     -> 0.917*1000
+   !!                                                           =  917 m/area
    !!   F  colat>160   topo0=-4000  h_eq= 500  FLOATING shelf  ->    0 m/area
    !!   .  elsewhere   topo0=-4000  h_eq=   0  open ocean
    !!
@@ -43,8 +43,8 @@ program test_marine_reference
    !! Masking the raw increment with the endpoint coastline alone, ΔI_g =
    !! (I − I⁽⁰⁾)(1 − C) instead of I(1−C) − I⁽⁰⁾(1−C⁽⁰⁾), drops zone M's whole
    !! column from the melt source at the moment it floods while still charging
-   !! the ocean for the water that fills it: 38.9 m instead of 138.3 m here, and
-   !! 52.2 m instead of 99.3 m on the LGM-referenced last deglaciation.
+   !! the ocean for the water that fills it: 37.9 m instead of 135.8 m here, and
+   !! 52.2 m instead of 99.3 m on the LGM-referenced last deglaciation (at ρ_i = 931).
    use vilma_precision, only: wp
    use vilma_constants, only: pi, rho_ice, rho_water
    use vilma_response,  only: response, response_init_null, response_destroy

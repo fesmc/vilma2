@@ -20,7 +20,7 @@ program test_benchmark_disc
    !!       disc sum itself sits ~2.6% below the reference, within GIA-benchmark
    !!       inter-code scatter; tracked as an open item.)
    use vilma_precision,       only: wp
-   use vilma_constants,       only: pi, rho_ice, kyr
+   use vilma_constants,       only: pi, kyr
    use vilma_earth_structure, only: earth_gravity_at, earth_model, build_M3L70V01
    use vilma_radial_fe,       only: radial_mesh_build, radial_mesh, radial_fe_finalize
    use vilma_viscoelastic,    only: ve_destroy, ve_step, ve_init, ve_degree
@@ -31,6 +31,7 @@ program test_benchmark_disc
    integer,  parameter :: NMAX_EL = 256     ! degrees for the elastic profile
    integer,  parameter :: NMAX_VE = 128     ! degrees for the VE centre transient
    real(wp), parameter :: ALPHA_DEG = 10.0_wp, H_ICE = 1000.0_wp
+   real(wp), parameter :: rho_ice = 931.0_wp   ! the benchmark's ice density [kg m^-3]
    real(wp), parameter :: TOL_U = 6.0e-2_wp, TOL_N = 4.0e-2_wp, TOL_VE = 3.0e-2_wp
 
    real(wp) :: uref(NTH,NT), nref(NTH,NT)

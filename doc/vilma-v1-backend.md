@@ -135,7 +135,7 @@ fairer comparison:
 * the ice delivered to VILMA1 is **globally rescaled** so its mass equals the mass
   on the model Gauss grid as SHTns integrates it (CLIMBER-X does not rescale);
 * `loadh.inp` is written with VILMA2's **own** `rho_ice`/`rho_water`
-  (931/1000) rather than CLIMBER-X's hard-coded 910/1020, so both backends turn
+  (default 917/1000) rather than CLIMBER-X's hard-coded 910/1020, so both backends turn
   the same ice thickness into the same load.
 
 ---
