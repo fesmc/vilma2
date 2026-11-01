@@ -18,7 +18,7 @@ program test_benchmark_martinec
    !! coastline SLE with basin topography and time-evolving caps; they are a
    !! separate, larger effort (full-sphere SLE + arbitrary lon/lat profiles).
    use vilma_precision,       only: wp
-   use vilma_constants,       only: pi, rho_ice, kyr
+   use vilma_constants,       only: pi, kyr
    use vilma_earth_structure, only: earth_gravity_at, earth_model, build_M3L70V01
    use vilma_radial_fe,       only: radial_mesh_build, radial_mesh, radial_fe_finalize
    use vilma_viscoelastic,    only: ve_destroy, ve_step, ve_init, ve_degree
@@ -26,6 +26,7 @@ program test_benchmark_martinec
    character(*), parameter :: REF = 'data/benchmarks/sle_martinec2018/A_fig10_SBK.dat'
    integer,  parameter :: NROW = 721, NMAX = 128, NQ = 8000, NSTEP = 500
    real(wp), parameter :: ALPHA_DEG = 10.0_wp, H0 = 1500.0_wp
+   real(wp), parameter :: rho_ice = 931.0_wp   ! the benchmark's ice density [kg m^-3]
    real(wp), parameter :: TOL_U = 1.5e-2_wp, TOL_H = 1.5e-2_wp, TOL_N = 3.0e-2_wp
    real(wp) :: Un(NMAX), Vn(NMAX), Nn(NMAX), sig(NMAX)
    real(wp) :: alpha, ca, g, dt, t1, ua, va, fa

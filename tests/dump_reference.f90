@@ -11,7 +11,7 @@ program dump_reference
    !! All values SI (m, s, kg m^-2, Pa) except explicit time axes in years. The
    !! variable documentation lives in <outdir>/README.md.
    use vilma_precision,       only: wp
-   use vilma_constants,       only: pi, grav_G, sec_per_year, kyr, rho_ice, rho_water, rad2deg
+   use vilma_constants,       only: pi, grav_G, sec_per_year, kyr, rho_water, rad2deg
    use vilma_earth_structure, only: earth_model, earth_layer, build_M3L70V01, earth_gravity_at, &
                                  earth_n_layers, RHEOL_ELASTIC, RHEOL_MAXWELL, RHEOL_FLUID
    use vilma_radial_fe,       only: radial_mesh, radial_mesh_build, radial_operator, &
@@ -44,6 +44,7 @@ program dump_reference
    character(len=*), parameter :: EARTH_NAME = "M3-L70-V01"
    integer,  parameter :: LMAX32 = 32
    real(wp), parameter :: DT100 = 100.0_wp*sec_per_year     ! 100 yr in s
+   real(wp), parameter :: rho_ice = 931.0_wp                ! the GIA benchmarks' ice density [kg m^-3], all items
 
    ! --- Martinec-2018 SLE benchmark (item `martinec_sle`, mirrors tests/test_benchmark_sle.f90)
    real(wp), parameter :: MDEG = pi/180.0_wp
@@ -703,10 +704,12 @@ contains
       allocate(tyr(NSTEP))
       do is = 1, NSTEP;  tyr(is) = real(is-1, wp)*100.0_wp;  end do
       call nc_write_dim(f, "time", x=tyr, units="years", long_name="report time of each ve SLE step")
-      call nc_write_attr(f, "sle_settings", "n_outer=3 n_inner=20 tol=1e-7 subgrid=.true. fixed_ocean=.false. warm_start=.false. (sle_solver defaults)")
+      call nc_write_attr(f, "sle_settings", "n_outer=3 n_inner=20 tol=1e-7 subgrid=.true. fixed_ocean=.false. warm_start=.false. (sle_solver defaults); rho_ice=931")
       call nc_write_attr(f, "fields", "topo0: +500 m for colat<60 deg else -4000 m; d_ice = ice = 2000 m for colat<40 deg (test_sle_ve)")
       call nc_write(f, "topo0", topo0, dim1="lon", dim2="colat", units="m", long_name="reference topography (solid surface vs sea surface)")
       call nc_write(f, "d_ice", d_ice, dim1="lon", dim2="colat", units="m", long_name="grounded ice thickness change (load); ice = d_ice")
+
+      sle%rho_ice = rho_ice
 
       ! elastic (stateless: one solve)
       call response_init_elastic(el, e, lmax=LMAX32)
@@ -1052,7 +1055,7 @@ contains
       allocate(tyr(NINT), bsl(NINT), wm(NINT))
       do is = 1, NINT;  tyr(is) = real(is, wp)*DT_YR;  end do
       call nc_write_dim(f, "time", x=tyr, units="years", long_name="model time after each solid_earth_update interval")
-      call nc_write_attr(f, "params", "vilma_param_class defaults except lmax=32 nlat=64 nphi=128 rotation=.false. scheme=fe|trap; earth_response=ve; sle defaults; cfl=1; rtol=1e-4")
+      call nc_write_attr(f, "params", "vilma_param_class defaults except lmax=32 nlat=64 nphi=128 rotation=.false. scheme=fe|trap rho_ice=931; earth_response=ve; sle defaults; cfl=1; rtol=1e-4")
       call nc_write_attr(f, "fields", "z_bed_eq: +500 m colat<50 deg else -4000 m; h_ice_eq=0; h_ice: 2000 m colat<30 deg held (test_coupling)")
       call nc_write(f, "z_bed_eq", z_bed_eq, dim1="lon", dim2="colat", units="m", long_name="reference (relaxed) bedrock")
       call nc_write(f, "h_ice_eq", h_ice_eq, dim1="lon", dim2="colat", units="m", long_name="reference grounded ice")
@@ -1063,6 +1066,7 @@ contains
          p%lmax = LMAX32;  p%nlat = 2*LMAX32;  p%nphi = 4*LMAX32
          p%rotation = .false.
          p%scheme = sn(isch)
+         p%rho_ice = rho_ice
          se%par = p
          call solid_earth_init(se, z_bed_eq, h_ice_eq)
          do is = 1, NINT
@@ -1361,6 +1365,7 @@ contains
       allocate(basin(sht%nphi,sht%nlat), ice_now(sht%nphi,sht%nlat), tmp(sht%nphi,sht%nlat), &
                dtopo(sht%nphi,sht%nlat), C0(sht%nphi,sht%nlat), load_lm(sht%nlm))
       call response_init_ve(resp, em, sht, MS_DT)
+      sle%rho_ice     = rho_ice
       sle%n_inner     = 20                 ! n_outer left at the default 3
       sle%fixed_ocean = fixo
       sle%subgrid     = .true.             ! the library default (giapy is a subgrid coast)

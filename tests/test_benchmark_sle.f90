@@ -37,7 +37,7 @@ program test_benchmark_sle
    !! rsl = N - u + esl. Profiles (figs 10-13): circles of constant lon (col1=colat)
    !! or constant lat (col1=180+lon), sampled with sht_grid_eval_point[_horiz].
    use vilma_precision,       only: wp
-   use vilma_constants,       only: pi, kyr, rho_ice, rho_water
+   use vilma_constants,       only: pi, kyr, rho_water
    use vilma_earth_structure, only: earth_model, build_M3L70V01
    use vilma_radial_fe,       only: radial_fe_finalize
    use vilma_response,        only: response_destroy, response_horizontal, response, response_init_elastic, response_init_ve, response_init_null
@@ -50,6 +50,7 @@ program test_benchmark_sle
    integer,  parameter :: LMAX = 128
    integer,  parameter :: NGROW = 500, NHOLD = 250, NSTEP = NGROW + NHOLD
    real(wp), parameter :: DEG = pi/180.0_wp
+   real(wp), parameter :: rho_ice = 931.0_wp           ! the benchmark's ice density [kg m^-3]
    real(wp), parameter :: G_GIAPY = 9.815_wp           ! giapy reference gravity
    real(wp), parameter :: ICE_COLAT = 25.0_wp*DEG, ICE_LON = 75.0_wp*DEG
    real(wp), parameter :: ALPHA_MAX = 10.0_wp*DEG, SIGB = 26.0_wp*DEG
@@ -103,6 +104,7 @@ program test_benchmark_sle
    call sht_grid_init(sht, LMAX, nlat=2*LMAX, nphi=4*LMAX)
    em = build_M3L70V01()
    call response_init_ve(resp, em, sht, dt)
+   sle%rho_ice = rho_ice   ! the benchmark's density, not the default (rho_water: the default 1000)
    sle%n_inner = 20     ! n_outer left at default 3 (converged: 3 == 12 on E2)
    sle%fixed_ocean = fixed_ocean_case   ! SLE1 (C2/D3) vs SLE2 migrating (E2/F1)
    sle%subgrid     = .not. binary_run   ! subgrid coast by default; "binary" 2nd arg opts out

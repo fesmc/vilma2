@@ -42,7 +42,7 @@ program test_bsl
 
    ! Reference: polar land cap (colat < 50, +500 m), shelf ring (50 <= colat < 62,
    ! -100 m), deep ocean (-4000 m); no reference ice. Load: 2 km on the cap
-   ! (colat < 30) and 300 m of grounded marine ice on the shelf (931*300 > 1000*100).
+   ! (colat < 30) and 300 m of grounded marine ice on the shelf (917*300 > 1000*100).
    do j = 1, sht%nlat
       do i = 1, sht%nphi
          if (sht%colat(j)*180.0_wp/pi < 50.0_wp) then

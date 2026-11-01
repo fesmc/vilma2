@@ -3,9 +3,10 @@ module vilma_constants
    !!
    !! Values follow the GIA-community conventions used by the Spada et al. (2011)
    !! and Martinec et al. (2018) benchmarks, so that validation runs can be
-   !! compared directly. Densities in particular differ from ice-sheet-model
-   !! conventions and must be applied consistently (see doc/design.md, "conserve
-   !! mass not volume").
+   !! compared directly. The ice density is the exception: its default is the
+   !! standard 917; the benchmarks' 931 is set by the benchmark tests themselves.
+   !! Densities must be applied consistently (see doc/design.md, "conserve mass
+   !! not volume").
    use vilma_precision, only: wp
    implicit none
    public
@@ -23,10 +24,11 @@ module vilma_constants
    real(wp), parameter :: g_surf  = 9.81_wp         !! surface gravity [m s^-2]
    real(wp), parameter :: rho_earth_mean = 5511.0_wp!! mean density [kg m^-3]
 
-   ! --- Material densities (GIA benchmark convention) -------------------------
-   ! The benchmark values, and the defaults of the &vilma parameters rho_ice and
-   ! rho_water that the model actually uses (a host with its own densities sets those).
-   real(wp), parameter :: rho_ice   = 931.0_wp      !! ice  [kg m^-3]
+   ! --- Material densities ------------------------------------------------------
+   ! The defaults of the &vilma parameters rho_ice and rho_water that the model
+   ! actually uses (a host with its own densities sets those). Ice: the standard
+   ! 917, not the GIA benchmarks' 931; water: 1000, as in the benchmarks.
+   real(wp), parameter :: rho_ice   = 917.0_wp      !! ice  [kg m^-3]
    real(wp), parameter :: rho_water = 1000.0_wp     !! ocean water [kg m^-3]
 
    ! --- Rotation (for the rotational-feedback / TPW module) -------------------

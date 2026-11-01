@@ -30,7 +30,7 @@ module vilma_sle
    !! feeds back through the response); the outer loop rebuilds the ocean
    !! function C from the migrated topography topo0 − S (moving shorelines).
    use vilma_precision, only: wp
-   use vilma_constants, only: rho_ice_gia => rho_ice, rho_water_gia => rho_water
+   use vilma_constants, only: rho_ice_default => rho_ice, rho_water_default => rho_water
    use vilma_sht,       only: sht_grid, sht_grid_surface_integral, sht_grid_analysis, sht_grid_synthesis
    use vilma_rotation,  only: rotation_state, rotation_open_step, rotation_trial, rotation_close_step, &
                               rotation_add_srot_lm
@@ -78,10 +78,10 @@ module vilma_sle
 
    type :: sle_solver
       !! Densities [kg m^-3] of the surface load, the melt source and the flotation
-      !! test. The GIA benchmark values unless the caller sets them (vilma_coupling
-      !! passes the &vilma pair).
-      real(wp) :: rho_ice   = rho_ice_gia
-      real(wp) :: rho_water = rho_water_gia
+      !! test. 917, 1000 (vilma_constants) unless the caller sets them (vilma_coupling
+      !! passes the &vilma pair; the benchmark tests set 931).
+      real(wp) :: rho_ice   = rho_ice_default
+      real(wp) :: rho_water = rho_water_default
       !! Cap on the paleotopography / coastline iterations, not a fixed count: the
       !! loop exits as soon as the migrated coastline stops moving (see sle_solve).
       integer  :: n_outer = 3          !! paleotopography / coastline iterations

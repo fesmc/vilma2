@@ -127,7 +127,7 @@ contains
    subroutine make_fields(lo, la, z_eq, h_eq, h_on)
       !! Reference: polar land cap (lat > 40, +500 m), a shelf ring (28 < lat <= 40,
       !! -100 m) and deep ocean (-4000 m); no reference ice. Load: 2 km on the cap
-      !! (lat > 60), 300 m of grounded marine ice on the shelf (931*300 > 1000*100).
+      !! (lat > 60), 300 m of grounded marine ice on the shelf (917*300 > 1000*100).
       real(wp), intent(in)  :: lo(:), la(:)
       real(wp), intent(out) :: z_eq(:,:), h_eq(:,:), h_on(:,:)
       integer :: i, j

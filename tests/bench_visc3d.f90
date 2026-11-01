@@ -47,7 +47,7 @@ program bench_visc3d
    !! loads) of one uninterrupted run. A resumed run appends to the protocol files
    !! and skips the epochs already written.
    use vilma_precision,       only: wp
-   use vilma_constants,       only: pi, rho_ice, kyr, sec_per_year
+   use vilma_constants,       only: pi, kyr, sec_per_year
    use vilma_earth_structure, only: earth_model, earth_layer, build_M3L70V01, RHEOL_MAXWELL
    use vilma_radial_fe,       only: radial_fe_finalize
    use vilma_response,        only: response, response_init_ve, response_apply, response_horizontal, &
@@ -65,6 +65,7 @@ program bench_visc3d
    character(*), parameter :: CODE   = 'VILMA2'
    character(*), parameter :: AUTHOR = 'Alexander Robinson'
    real(wp), parameter :: DEG = pi/180.0_wp, KM = 1.0e3_wp, YR = 0.001_wp*kyr
+   real(wp), parameter :: rho_ice = 931.0_wp       !! the benchmark's ice density [kg m^-3]
    real(wp), parameter :: WIDTH_S = 12.0_wp*DEG, EDGE_D = 1.0_wp*DEG
    real(wp), parameter :: DEPTH_TOP = 60.0_wp*KM, DEPTH_BOT = 220.0_wp*KM
    real(wp), parameter :: LOG_ETA_C = 18.0_wp       !! log10 η at the structure centre

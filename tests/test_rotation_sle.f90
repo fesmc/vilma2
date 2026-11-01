@@ -41,7 +41,6 @@ program test_rotation_sle
 
    real(wp), parameter :: deg = acos(-1.0_wp)/180.0_wp
    real(wp), parameter :: yr = 3.15576e7_wp
-   real(wp), parameter :: rho_i = 931.0_wp
    real(wp), parameter :: hcap = 1500.0_wp, alpha = 10.0_wp*deg
    real(wp), parameter :: thetac = 25.0_wp*deg, lambdac = 75.0_wp*deg
 
@@ -103,7 +102,7 @@ program test_rotation_sle
    ! --- ice-only elastic polar motion (reference for the feedback size) --------
    call rotation_begin_step(rot, sht, dt)
    allocate(ice_lm(sht%nlm))
-   load = rho_i*d_ice
+   load = sle%rho_ice*d_ice                           ! the solve's own ice density
    call sht_grid_analysis(sht, load, ice_lm)          ! overwrites load
    call rotation_solve_m(rot, sht, ice_lm)
    m_ice = rot%m;  mice = abs(m_ice)/deg
