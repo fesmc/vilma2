@@ -31,17 +31,17 @@ prognostic state, the masks and the time series stay lossless.
 |  6 | tau_c_im     | nlam, ne, nk  | Pa     | Maxwell memory stress, component C (imag part)   | -         |
 |  7 | z_bed_eq     | lon, lat      | m      | Reference (equilibrium) bedrock elevation        | -         |
 |  8 | h_ice_eq     | lon, lat      | m      | Reference (equilibrium) grounded-ice thickness   | -         |
-|  9 | h_ice        | lon, lat      | m      | Grounded-ice thickness                           | 1e-3      |
-| 10 | rsl          | lon, lat      | m      | Relative sea-level change (full field)           | 1e-3      |
-| 11 | z_bed        | lon, lat      | m      | Bedrock elevation (z_bed_eq - rsl)               | 1e-3      |
-| 12 | C_ocean      | lon, lat      | 1      | Ocean function (1 ocean / 0 land)                | -         |
+|  9 | h_ice        | lon, lat      | m      | Grounded-ice thickness                           | 1e-2      |
+| 10 | rsl          | lon, lat      | m      | Relative sea-level change (full field)           | 1e-2      |
+| 11 | z_bed        | lon, lat      | m      | Bedrock elevation (z_bed_eq - rsl)               | 1e-2      |
+| 12 | C_ocean      | lon, lat      | 1      | Ocean function (1 ocean / 0 land)                | 1e-3      |
 | 13 | dt_try       | time          | years  | Adaptive time-stepping next-step Δt suggestion   | -         |
 | 14 | sigma_n_re   | nlm, time     | kg m-2 | Trapezoidal start-of-step load σ_n (real part)   | -         |
 | 15 | sigma_n_im   | nlm, time     | kg m-2 | Trapezoidal start-of-step load σ_n (imag part)   | -         |
 | 16 | sigma_primed | time          | 1      | Flag: σ_n is tracked (1) or not yet primed (0)   | -         |
 | 17 | bsl          | time          | m      | Barystatic sea level vs reference (ocean mean of C*rsl) | -         |
-| 18 | dz_bed       | lon, lat      | m      | Bed change u (solid uplift); rsl = dz_ss - dz_bed | 1e-3      |
-| 19 | dz_ss        | lon, lat      | m      | Sea-surface change N + dphi (geoid rise + shift) | 1e-3      |
+| 18 | dz_bed       | lon, lat      | m      | Bed change u (solid uplift); rsl = dz_ss - dz_bed | 1e-2      |
+| 19 | dz_ss        | lon, lat      | m      | Sea-surface change N + dphi (geoid rise + shift) | 1e-2      |
 | 20 | rot_m_re     | time          | 1      | Polar motion m₁ (rotation, real part)            | -         |
 | 21 | rot_m_im     | time          | 1      | Polar motion m₂ (rotation, imag part)            | -         |
 | 22 | rot_load_mem | nlam_rot, ne_rot, nrc | Pa | Rotation loading-channel memory stress (packed) | -         |
