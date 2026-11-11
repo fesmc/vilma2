@@ -19,6 +19,10 @@ module vilma_drive
    !!                       the latitude axis (ascending rows are reversed into the
    !!                       SHTns layout), and a file without the axes stops.
    !! A reference file whose axes are the Gauss grid's is read the same way in either mode.
+   !! A lon-lat ice file may be regional (ice outside it is no ice; vilma_remap) and its
+   !! latitudes may run either way; the bed and the reference fields must cover the sphere.
+   !! Every field read is checked (input_field_ok): a missing value, NaN or a value outside
+   !! the physical range stops the run rather than loading the Earth with a fill value.
    !!
    !! Reference state (i_eq), mirroring CLIMBER-X i_equilibrium. RSL is measured
    !! against the relaxed reference z_bed_eq, so i_eq=1 yields rsl ~0 at present day.
@@ -30,21 +34,33 @@ module vilma_drive
    !! Optional (non-default) LGM-memory spin-up when pre_spinup_1d or equil_time_max>0:
    !! relax under the start-slice ice while HOLDING the i_eq reference as the datum, so
    !! the model enters the transient spun up (viscous memory) — see solid_earth_spinup.
-   use vilma_precision, only: wp
+   use vilma_precision, only: wp, is_finite
    use vilma_constants, only: sec_per_year
    use vilma_params,    only: vilma_param_class, vilma_par_load, vilma_par_print
    use vilma_control,   only: vilma_ctl_class, vilma_ctl_load, vilma_ctl_print
    use vilma_sht,       only: sht_grid, sht_grid_destroy, sht_grid_init
    use vilma_coupling,  only: solid_earth_finalize, solid_earth_update, solid_earth_init, solid_earth, &
-                           solid_earth_spinup, solid_earth_check_solver, VILMA_UNSET
+                           solid_earth_spinup, solid_earth_check_solver, solid_earth_set_time, VILMA_UNSET
    use vilma_remap,     only: remap_ll_gauss, remap_init, remap_to_gauss, gauss_axes_rows, rows_copy, ROWS_NONE
-   use vilma_io,        only: vilma_write_step, vilma_restart_write, vilma_restart_read, vilma_write_horizontal
-   use ncio,         only: nc_read, nc_size, nc_exists_var, nc_set_lossless
+   use vilma_io,        only: vilma_write_step, vilma_restart_write, vilma_restart_read, vilma_write_horizontal, &
+                              vilma_restart_time
+   use ncio,         only: nc_read, nc_size, nc_exists_var, nc_set_lossless, nc_exists_attr, nc_read_attr
    use iso_fortran_env, only: error_unit
    implicit none
    private
 
    public :: vilma_run
+   public :: forcing_window, forcing_time_ok, input_field_ok
+
+   !! Admissible ranges of the input fields [m] (input_field_ok): anything outside is a
+   !! fill value or a unit error, not data.
+   real(wp), parameter :: ICE_MAX = 1.0e4_wp      !! ice thickness within [0, ICE_MAX]
+   real(wp), parameter :: ELEV_MAX = 2.0e4_wp     !! bed elevation and rsl within +- ELEV_MAX
+
+   !! A &ctl time_init at or below this [years] is "unset" (the code default is -huge, the
+   !! shipped vilma.nml writes -1e30): the window starts at the first forcing slice, or at
+   !! the restart's time when resuming.
+   real(wp), parameter :: TIME_UNSET_YR = -1.0e29_wp
 
    ! diagnostic surface fields written each output step (the prognostic memory is
    ! written separately via vilma_restart_write when a restart is wanted)
@@ -61,6 +77,9 @@ module vilma_drive
    ! VILMA1 returns rsl alone, so under it these hold VILMA_UNSET and are omitted.
    character(len=8), parameter :: DZ_OUT_VARS(3) = &
         [character(len=8) :: "dz_bed", "dz_ss", "dphi"]
+   ! ... and the convergence of the sea-level solves of each interval (native solver only).
+   character(len=9), parameter :: SLE_OUT_VARS(2) = &
+        [character(len=9) :: "sle_resid", "sle_n_cap"]
 
 contains
 
@@ -80,16 +99,17 @@ contains
       type(remap_ll_gauss)     :: rmap
       real(wp), allocatable  :: z_bed_eq(:,:), h_ice_eq(:,:), h_ice(:,:), ice_lgm(:,:)
       real(wp), allocatable  :: src(:,:), tyr(:)
-      real(wp) :: t0, dt
+      real(wp) :: dt, t_rst
       integer  :: nt, k, k0, k1, np, nl, nlon, nls
-      logical  :: remap
+      logical  :: remap, resume, win_ok
+      character(len=400) :: msg
       character(len=:), allocatable :: rundir
-      character(len=8), allocatable :: out_names(:)   ! OUT_VARS, + polar motion if active
+      character(len=9), allocatable :: out_names(:)   ! OUT_VARS, + polar motion if active
       integer(kind=8) :: pc0, pc1, prate          ! PROFILE: per-step phase timers
       real(wp) :: t_read = 0.0_wp, t_upd = 0.0_wp, t_wrt = 0.0_wp
       real(wp) :: t_dr, t_mm                      ! PROFILE: solid_earth_update sub-phases
       real(wp) :: rest, t_sle, t_grid, t_oth      ! PROFILE: the "rest" bucket, opened up
-      integer  :: nstep = 0
+      integer  :: nstep = 0, nout
 
       ! --- configuration --------------------------------------------------------
       ! &vilma: cfg_file overlaid on the physics defaults. &ctl: from cfg_file alone
@@ -130,10 +150,24 @@ contains
       write(*,'(a,f8.2,a)') ' [PROFILE setup] build_remap =', real(pc1-pc0,wp)/prate, ' s'
 
       ! --- forcing time axis (years) + window -----------------------------------
-      nt = nc_size(c%file_forcing, trim(c%name_time))
-      allocate(tyr(nt));  call nc_read(c%file_forcing, trim(c%name_time), tyr)
-      call select_window(tyr*sec_per_year, c%time_init, c%time_end, k0, k1)
-      if (k1 <= k0) error stop 'vilma_run: forcing window contains < 2 time slices'
+      call read_time_axis(c, tyr)
+      nt = size(tyr)
+      ! A restart continues where it left off: its time is the window start (see
+      ! forcing_window), so its state is never replayed under another stretch of forcing.
+      resume = len_trim(c%restart_in_file) > 0
+      if (resume) then
+         call require_file(c%restart_in_file, 'restart_in_file')
+         t_rst  = vilma_restart_time(trim(c%restart_in_file))
+         win_ok = forcing_window(tyr, c%time_init/sec_per_year, c%time_end/sec_per_year, k0, k1, msg, &
+                                 t_restart=t_rst, restart_reset=c%restart_time_reset)
+      else
+         win_ok = forcing_window(tyr, c%time_init/sec_per_year, c%time_end/sec_per_year, k0, k1, msg)
+      end if
+      if (.not. win_ok) then
+         write(error_unit,'(a)') ' vilma: '//trim(msg)
+         flush(error_unit)
+         error stop 'vilma_run: no admissible forcing window (see message above)'
+      end if
       write(*,'(a,i0,a,f0.1,a,f0.1,a)') ' vilma: ', k1-k0+1, ' slices, t = ', &
            tyr(k0), ' -> ', tyr(k1), ' yr'
 
@@ -145,15 +179,18 @@ contains
       ! Restarts are written alongside the run output: <rundir>/spinup after the spin-up
       ! and <rundir>/final at the end, where rundir is the directory of file_out.
       rundir = dir_of(c%file_out)
+      call execute_command_line("mkdir -p '"//rundir//"'")   ! the output folder (examples write under runs/)
       call system_clock(pc0, prate)
-      se%par = p; call solid_earth_init(se, z_bed_eq, h_ice_eq)              ! reference, memory 0
-      if (len_trim(c%restart_in_file) > 0) then                              ! resume saved memory + clock
+      se%par = p; call solid_earth_init(se, z_bed_eq, h_ice_eq, time=tyr(k0))   ! reference, memory 0
+      if (resume) then                                                        ! resume saved memory + clock
          ! KNOWN GAP: a VILMA2 restart file carries the NATIVE solver's
          ! prognostic memory, which has no VILMA1 counterpart. VILMA1 restarts through
          ! its own files (r_restart / w_restart), which this driver does not wire up.
          if (se%use_vilma_v1) &
             error stop 'vilma_run: restart_in_file is not supported with solver="v1" (see doc/vilma-v1-backend.md)'
-         call vilma_restart_read(se, trim(c%restart_in_file))
+         call vilma_restart_read(se, trim(c%restart_in_file), other_visc=c%restart_other_visc)
+         ! the file's time is the window start, unless the state is reused at another time
+         if (c%restart_time_reset) call solid_earth_set_time(se, tyr(k0))
       end if
       if (p%pre_spinup_1d .or. p%equil_time_max > 0.0_wp) then
          ! LGM-memory spin-up: relax under the start-slice ice while HOLDING the
@@ -183,13 +220,22 @@ contains
 
       ! The diagnostic output list. Polar motion is appended only when the
       ! rotation solver is actually integrating it -- see ROT_OUT_VARS above.
-      out_names = OUT_VARS
-      if (.not. se%use_vilma_v1) out_names = [out_names, DZ_OUT_VARS]
-      if (se%rotation%enabled)   out_names = [out_names, ROT_OUT_VARS]
+      ! (filled by hand: a reallocating constructor of mixed-length strings is not
+      ! reliable in every compiler)
+      nout = size(OUT_VARS)
+      if (.not. se%use_vilma_v1) nout = nout + size(DZ_OUT_VARS) + size(SLE_OUT_VARS)
+      if (se%rotation%enabled)   nout = nout + size(ROT_OUT_VARS)
+      allocate(out_names(nout))
+      nout = 0
+      call add_names(OUT_VARS)
+      if (.not. se%use_vilma_v1) then
+         call add_names(DZ_OUT_VARS);  call add_names(SLE_OUT_VARS)
+      end if
+      if (se%rotation%enabled) call add_names(ROT_OUT_VARS)
 
       ! --- march the transient --------------------------------------------------
-      t0 = tyr(k0)*sec_per_year
-      se%time = tyr(k0);  se%resp%time = t0          ! coupling clock in years; response clock in SI
+      ! the model clock is at the window start: set at init, held by the spin-up, and
+      ! equal to the restart's time (forcing_window)
       call vilma_write_step(se, c%file_out, se%time, nms=out_names, init=.true.)
       if (len_trim(c%file_hor) > 0) then
          if (se%use_vilma_v1) error stop 'vilma_run: file_hor is not available with solver="v1" '// &
@@ -216,15 +262,17 @@ contains
          if (len_trim(c%file_hor) > 0) call vilma_write_horizontal(se, c%file_hor, se%time, init=.false.)
          call system_clock(pc1);  t_wrt = t_wrt + real(pc1-pc0,wp)/prate
          nstep = nstep + 1
-         ! mass_resid is the native SLE's own residual; the VILMA1 backend leaves it
-         ! at VILMA_UNSET (no analogue), so it is omitted rather than printed as a
-         ! meaningless number.
-         if (se%worst_mass_resid == VILMA_UNSET) then
+         ! The convergence of the native solver's sea-level solves: the worst inner
+         ! residual (sle_tol bounds it) and how many solves ended at an iteration cap.
+         ! (mass_resid is zero by construction and says nothing.) VILMA1 has no
+         ! analogue and leaves sle_resid at VILMA_UNSET, so it is omitted there.
+         if (se%sle_resid == VILMA_UNSET) then
             write(*,'(a,f12.2,a,es10.2)') '   t=', se%time, &
                  ' yr   max|rsl|=', maxval(abs(se%rsl))
          else
-            write(*,'(a,f12.2,a,es10.2,a,es9.2)') '   t=', se%time, &
-                 ' yr   max|rsl|=', maxval(abs(se%rsl)), '   mass_resid=', se%worst_mass_resid
+            write(*,'(a,f12.2,a,es10.2,a,es9.2,a,i0,a,i0)') '   t=', se%time, &
+                 ' yr   max|rsl|=', maxval(abs(se%rsl)), '   sle_resid=', se%sle_resid, &
+                 '   capped=', se%sle_n_cap_inner + se%sle_n_cap_coast + se%sle_n_cap_mem, '/', se%sle_n_solve
          end if
       end do
 
@@ -328,6 +376,16 @@ contains
          write(*,'(a,a)') ' vilma: wrote restart ', trim(rundir)//'/final/vilma_restart.nc'
       end if
       call solid_earth_finalize(se);  call sht_grid_destroy(sht)
+
+   contains
+
+      subroutine add_names(names)
+         character(len=*), intent(in) :: names(:)
+         integer :: q
+         do q = 1, size(names)
+            nout = nout + 1;  out_names(nout) = names(q)
+         end do
+      end subroutine add_names
    end subroutine vilma_run
 
    pure function dir_of(path) result(d)
@@ -417,6 +475,19 @@ contains
       end if
    end subroutine require_var
 
+   subroutine require_file(file, what)
+      !! error stop (nonzero, flushed) if 'file' does not exist; 'what' is its config key.
+      character(len=*), intent(in) :: file, what
+      logical :: ok
+      inquire(file=trim(file), exist=ok)
+      if (ok) return
+      write(error_unit,'(a)') ' vilma: input validation FAILED'
+      write(error_unit,'(a)') '   config "'//trim(what)//'": file not found'
+      write(error_unit,'(a)') '   file: '//trim(file)
+      flush(error_unit)
+      error stop 'vilma_run: input file not found (see message above)'
+   end subroutine require_file
+
    subroutine require_axes(c, file, what)
       !! The lon/lat axes (c%name_lon, c%name_lat) of a 2-D input file must be present.
       type(vilma_ctl_class), intent(in) :: c
@@ -502,11 +573,50 @@ contains
       if (remap) then
          call nc_read(c%file_forcing, trim(c%name_ice), src, &
                       start=[1,1,k], count=[size(src,1), size(src,2), 1])
+         call require_field(src, 0.0_wp, ICE_MAX, c%file_forcing, c%name_ice)
          call remap_to_gauss(rmap, sht, src, h_ice, conserve_mass=.true.)
       else
          call read_gauss(c, sht, c%file_forcing, c%name_ice, h_ice, k)
+         call require_field(h_ice, 0.0_wp, ICE_MAX, c%file_forcing, c%name_ice)
       end if
    end subroutine read_ice
+
+   logical function input_field_ok(f, lo, hi, msg) result(ok)
+      !! Is every value of an input field finite and within [lo, hi]? A missing value
+      !! (ncio hands NaN over as -9999; other fill values come through as they are), a NaN
+      !! or a value in other units is none of these. On .false. msg counts the offenders
+      !! and names the first.
+      real(wp),         intent(in)  :: f(:,:)
+      real(wp),         intent(in)  :: lo, hi
+      character(len=*), intent(out) :: msg
+      integer :: i, j, nbad, i1, j1
+      nbad = 0;  i1 = 0;  j1 = 0;  msg = ''
+      do j = 1, size(f,2)
+         do i = 1, size(f,1)
+            if (is_finite(f(i,j))) then
+               if (f(i,j) >= lo .and. f(i,j) <= hi) cycle
+            end if
+            nbad = nbad + 1
+            if (nbad == 1) then;  i1 = i;  j1 = j;  end if
+         end do
+      end do
+      ok = (nbad == 0)
+      if (.not. ok) write(msg,'(i0,a,es10.3,a,es10.3,a,i0,a,i0,a,es12.4)') nbad, &
+           ' values not finite or outside [', lo, ',', hi, '], the first at (', i1, ',', j1, ') = ', f(i1,j1)
+   end function input_field_ok
+
+   subroutine require_field(f, lo, hi, file, var)
+      !! error stop unless input_field_ok.
+      real(wp),         intent(in) :: f(:,:), lo, hi
+      character(len=*), intent(in) :: file, var
+      character(len=200) :: msg
+      if (input_field_ok(f, lo, hi, msg)) return
+      write(error_unit,'(a)') ' vilma: variable "'//trim(var)//'" of '//trim(file)//':'
+      write(error_unit,'(a)') '   '//trim(msg)
+      write(error_unit,'(a)') '   Missing or fill values must be replaced before the run (ice: 0 where there is none).'
+      flush(error_unit)
+      error stop 'vilma_run: input field with missing or unphysical values (see message above)'
+   end subroutine require_field
 
    subroutine read_bed(c, rmap, sht, remap, k, src, z_bed)
       !! Read the reference bedrock. remap: slice k of name_zbed_eq from the forcing
@@ -522,10 +632,12 @@ contains
       if (remap) then
          call nc_read(c%file_forcing, trim(c%name_zbed_eq), src, &
                       start=[1,1,k], count=[size(src,1), size(src,2), 1])
+         call require_field(src, -ELEV_MAX, ELEV_MAX, c%file_forcing, c%name_zbed_eq)
          call remap_to_gauss(rmap, sht, src, z_bed, conserve_mass=.false.)
       else
          if (len_trim(c%file_ref) == 0) error stop 'vilma_run: file_ref not set (remap_input=.false.)'
          call read_gauss(c, sht, c%file_ref, c%name_zbed_eq, z_bed)
+         call require_field(z_bed, -ELEV_MAX, ELEV_MAX, c%file_ref, c%name_zbed_eq)
       end if
    end subroutine read_bed
 
@@ -578,12 +690,16 @@ contains
       real(wp),             intent(out) :: field(:,:)
       type(remap_ll_gauss)    :: m
       real(wp), allocatable :: lon_s(:), lat_s(:), buf(:,:)
+      real(wp) :: lo, hi
       integer :: nlon, nls
       if (len_trim(file) == 0) &
          error stop 'vilma_run: reference file not set for the chosen i_eq'
+      ! conserve marks the ice; the others are elevations (bed, rsl)
+      lo = merge(0.0_wp, -ELEV_MAX, conserve);  hi = merge(ICE_MAX, ELEV_MAX, conserve)
       if (remap) then
          if (gauss_file_rows(c, sht, file) /= ROWS_NONE) then
             call read_gauss(c, sht, file, varname, field)   ! already on the Gauss grid
+            call require_field(field, lo, hi, file, varname)
             return
          end if
          nlon = nc_size(file, trim(c%name_lon));  nls = nc_size(file, trim(c%name_lat))
@@ -591,10 +707,12 @@ contains
          call nc_read(file, trim(c%name_lon), lon_s)
          call nc_read(file, trim(c%name_lat), lat_s)
          call nc_read(file, trim(varname),    buf)
+         call require_field(buf, lo, hi, file, varname)
          call remap_init(m, sht, lon_s, lat_s)
          call remap_to_gauss(m, sht, buf, field, conserve_mass=conserve)
       else
          call read_gauss(c, sht, file, varname, field)
+         call require_field(field, lo, hi, file, varname)
       end if
    end subroutine read_ref2d
 
@@ -620,19 +738,146 @@ contains
       end if
    end subroutine build_grid
 
-   subroutine select_window(tsec, t_init, t_end, k0, k1)
-      !! First/last forcing indices inside [t_init, t_end] (all in seconds).
-      real(wp), intent(in)  :: tsec(:), t_init, t_end
-      integer,  intent(out) :: k0, k1
-      integer :: k
-      k0 = 0;  k1 = 0
-      do k = 1, size(tsec)
-         if (tsec(k) >= t_init .and. tsec(k) <= t_end) then
+   subroutine read_time_axis(c, tyr)
+      !! The forcing time axis in years: read, checked and converted (forcing_time_ok).
+      !! An axis without a units attribute is taken as years, and said so.
+      type(vilma_ctl_class), intent(in)  :: c
+      real(wp), allocatable, intent(out) :: tyr(:)
+      character(len=256) :: units
+      character(len=400) :: msg
+      real(wp) :: scale
+      units = ''
+      if (nc_exists_attr(c%file_forcing, trim(c%name_time), "units")) &
+         call nc_read_attr(c%file_forcing, trim(c%name_time), "units", units)
+      allocate(tyr(nc_size(c%file_forcing, trim(c%name_time))))
+      call nc_read(c%file_forcing, trim(c%name_time), tyr)
+      if (.not. forcing_time_ok(tyr, units, scale, msg)) then
+         write(error_unit,'(a)') ' vilma: time axis "'//trim(c%name_time)//'" of '//trim(c%file_forcing)//':'
+         write(error_unit,'(a)') '   '//trim(msg)
+         flush(error_unit)
+         error stop 'vilma_run: forcing time axis not admissible (see message above)'
+      end if
+      if (len_trim(units) == 0) write(*,'(a)') ' vilma: the forcing time axis has no units attribute; taken as years'
+      if (scale /= 1.0_wp) write(*,'(a,a,a,f0.1)') ' vilma: forcing time axis in "', trim(units), &
+           '", converted to years by ', scale
+      tyr = tyr*scale
+   end subroutine read_time_axis
+
+   logical function forcing_time_ok(t, units, scale, msg) result(ok)
+      !! Is t(:) with the units attribute `units` ('' = none) an admissible forcing time
+      !! axis: finite, strictly ascending, and in a unit that is years after multiplying
+      !! by `scale`? Years ("years", "year", "yr", "yrs", "a", and "<those> since ...",
+      !! an offset the model does not need) give scale 1; "kyr", "kyrs", "ky" give 1000;
+      !! no units are taken as years. Anything else is refused, among them the ages
+      !! ("ka", "BP", "ago", "before ..."), whose time runs backwards. On failure msg
+      !! says why.
+      real(wp),         intent(in)  :: t(:)
+      character(len=*), intent(in)  :: units
+      real(wp),         intent(out) :: scale
+      character(len=*), intent(out) :: msg
+      character(len=len(units)) :: u, base
+      integer :: i, k
+      ok = .false.;  msg = '';  scale = 1.0_wp
+      u = adjustl(units)
+      do i = 1, len(u)                       ! lower case
+         k = iachar(u(i:i))
+         if (k >= iachar('A') .and. k <= iachar('Z')) u(i:i) = achar(k + 32)
+      end do
+      if (index(u, 'bp') > 0 .or. index(u, 'ago') > 0 .or. index(u, 'before') > 0) then
+         msg = 'units "'//trim(units)//'" are an age (time running backwards); the model needs '// &
+               'time in years, ascending (e.g. -26000 ... 0)'
+         return
+      end if
+      base = u
+      i = index(u, ' since ')
+      if (i > 0) base = u(1:i-1)
+      select case (trim(base))
+      case ('', 'years', 'year', 'yr', 'yrs', 'a')
+         scale = 1.0_wp
+      case ('kyr', 'kyrs', 'ky')
+         scale = 1000.0_wp
+      case default
+         msg = 'units "'//trim(units)//'" are not years (accepted: years, year, yr, yrs, a; kyr, kyrs, ky)'
+         return
+      end select
+      if (size(t) < 2) then
+         msg = 'fewer than 2 time slices';  return
+      end if
+      if (.not. all(is_finite(t))) then
+         msg = 'a time value is not finite';  return
+      end if
+      do i = 2, size(t)
+         if (t(i) <= t(i-1)) then
+            write(msg,'(a,i0,a,es14.6,a,i0,a,es14.6)') 'not strictly ascending: t(', i-1, ') = ', t(i-1), &
+                 ', t(', i, ') = ', t(i)
+            return
+         end if
+      end do
+      ok = .true.
+   end function forcing_time_ok
+
+   logical function forcing_window(tyr, t_init, t_end, k0, k1, msg, t_restart, restart_reset) result(ok)
+      !! The slices k0..k1 of the forcing axis tyr [years, ascending] the run marches over:
+      !! those within [t_init, t_end] (t_init <= TIME_UNSET_YR: from the first slice).
+      !!
+      !! t_restart (optional): the run resumes a restart written at that time [years]. A
+      !! restart continues where it left off, so the window must start AT it: with t_init
+      !! unset the window starts at the restart's time, which must be a forcing slice; a
+      !! t_init that selects another start slice is refused. restart_reset = .true. lifts
+      !! this (the restart's state is taken as the state at the window start), and the
+      !! window is then the one t_init gives.
+      !!
+      !! .false. with the reason in msg when there is no such window of at least two slices.
+      real(wp),         intent(in)  :: tyr(:), t_init, t_end
+      integer,          intent(out) :: k0, k1
+      character(len=*), intent(out) :: msg
+      real(wp), optional, intent(in) :: t_restart
+      logical,  optional, intent(in) :: restart_reset
+      real(wp) :: t_lo, tol
+      logical  :: resume, explicit
+      integer  :: k
+      ok = .false.;  msg = '';  k0 = 0;  k1 = 0
+      resume = present(t_restart)
+      if (resume .and. present(restart_reset)) resume = .not. restart_reset
+      explicit = t_init > TIME_UNSET_YR
+      t_lo = t_init;  tol = 0.0_wp
+      if (resume) then
+         tol = 1.0e-6_wp*max(1.0_wp, abs(t_restart))
+         if (.not. explicit) t_lo = t_restart - tol
+      end if
+      ! the bounds to round-off (1e-9 relative): the control record keeps them in seconds,
+      ! and years -> seconds -> years must not drop a slice that sits on a bound
+      do k = 1, size(tyr)
+         if (tyr(k) - t_lo  >= -1.0e-9_wp*max(1.0_wp, abs(t_lo)) .and. &
+             tyr(k) - t_end <=  1.0e-9_wp*max(1.0_wp, abs(t_end))) then
             if (k0 == 0) k0 = k
             k1 = k
          end if
       end do
-      if (k0 == 0) error stop 'vilma_run: no forcing times within [time_init, time_end]'
-   end subroutine select_window
+      if (k0 == 0) then
+         write(msg,'(a,es12.4,a,es12.4,a)') 'no forcing times within [', t_lo, ',', t_end, &
+              '] yr (time_init, or the restart time, to time_end)'
+         return
+      end if
+      if (resume) then
+         if (abs(tyr(k0) - t_restart) > tol .and. explicit) then
+            write(msg,'(a,f0.3,a,f0.3,a,f0.3,a)') 'the restart is at t = ', t_restart, &
+                 ' yr but the window starts at ', tyr(k0), ' yr (time_init = ', t_init, &
+                 '). A restart continues where it left off: leave time_init unset or set it to the '// &
+                 'restart time, or set restart_time_reset = .true. to take its state as the one at time_init.'
+            return
+         else if (abs(tyr(k0) - t_restart) > tol) then
+            write(msg,'(a,f0.3,a,f0.3,a)') 'the restart time ', t_restart, &
+                 ' yr is not a slice of the forcing time axis (the next slice is ', tyr(k0), &
+                 ' yr). Set restart_time_reset = .true. and time_init to reuse its state at another time.'
+            return
+         end if
+      end if
+      if (k1 <= k0) then
+         write(msg,'(a,f0.3,a)') 'the forcing window contains < 2 time slices (it starts at ', tyr(k0), ' yr)'
+         return
+      end if
+      ok = .true.
+   end function forcing_window
 
 end module vilma_drive

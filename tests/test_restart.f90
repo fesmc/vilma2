@@ -16,14 +16,16 @@ program test_restart
    !! the round trip covers the widened memory. Then (4) the migration: a
    !! spheroidal-only file (l_toroidal = .false., 4 channels) read into a run
    !! that carries the toroidal field restores the spheroidal memory exactly and
-   !! starts the toroidal channels at zero.
+   !! starts the toroidal channels at zero. And (5) the Earth a restart belongs to: a file
+   !! is refused by a model with another viscosity (field, radial profile, 3-D on/off) or
+   !! another mesh, and accepted as a seed under other_visc only when the mesh matches.
    use vilma_precision,       only: wp
    use vilma_constants,       only: pi, sec_per_year
    use vilma_params,          only: vilma_param_class
    use vilma_radial_fe,       only: radial_fe_finalize
    use vilma_sht,             only: sht_grid, sht_grid_init, sht_grid_destroy
    use vilma_coupling,        only: solid_earth_finalize, solid_earth_update, solid_earth_init, solid_earth
-   use vilma_io,              only: vilma_restart_write, vilma_restart_read
+   use vilma_io,              only: vilma_restart_write, vilma_restart_read, vilma_restart_compatible
    use ncio,               only: nc_size
    implicit none
 
@@ -43,6 +45,7 @@ program test_restart
    call roundtrip("ve",    .false., "libvilma/include/test_restart_ve.nc",    ok)
    call roundtrip("ve",    .true.,  "libvilma/include/test_restart_ve3d.nc",  ok)
    call migration("libvilma/include/test_restart_mig.nc", ok)
+   call same_earth("libvilma/include/test_restart_ve3d.nc", "libvilma/include/test_restart_ve.nc", ok)
 
    call sht_grid_destroy(sht)
 
@@ -172,6 +175,73 @@ contains
       end if
       call solid_earth_finalize(a);  call solid_earth_finalize(b)
    end subroutine migration
+
+   subroutine same_earth(file3d, file1d, ok)
+      !! vilma_restart_compatible (the check vilma_restart_read stops on) against the two
+      !! files roundtrip wrote: file3d under the lateral viscosity field, file1d under the
+      !! layer table. Each model below differs from a file's in one respect.
+      character(len=*), intent(in)    :: file3d, file1d
+      logical,          intent(inout) :: ok
+      type(vilma_param_class) :: p0, p, pc
+      type(solid_earth)    :: m
+      character(len=400)   :: msg
+      logical :: w
+      p0%lmax = LMAX;  p0%nlat = 2*LMAX;  p0%nphi = 4*LMAX
+      p0%earth_response = "ve";  p0%rotation = .true.
+      p0%visc_3d_file = VISC;  p0%visc_3d_structure = 6
+      write(*,'(a)') ' restart [same Earth]:'
+
+      p = p0;  p%l_visc_3d = .true.;  p%l_toroidal = .true.          ! the model that wrote file3d
+      m%par = p; call solid_earth_init(m, z_bed_eq, h_ice_eq)
+      w = vilma_restart_compatible(m, file3d, msg);  call expect(w, 'the same 3-D model: accepted', msg, ok)
+      w = vilma_restart_compatible(m, file1d, msg);  call expect(.not. w, 'a 1-D file into the 3-D model: refused', msg, ok)
+      w = vilma_restart_compatible(m, file1d, msg, other_visc=.true.);  call expect(w, '   ... accepted as a seed', msg, ok)
+
+      p%f_visc_sd = 0.5_wp                                           ! the field shifted by half a sigma
+      m%par = p; call solid_earth_init(m, z_bed_eq, h_ice_eq)
+      w = vilma_restart_compatible(m, file3d, msg);  call expect(.not. w, 'another 3-D viscosity field: refused', msg, ok)
+      w = vilma_restart_compatible(m, file3d, msg, other_visc=.true.);  call expect(w, '   ... accepted as a seed', msg, ok)
+
+      p = p0                                                         ! the model that wrote file1d
+      m%par = p; call solid_earth_init(m, z_bed_eq, h_ice_eq)
+      w = vilma_restart_compatible(m, file1d, msg);  call expect(w, 'the same 1-D model: accepted', msg, ok)
+      w = vilma_restart_compatible(m, file3d, msg);  call expect(.not. w, 'a 3-D file into the 1-D model: refused', msg, ok)
+
+      ! the layer table of M3-L70-V01 as a custom model: the same Earth under another name
+      p = p0;  p%earth = "custom";  p%n_layer = 5;  p%r_earth = 6371.0e3_wp;  p%r_core = 3480.0e3_wp
+      p%r_bot(1:5) = [6301.0e3_wp, 5951.0e3_wp, 5701.0e3_wp, 3480.0e3_wp, 0.0_wp]
+      p%r_top(1:5) = [6371.0e3_wp, 6301.0e3_wp, 5951.0e3_wp, 5701.0e3_wp, 3480.0e3_wp]
+      p%rho(1:5)   = [3037.0_wp, 3438.0_wp, 3871.0_wp, 4978.0_wp, 10750.0_wp]
+      p%mu(1:5)    = [5.0605e10_wp, 7.0363e10_wp, 1.0549e11_wp, 2.2834e11_wp, 0.0_wp]
+      p%eta(1:5)   = [huge(1.0_wp), 1.0e21_wp, 1.0e21_wp, 2.0e21_wp, 0.0_wp]
+      p%rheology(1:5) = [0, 1, 1, 1, 2]
+      pc = p
+      m%par = p; call solid_earth_init(m, z_bed_eq, h_ice_eq)
+      w = vilma_restart_compatible(m, file1d, msg);  call expect(w, 'the same layers as a custom model: accepted', msg, ok)
+
+      p = pc;  p%eta(2) = 5.0e20_wp                                  ! another 1-D viscosity
+      m%par = p; call solid_earth_init(m, z_bed_eq, h_ice_eq)
+      w = vilma_restart_compatible(m, file1d, msg);  call expect(.not. w, 'another upper-mantle viscosity: refused', msg, ok)
+      w = vilma_restart_compatible(m, file1d, msg, other_visc=.true.);  call expect(w, '   ... accepted as a seed', msg, ok)
+
+      p = pc;  p%mu(2) = 1.1_wp*pc%mu(2)                             ! another elastic structure
+      m%par = p; call solid_earth_init(m, z_bed_eq, h_ice_eq)
+      w = vilma_restart_compatible(m, file1d, msg);  call expect(.not. w, 'another shear modulus: refused', msg, ok)
+      w = vilma_restart_compatible(m, file1d, msg, other_visc=.true.);  call expect(.not. w, '   ... also as a seed', msg, ok)
+      call solid_earth_finalize(m)
+   end subroutine same_earth
+
+   subroutine expect(cond, what, why, ok)
+      logical,          intent(in)    :: cond
+      character(len=*), intent(in)    :: what, why
+      logical,          intent(inout) :: ok
+      if (cond) then
+         write(*,'(a)') '   ok:   '//what
+         if (len_trim(why) > 0) write(*,'(a)') '         ('//trim(why)//')'
+      else
+         write(*,'(a)') '   FAIL: '//what;  ok = .false.
+      end if
+   end subroutine expect
 
    subroutine make_fields(z_bed_eq, h_ice_eq, h_ice)
       !! Polar land cap (colat<50°, +500 m) over deep ocean (−4000 m); no
