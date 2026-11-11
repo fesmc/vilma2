@@ -202,12 +202,14 @@ both off by default:
 The rate of each pass is measured over exactly that pass's memory advance.
 The criterion is a global mean. It bounds the mean bed velocity, not the
 velocity at every point, and it is not a measure of how far the relaxation has
-gone. In a test with a held cap load on a 500 kyr relaxation, the default
-`equil_rate_tol` of $10^{-3}$ m/yr stops at about 83 % of the full relaxation.
-The default thus gives a reference that is close to, but not at, isostatic
-equilibrium. For a fully relaxed reference, lower `equil_rate_tol` (by an
-order of magnitude or more) and raise `equil_time_max` accordingly, at the cost
-of a longer spin-up. Elements with very high viscosity do not equilibrate
+gone. The default `equil_rate_tol` stops the spin-up when the bed moves slower
+than $10^{-3}$ m/yr. In a test with a held polar cap relaxed over 500 kyr, this
+is reached at about 83 % of the full relaxation. Full relaxation over such
+spans is not affordable in realistic cases, so the spin-up gives a practical
+reference, not a fully relaxed one. For a reproducible reference, fix the
+length of the spin-up with `equil_time_max` and set `equil_rate_tol = 0`, as
+the reference of the [VILMA1 versus VILMA2 deglaciation](../benchmarks/deglaciation.qmd)
+does. Elements with very high viscosity do not equilibrate
 within any practical cap, which is what the
 [lid rule](../physics/rheology.qmd#visc3d-input) addresses. `test_spinup`
 asserts that the spin-up relaxes the held load well beyond a single cold
