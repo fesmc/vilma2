@@ -764,8 +764,11 @@ contains
          tol = 1.0e-6_wp*max(1.0_wp, abs(t_restart))
          if (.not. explicit) t_lo = t_restart - tol
       end if
+      ! the bounds to round-off (1e-9 relative): the control record keeps them in seconds,
+      ! and years -> seconds -> years must not drop a slice that sits on a bound
       do k = 1, size(tyr)
-         if (tyr(k) >= t_lo .and. tyr(k) <= t_end) then
+         if (tyr(k) >= t_lo - 1.0e-9_wp*max(1.0_wp, abs(t_lo)) .and. &
+             tyr(k) <= t_end + 1.0e-9_wp*max(1.0_wp, abs(t_end))) then
             if (k0 == 0) k0 = k
             k1 = k
          end if
