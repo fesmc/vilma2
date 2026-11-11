@@ -57,6 +57,8 @@
     restart_time_reset = .false. ! .false.: the run continues at the restart's time (time_init unset or
                                  ! equal to it; any other start stops). .true.: take the restart's
                                  ! state as the one at time_init, whatever time the file carries
+    restart_other_visc = .false. ! .false.: the restart must come from the same viscosity (checked).
+                                 ! .true.: accept another one as a seed (1-D spin-up for a 3-D run)
 /
 
 &vilma

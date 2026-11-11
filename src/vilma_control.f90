@@ -93,6 +93,10 @@ module vilma_control
          !! (time_init unset), and a time_init that selects another start slice stops the
          !! run. .true. takes the restart's state as the state AT the window start instead,
          !! whatever time the file carries (a memory state reused for another experiment).
+      logical :: restart_other_visc = .false.
+         !! A restart must come from the same viscosity (radial profile and 3-D field,
+         !! checked on read). .true. accepts one written under another viscosity: its
+         !! memory then seeds this run (a 1-D spin-up for a 3-D run) rather than continuing it.
    end type vilma_ctl_class
 
 contains
@@ -170,6 +174,8 @@ contains
       ! optional (default .false.), so existing run configs keep working
       if (nml_has_param(filename, g, "restart_time_reset")) &
          call nml_read(filename, g, "restart_time_reset", c%restart_time_reset)
+      if (nml_has_param(filename, g, "restart_other_visc")) &
+         call nml_read(filename, g, "restart_other_visc", c%restart_other_visc)
    end subroutine vilma_ctl_load
 
    subroutine vilma_ctl_print(c, unit)
@@ -192,6 +198,8 @@ contains
          write(u,'(a,a)')  '   restart:  ', trim(c%restart_in_file)
       if (len_trim(c%restart_in_file) > 0 .and. c%restart_time_reset) &
          write(u,'(a)')    '   restart_time_reset: the restart is taken as the state at the window start'
+      if (len_trim(c%restart_in_file) > 0 .and. c%restart_other_visc) &
+         write(u,'(a)')    '   restart_other_visc: a restart from another viscosity is accepted as a seed'
    end subroutine vilma_ctl_print
 
 end module vilma_control

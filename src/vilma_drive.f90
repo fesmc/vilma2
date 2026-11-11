@@ -175,7 +175,7 @@ contains
          ! its own files (r_restart / w_restart), which this driver does not wire up.
          if (se%use_vilma_v1) &
             error stop 'vilma_run: restart_in_file is not supported with solver="v1" (see doc/vilma-v1-backend.md)'
-         call vilma_restart_read(se, trim(c%restart_in_file))
+         call vilma_restart_read(se, trim(c%restart_in_file), other_visc=c%restart_other_visc)
          ! the file's time is the window start, unless the state is reused at another time
          if (c%restart_time_reset) call solid_earth_set_time(se, tyr(k0))
       end if

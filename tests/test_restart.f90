@@ -16,14 +16,16 @@ program test_restart
    !! the round trip covers the widened memory. Then (4) the migration: a
    !! spheroidal-only file (l_toroidal = .false., 4 channels) read into a run
    !! that carries the toroidal field restores the spheroidal memory exactly and
-   !! starts the toroidal channels at zero.
+   !! starts the toroidal channels at zero. And (5) the Earth a restart belongs to: a file
+   !! is refused by a model with another viscosity (field, radial profile, 3-D on/off) or
+   !! another mesh, and accepted as a seed under other_visc only when the mesh matches.
    use vilma_precision,       only: wp
    use vilma_constants,       only: pi, sec_per_year
    use vilma_params,          only: vilma_param_class
    use vilma_radial_fe,       only: radial_fe_finalize
    use vilma_sht,             only: sht_grid, sht_grid_init, sht_grid_destroy
    use vilma_coupling,        only: solid_earth_finalize, solid_earth_update, solid_earth_init, solid_earth
-   use vilma_io,              only: vilma_restart_write, vilma_restart_read
+   use vilma_io,              only: vilma_restart_write, vilma_restart_read, vilma_restart_compatible
    use ncio,               only: nc_size
    implicit none
 
@@ -43,6 +45,7 @@ program test_restart
    call roundtrip("ve",    .false., "libvilma/include/test_restart_ve.nc",    ok)
    call roundtrip("ve",    .true.,  "libvilma/include/test_restart_ve3d.nc",  ok)
    call migration("libvilma/include/test_restart_mig.nc", ok)
+   call same_earth("libvilma/include/test_restart_ve3d.nc", "libvilma/include/test_restart_ve.nc", ok)
 
    call sht_grid_destroy(sht)
 
@@ -172,6 +175,55 @@ contains
       end if
       call solid_earth_finalize(a);  call solid_earth_finalize(b)
    end subroutine migration
+
+   subroutine same_earth(file3d, file1d, ok)
+      !! vilma_restart_compatible (the check vilma_restart_read stops on) against the two
+      !! files roundtrip wrote: file3d under the lateral viscosity field, file1d under the
+      !! layer table. Each model below differs from a file's in one respect.
+      character(len=*), intent(in)    :: file3d, file1d
+      logical,          intent(inout) :: ok
+      type(vilma_param_class) :: p0, p
+      type(solid_earth)    :: m
+      character(len=400)   :: msg
+      p0%lmax = LMAX;  p0%nlat = 2*LMAX;  p0%nphi = 4*LMAX
+      p0%earth_response = "ve";  p0%rotation = .true.
+      p0%visc_3d_file = VISC;  p0%visc_3d_structure = 6
+      write(*,'(a)') ' restart [same Earth]:'
+
+      p = p0;  p%l_visc_3d = .true.;  p%l_toroidal = .true.          ! the model that wrote file3d
+      m%par = p; call solid_earth_init(m, z_bed_eq, h_ice_eq)
+      call expect(vilma_restart_compatible(m, file3d, msg), 'the same 3-D model: accepted', msg)
+      call expect(.not. vilma_restart_compatible(m, file1d, msg), 'a 1-D file into the 3-D model: refused', msg)
+      call expect(vilma_restart_compatible(m, file1d, msg, other_visc=.true.), '   ... accepted as a seed', msg)
+
+      p%f_visc_sd = 0.5_wp                                           ! the field shifted by half a sigma
+      m%par = p; call solid_earth_init(m, z_bed_eq, h_ice_eq)
+      call expect(.not. vilma_restart_compatible(m, file3d, msg), 'another 3-D viscosity field: refused', msg)
+      call expect(vilma_restart_compatible(m, file3d, msg, other_visc=.true.), '   ... accepted as a seed', msg)
+
+      p = p0                                                         ! the model that wrote file1d
+      m%par = p; call solid_earth_init(m, z_bed_eq, h_ice_eq)
+      call expect(vilma_restart_compatible(m, file1d, msg), 'the same 1-D model: accepted', msg)
+      call expect(.not. vilma_restart_compatible(m, file3d, msg), 'a 3-D file into the 1-D model: refused', msg)
+
+      p = p0;  p%earth = "PREM"                                      ! another radial structure
+      m%par = p; call solid_earth_init(m, z_bed_eq, h_ice_eq)
+      call expect(.not. vilma_restart_compatible(m, file1d, msg), 'another earth model: refused', msg)
+      call expect(.not. vilma_restart_compatible(m, file1d, msg, other_visc=.true.), &
+                  '   ... also as a seed (the mesh differs)', msg)
+      call solid_earth_finalize(m)
+   contains
+      subroutine expect(cond, what, why)
+         logical,          intent(in) :: cond
+         character(len=*), intent(in) :: what, why
+         if (cond) then
+            write(*,'(a)') '   ok:   '//what
+            if (len_trim(why) > 0) write(*,'(a)') '         ('//trim(why)//')'
+         else
+            write(*,'(a)') '   FAIL: '//what;  ok = .false.
+         end if
+      end subroutine expect
+   end subroutine same_earth
 
    subroutine make_fields(z_bed_eq, h_ice_eq, h_ice)
       !! Polar land cap (colat<50°, +500 m) over deep ocean (−4000 m); no
