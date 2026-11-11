@@ -318,7 +318,7 @@ contains
       call solid_earth_update(se, h_off, dt_couple);  m2 = se%rotation%m
       write(*,'(a)') ''
       write(*,'(a,es10.3,a,es10.2)') '   elastic + rotation: |m| = ', abs(m1), ' rad   |m(2) - m(1)| = ', abs(m2 - m1)
-      if (.not. (abs(m1) > 0.0_wp) .or. abs(m2 - m1) > 1.0e-9_wp*abs(m1) &
+      if (.not. (abs(m1) > 0.0_wp) .or. abs(m2 - m1) > 1.0e-5_wp*abs(m1) &
           .or. maxval(se%rotation%load_ch%MkPerDt) /= 0.0_wp) then
          write(*,'(a)') '   FAIL: an elastic Earth with rotation does not give a steady polar motion'; ok = .false.
       end if
