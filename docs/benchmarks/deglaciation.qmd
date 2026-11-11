@@ -13,7 +13,8 @@ excluded from the site search. It is reachable by direct link only.
 driver with `solver = "v1"`. **Earth structure:** the 3-D viscosity field of
 @Bagge2021 and its radial mean. **Driver:** `vilma.x` (not in `make check`;
 needs a VILMA1 install). **Status:** ✅ run at $\ell_\max = 170$, model f0c4678,
-albedo. The numbers below are from `validation/tables/` of that pass.
+albedo; VILMA2's 3-D run with the toroidal field on, the model default. The
+numbers below are from `validation/tables/` of that pass.
 :::
 
 This page compares VILMA2 with VILMA1 on the last deglaciation. Both solvers
@@ -50,7 +51,7 @@ The settings below are common to both solvers unless stated. They are set in
 | Coastlines | migrating, with the subgrid (water-column) ocean load |
 | VILMA2 time stepping | `scheme = "fe"`, equal sub-steps at the Maxwell stability limit within the 100 yr interval |
 | VILMA1 time stepping | `vilma_v1_nsub = 12` uniform sub-steps of 8.33 yr |
-| Toroidal field | off (`l_toroidal = .false.`), the model default when these runs were made; one extra 3-D run with it on (now the default) |
+| Toroidal field | VILMA2: on in the 3-D run (`l_toroidal = .true.`, the model default); a control run with it off measures its effect. The 1Db runs have no laterally 3-D element for it to act on |
 
 **Reference state.** The reference is built once, by VILMA2 with the 3-D
 viscosity. The 26 ka ice load is held for 30 kyr from rest
@@ -79,15 +80,15 @@ They are not independent between the two solvers.
 
 ## The experiment
 
-![Relative sea level during the last deglaciation in VILMA2 with the 3-D viscosity (a–c) and its radial mean, 1Db (d–f), at $\ell_\max = 170$. (a, d) 21 ka and (b, e) 10 ka, relative to each run's own present day; (c, f) present-day uplift rate of the bedrock. Contours show the ice surface. Model f0c4678, albedo.](figures/deglac-maps.png){#fig-deglac-maps}
+![Relative sea level during the last deglaciation in VILMA2 with the 3-D viscosity and the toroidal field (a–c) and its radial mean, 1Db (d–f), at $\ell_\max = 170$. (a, d) 21 ka and (b, e) 10 ka, relative to each run's own present day; (c, f) present-day uplift rate of the bedrock. Contours show the ice surface. Model f0c4678, albedo.](figures/deglac-maps.png){#fig-deglac-maps}
 
 The ocean-mean relative sea level at present day, relative to the reference
-state, is 96.90 m (3-D) and 97.06 m (1Db). This is 102.9 % and 103.2 % of the
-above-flotation volume of the reference ice that is lost, 94.21 m and 94.08 m
+state, is 96.84 m (3-D) and 97.06 m (1Db). This is 102.8 % and 103.2 % of the
+above-flotation volume of the reference ice that is lost, 94.19 m and 94.08 m
 in barystatic metres, both rebuilt from the run's own output. The lateral
-viscosity changes relative sea level by 17.2 m RMS at 21 ka (3-D minus 1Db, at
-most 249 m) and the present-day uplift rate by 0.63 mm/yr RMS (at most
-24.2 mm/yr).
+viscosity changes relative sea level by 16.4 m RMS at 21 ka (3-D minus 1Db, at
+most 221 m) and the present-day uplift rate by 0.62 mm/yr RMS (at most
+22.7 mm/yr).
 
 ## Results
 
@@ -98,12 +99,12 @@ covered by the uplift rate instead.
 
 | time | RMS [m] | max \|Δ\| [m] | 99th pct [m] | VILMA2 signal max [m] | RMS / signal | deg 0 [m] | \|deg 1\| [m] | RMS after deg 0+1 [m] |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|
-| 21 ka | 5.138 | 87.664 | 18.016 | 463.3 | 1.11e-02 | 0.50 | 0.36 | 5.120 |
-| 14 ka | 4.618 | 91.394 | 16.772 | 427.4 | 1.08e-02 | 0.52 | 0.30 | 4.593 |
-| 8 ka | 2.131 | 32.929 | 8.019 | 185.0 | 1.15e-02 | 0.23 | 0.18 | 2.122 |
-| 2 ka | 0.382 | 6.012 | 1.494 | 45.8 | 8.35e-03 | 0.03 | 0.04 | 0.382 |
+| 21 ka | 2.597 | 59.962 | 6.625 | 431.9 | 6.01e-03 | 0.12 | 0.30 | 2.607 |
+| 14 ka | 2.251 | 56.244 | 5.769 | 400.0 | 5.63e-03 | 0.24 | 0.25 | 2.247 |
+| 8 ka | 1.028 | 16.345 | 3.004 | 178.6 | 5.75e-03 | 0.13 | 0.15 | 1.021 |
+| 2 ka | 0.171 | 2.691 | 0.577 | 43.8 | 3.89e-03 | 0.02 | 0.03 | 0.169 |
 
-: RSL difference, VILMA2 minus VILMA1, 3-D viscosity. {#tbl-deglac-3d}
+: RSL difference, VILMA2 minus VILMA1, 3-D viscosity, VILMA2 with the toroidal field. {#tbl-deglac-3d}
 
 | time | RMS [m] | max \|Δ\| [m] | 99th pct [m] | VILMA2 signal max [m] | RMS / signal | deg 0 [m] | \|deg 1\| [m] | RMS after deg 0+1 [m] |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|
@@ -116,47 +117,47 @@ covered by the uplift rate instead.
 
 With the radial-mean viscosity the two codes agree to 0.2 % of the RSL signal
 throughout; the RMS difference is at most 0.66 m (24 ka). With the 3-D
-viscosity they agree to 1.4 % at most; the RMS difference peaks at 5.29 m
+viscosity they agree to 0.7 % at most; the RMS difference peaks at 2.67 m
 (23 ka). The degree-0 and degree-1 parts of the difference stay at or below about
-0.5 m in both pairs, and removing them changes the RMS by less than 0.07 m.
+0.3 m in both pairs, and removing them changes the RMS by less than 0.07 m.
 
 | quantity | 3-D | 1Db |
 |---|---:|---:|
-| Present-day uplift rate, RMS difference [mm/yr] | 0.1832 | 0.0296 |
-| Present-day uplift rate, max difference [mm/yr] | 2.7464 | 0.8907 |
-| Present-day uplift rate, 99th pct difference [mm/yr] | 0.7140 | 0.0915 |
-| Present-day uplift rate, VILMA2 signal max [mm/yr] | 38.36 | 15.54 |
-| Present-day uplift rate, RMS / signal | 4.78e-03 | 1.91e-03 |
-| Barystatic sea level, max difference over the run [m] | 0.367 | 0.238 |
-| Barystatic sea level, difference at present day [m] | 0.349 | 0.232 |
-| Ocean-mean RSL at present day, VILMA2 [m] | 96.90 | 97.06 |
+| Present-day uplift rate, RMS difference [mm/yr] | 0.0956 | 0.0296 |
+| Present-day uplift rate, max difference [mm/yr] | 3.1933 | 0.8907 |
+| Present-day uplift rate, 99th pct difference [mm/yr] | 0.2961 | 0.0915 |
+| Present-day uplift rate, VILMA2 signal max [mm/yr] | 36.78 | 15.54 |
+| Present-day uplift rate, RMS / signal | 2.60e-03 | 1.91e-03 |
+| Barystatic sea level, max difference over the run [m] | 0.298 | 0.238 |
+| Barystatic sea level, difference at present day [m] | 0.292 | 0.232 |
+| Ocean-mean RSL at present day, VILMA2 [m] | 96.84 | 97.06 |
 | Ocean-mean RSL at present day, VILMA1 [m] | 96.55 | 96.83 |
-| Ocean-mean RSL at present day, difference [m] | 0.35 | 0.23 |
+| Ocean-mean RSL at present day, difference [m] | 0.29 | 0.23 |
 
 : Present-day uplift rate and global-mean quantities, VILMA2 against VILMA1. {#tbl-deglac-scalars}
 
 | time | 3-D: cells differing | 3-D: % of grid | 1Db: cells differing | 1Db: % of grid |
 |---|---:|---:|---:|---:|
-| 21 ka | 7 | 0.003 | 4 | 0.002 |
-| 14 ka | 70 | 0.030 | 17 | 0.007 |
-| 8 ka | 267 | 0.115 | 52 | 0.022 |
-| 2 ka | 333 | 0.143 | 50 | 0.021 |
-| 0 ka | 363 | 0.156 | 58 | 0.025 |
+| 21 ka | 4 | 0.002 | 4 | 0.002 |
+| 14 ka | 30 | 0.013 | 17 | 0.007 |
+| 8 ka | 131 | 0.056 | 52 | 0.022 |
+| 2 ka | 178 | 0.077 | 50 | 0.021 |
+| 0 ka | 210 | 0.090 | 58 | 0.025 |
 
 : Grid cells on which the ocean functions of the two runs differ. {#tbl-deglac-ocean}
 
-For scale, the lateral-viscosity signal within VILMA2 (3-D minus 1Db: 17.2 m
-RMS at 21 ka, 15.0 m at 14 ka, 6.2 m at 8 ka) is three times the difference
-between the codes with the 3-D viscosity, and about thirty times the difference
-with the 1Db viscosity.
+For scale, the lateral-viscosity signal within VILMA2 (3-D minus 1Db: 16.4 m
+RMS at 21 ka, 14.4 m at 14 ka, 6.2 m at 8 ka) is about six times the difference
+between the codes with the 3-D viscosity, and about twenty-five times the
+difference with the 1Db viscosity.
 
 ## Figures
 
-![VILMA2 against VILMA1 with the 3-D viscosity of Bagge et al. (2021). Both codes solve the same problem: the same GLAC-1D forcing, reference state, viscosity field, grid ($\ell_\max = 170$) and degree-1 frame. (a, d, g) VILMA2. (b, e, h) VILMA1. (c, f, i) VILMA2 minus VILMA1. The top and middle rows show relative sea level at 21 ka and 8 ka, relative to each run's own present day. The bottom row shows the present-day uplift rate of the bedrock. The two model columns share a color scale. The difference column has its own, narrower scale. Model f0c4678, albedo.](figures/deglac-v2v1-maps-3d.png){#fig-deglac-v2v1-maps-3d}
+![VILMA2 against VILMA1 with the 3-D viscosity of Bagge et al. (2021), VILMA2 with the toroidal field. Both codes solve the same problem: the same GLAC-1D forcing, reference state, viscosity field, grid ($\ell_\max = 170$) and degree-1 frame. (a, d, g) VILMA2. (b, e, h) VILMA1. (c, f, i) VILMA2 minus VILMA1. The top and middle rows show relative sea level at 21 ka and 8 ka, relative to each run's own present day. The bottom row shows the present-day uplift rate of the bedrock. The two model columns share a color scale. The difference column has its own, narrower scale. Model f0c4678, albedo.](figures/deglac-v2v1-maps-3d.png){#fig-deglac-v2v1-maps-3d}
 
 ![VILMA2 against VILMA1 with the 1Db viscosity, the radial mean of the 3-D field. Panels as in @fig-deglac-v2v1-maps-3d. Model f0c4678, albedo.](figures/deglac-v2v1-maps-1d.png){#fig-deglac-v2v1-maps-1d}
 
-![Size and composition of the difference in relative sea level, VILMA2 minus VILMA1, through the last deglaciation, for the 3-D viscosity (red), the 3-D viscosity with VILMA2's toroidal field on (dark red) and the 1Db viscosity (blue), all at $\ell_\max = 170$ on the same reference state. (a) RMS difference over the global grid. (b) The same, as a percentage of the largest absolute relative sea level that VILMA2 produces at that time. (c) The degree-0 (solid) and degree-1 (dash-dotted) parts of the difference, from an area-weighted least-squares fit. (d) Fraction of grid cells on which the ocean functions of the two runs differ. Sea level is relative to each run's own present day, so the difference is zero at 0 ka and (b) is undefined there. Model f0c4678, albedo.](figures/deglac-v2v1-summary.png){#fig-deglac-v2v1-summary}
+![Size and composition of the difference in relative sea level, VILMA2 minus VILMA1, through the last deglaciation, for the 3-D viscosity (red), the 3-D viscosity with VILMA2's toroidal field off (dark red) and the 1Db viscosity (blue), all at $\ell_\max = 170$ on the same reference state. (a) RMS difference over the global grid. (b) The same, as a percentage of the largest absolute relative sea level that VILMA2 produces at that time. (c) The degree-0 (solid) and degree-1 (dash-dotted) parts of the difference, from an area-weighted least-squares fit. (d) Fraction of grid cells on which the ocean functions of the two runs differ. Sea level is relative to each run's own present day, so the difference is zero at 0 ka and (b) is undefined there. Model f0c4678, albedo.](figures/deglac-v2v1-summary.png){#fig-deglac-v2v1-summary}
 
 The two maps figures use a separate color scale for the difference column. On
 the scale of the model columns, the difference would not be visible. The
@@ -183,21 +184,20 @@ the same nodes: VILMA2 spreads the elements of a layer evenly, VILMA1 truncates
 each layer to whole elements. With lateral variation, each code also carries it in its own way;
 VILMA2 treats only the elements whose lateral spread exceeds `visc3d_tol =
 1e-3` as 3-D (82 of 220). The lateral variation is the only difference between
-the 3-D and the 1Db pair, and the 3-D pair differs about eight times more.
-About half of that is the toroidal field, which VILMA1 carries and these
-VILMA2 runs did not (next section). The residual without the toroidal field of the 3-D pair is not a low-degree pattern: at
-21 ka the largest single part up to degree 8 is degree 6, order 2, at 0.70 m of
-an area-weighted RMS of 4.08 m, so most of it lies above degree 8. The maps
+the 3-D and the 1Db pair, and the 3-D pair differs about four times more (2.60
+against 0.63 m RMS at 21 ka); without VILMA2's toroidal field it would be eight
+times (next section). The residual of the 3-D pair is not a low-degree pattern: at
+21 ka the largest single part up to degree 8 is degree 5, order 2, at 0.35 m of
+an area-weighted RMS of 2.18 m, so most of it lies above degree 8. The maps
 place it along the margins of the ice sheets and the steep viscosity gradients
 of the cratonic keels.
 
 ### 3. Toroidal field
 
 Lateral viscosity drives toroidal flow. VILMA1 includes it; VILMA2 includes it
-only with `l_toroidal = .true.`, which was off by default when these runs were
-made and is on by default since. A third
-VILMA2 run, identical to the 3-D run but for `l_toroidal = .true.`, measures
-both its effect and how much of the 3-D residual it explains
+with `l_toroidal = .true.`, the default (`.false.` gives a faster run without
+it). A control run, identical to the 3-D run but for `l_toroidal = .false.`,
+measures both its effect and how much of the 3-D residual it explains
 (`validation/tables/toroidal.md`, `v2v1.md`).
 
 | quantity | toroidal off | toroidal on |
@@ -212,7 +212,7 @@ both its effect and how much of the 3-D residual it explains
 
 : The 3-D run of VILMA2 with and without the toroidal field. V2 − V1 as in @tbl-deglac-3d (RSL relative to each run's own present day, grid RMS). {#tbl-deglac-toroidal}
 
-With the toroidal field on, the difference between the codes halves at every
+Without the toroidal field, the difference between the codes doubles at every
 time. The field itself changes RSL, measured against the LGM reference, by
 0.6 m RMS at 21 ka, 2.1 m at 10 ka and 3.0 m at present day, and by up to 92 m
 locally at 10 ka, around the margins of the Cordilleran, Laurentide and
@@ -227,8 +227,8 @@ by 0.06 m. It costs a factor of 1.47 in run time.
 The two codes must report RSL in the same degree-1 frame. VILMA1 works in the
 center-of-mass frame and carries geocenter motion in its RSL. With
 `deg1_frame = "cm"` in VILMA2 the frames are matched; panel (c) of
-@fig-deglac-v2v1-summary shows the degree-1 part of the difference stays below
-0.38 m (3-D) and 0.08 m (1Db). Unmatched, degree 1 was about half of the
+@fig-deglac-v2v1-summary shows the degree-0 and degree-1 parts of the difference
+stay below 0.53 m in every pair. Unmatched, degree 1 was about half of the
 difference in this experiment and 98 to 99.7 % of it in a disc-load test.
 
 ### 5. Rotational feedback (resolved)
@@ -240,7 +240,7 @@ relaxation, and the coupling of the rotation within the step) removed it.
 
 | pair | RMS [m] | degree-2, order-1 part [m] | RMS after removing it [m] |
 |---|---:|---:|---:|
-| 3-D, now | 4.08 | 0.50 | 4.05 |
+| 3-D, now | 2.18 | 0.49 | 2.12 |
 | 1Db, now | 0.59 | 0.37 | 0.45 |
 | 3-D, 907bc74 | 8.91 | 7.74 | 4.41 |
 | 1Db, 907bc74 | 7.93 | 7.86 | 1.04 |
@@ -265,7 +265,7 @@ cd validation
 ./run.sh build              # model, benchmark drivers, VILMA1-backend binary
 ./run.sh ref                # LGM reference state
 ./run.sh submit prep        # export the reference, write the shared viscosity files
-./run.sh D V1               # VILMA2 and VILMA1, 3-D and 1Db
+./run.sh D V1 T             # VILMA2 (3-D toroidal off, 1Db), VILMA1, VILMA2 3-D toroidal on
 ./run.sh submit reduce analyse
 ```
 
