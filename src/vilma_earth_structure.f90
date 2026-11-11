@@ -29,7 +29,7 @@ module vilma_earth_structure
 
    public :: earth_layer, earth_model, build_M3L70V01, build_earth, prem_rho_mu
    public :: earth_check, earth_validate, earth_layer_has_memory
-   public :: vilma_read_visc_3d, load_visc_3d
+   public :: vilma_read_visc_3d, load_visc_3d, visc_values_valid
    public :: earth_n_layers, earth_rho_at, earth_mu_at, earth_eta_at, earth_mass_below, earth_total_mass, earth_gravity_at, earth_moi, earth_is_3d
 
    type :: earth_layer
@@ -431,8 +431,10 @@ contains
       !! (so the perturbation tracks the viscosity structure rather than a constant
       !! floor). Then visc_shift_file, if set, adds its dlog10_visc(lon, lat, r) [dex]
       !! (a shift by region and depth, e.g. per ensemble member), read and
-      !! interpolated as the field. The clamp also imposes the viscosity floor on the
-      !! raw field.
+      !! interpolated as the field, but ZERO at the radii outside the file's own
+      !! range: a shift given for the upper mantle does not reach below it. The
+      !! clamp also imposes the viscosity floor on the raw field. Every field read
+      !! must be free of NaN, Inf and fill values (vilma_read_visc_3d stops otherwise).
       !!
       !! With visc_3d_structure >= 1 the file is the FesmData Bagge2021_visc.nc
       !! product: the variable and coordinate names are the product's (log10_visc,
@@ -462,21 +464,28 @@ contains
       end if
       if (len_trim(p%visc_shift_file) > 0) then
          call vilma_read_visc_3d(p%visc_shift_file, sht, r_node, shift_node, varname='dlog10_visc', &
-              lonname='lon', latname='lat', rname='r')
+              lonname='lon', latname='lat', rname='r', zero_outside_r=.true.)
          visc_node = visc_node + shift_node
       end if
       visc_node = min(max(visc_node, p%visc_log10_min), p%visc_log10_max)
    end subroutine load_visc_3d
 
    subroutine vilma_read_visc_3d(filename, sht, r_node, visc_node, varname, &
-                              lonname, latname, rname, structure)
+                              lonname, latname, rname, structure, zero_outside_r)
       !! Read a real 3D viscosity field (lon, lat, radius) from netCDF and
       !! interpolate it onto the Gauss-Legendre grid × the FE radial nodes,
       !! returning ABSOLUTE log10(η [Pa·s]) as visc_node(nphi*nlat, nr). Horizontal
       !! interp is bilinear in log10(η) with periodic longitude; vertical interp is
-      !! linear in radius (clamped to the source range), also on log10(η). The
-      !! node→element bridge and the perturbation against the radial reference η
+      !! linear in radius, also on log10(η). At node radii outside the source range
+      !! the nearest source level is taken (a viscosity has to be defined at every
+      !! node), or, with zero_outside_r, the value is 0 — for a field that is an
+      !! increment (visc_shift_file), which must not act where the file says nothing.
+      !! The node→element bridge and the perturbation against the radial reference η
       !! happen later in ve_response (which owns the per-element rheology).
+      !!
+      !! The field must hold numbers: a NaN, an Inf or a fill value (visc_values_valid)
+      !! stops the run, naming the file and the variable. Interpolating or clamping
+      !! one would turn it into an ordinary-looking viscosity.
       !!
       !! The stored variable is assumed to already be log10(η). Coordinate names
       !! default to lon/lat/r; the radius coordinate must be metres. Any axis may
@@ -493,6 +502,9 @@ contains
       real(wp), allocatable, intent(out) :: visc_node(:,:)    !! (nphi*nlat, nr) log10(η)
       character(len=*), intent(in), optional :: varname, lonname, latname, rname
       integer,          intent(in), optional :: structure   !! FesmData form: structure index
+      logical,          intent(in), optional :: zero_outside_r  !! 0 outside the source radii (default: nearest level)
+      real(wp), parameter :: R_TOL = 1.0_wp      !! [m] a node this close to an end level is on it
+      logical :: zero_out
       character(len=64) :: vnm, lnm, tnm, rnm
       real(wp), allocatable :: lon_s(:), lat_s(:), r_s(:), eta_s(:,:,:)
       integer,  allocatable :: il0(:), il1(:), jl0(:), jl1(:)
@@ -528,6 +540,13 @@ contains
       else
          call nc_read(filename, trim(vnm), eta_s)        ! eta_s(lon, lat, r) = log10(η)
       end if
+      if (.not. visc_values_valid(eta_s)) then
+         write(*,'(a)') ' vilma_read_visc_3d: variable "'//trim(vnm)//'" of '//trim(filename)// &
+              ' holds NaN, Inf or fill values;'
+         write(*,'(a)') '   a log10 viscosity [dex] is needed at every point of the file.'
+         error stop 'vilma_read_visc_3d: non-finite or fill values in the field'
+      end if
+      zero_out = .false.;  if (present(zero_outside_r)) zero_out = zero_outside_r
 
       ! --- Normalise the source axes to ascending ------------------------------
       ! locate_clamped and locate_periodic both REQUIRE a strictly ascending axis
@@ -586,6 +605,10 @@ contains
 
       ! Per node: vertical bracket (clamped), then bilinear blend of the two levels.
       do k = 1, nr
+         if (zero_out .and. (r_node(k) < r_s(1) - R_TOL .or. r_node(k) > r_s(nr_s) + R_TOL)) then
+            visc_node(:, k) = 0.0_wp               ! outside the source radii: no increment
+            cycle
+         end if
          call locate_clamped(r_s, r_node(k), k0, k1, wr)
          do j = 1, nlat
             do i = 1, nphi
@@ -597,6 +620,18 @@ contains
          end do
       end do
    end subroutine vilma_read_visc_3d
+
+   pure logical function visc_values_valid(a) result(valid)
+      !! Whether every value of a log10-viscosity field (or of its sigma, or of a
+      !! shift) [dex] is a number that can be one: finite, not ncio's NaN marker
+      !! (nc_read returns a stored NaN as -9999), and below 1e10 in magnitude, which
+      !! every conventional fill value (1e20, 9.97e36, ...) and a viscosity given in
+      !! Pa s instead of log10 exceed.
+      real(wp), intent(in) :: a(:,:,:)
+      real(wp), parameter :: NCIO_NAN = -9999.0_wp, FILL_MIN = 1.0e10_wp
+      valid = all(is_finite(a))
+      if (valid) valid = .not. any(a == NCIO_NAN .or. abs(a) >= FILL_MIN)
+   end function visc_values_valid
 
    subroutine reverse_axis(a, dim)
       !! Reverse a 3-D field along one dimension through an explicit heap copy.
