@@ -50,7 +50,7 @@ The settings below are common to both solvers unless stated. They are set in
 | Coastlines | migrating, with the subgrid (water-column) ocean load |
 | VILMA2 time stepping | `scheme = "fe"`, equal sub-steps at the Maxwell stability limit within the 100 yr interval |
 | VILMA1 time stepping | `vilma_v1_nsub = 12` uniform sub-steps of 8.33 yr |
-| Toroidal field | off (`l_toroidal = .false.`), the model default |
+| Toroidal field | off (`l_toroidal = .false.`), the model default; one extra 3-D run with it on |
 
 **Reference state.** The reference is built once, by VILMA2 with the 3-D
 viscosity. The 26 ka ice load is held for 30 kyr from rest
@@ -156,7 +156,7 @@ with the 1Db viscosity.
 
 ![VILMA2 against VILMA1 with the 1Db viscosity, the radial mean of the 3-D field. Panels as in @fig-deglac-v2v1-maps-3d. Model f0c4678, albedo.](figures/deglac-v2v1-maps-1d.png){#fig-deglac-v2v1-maps-1d}
 
-![Size and composition of the difference in relative sea level, VILMA2 minus VILMA1, through the last deglaciation, for the 3-D viscosity (red) and the 1Db viscosity (blue), at $\ell_\max = 170$ on the same reference state. (a) RMS difference over the global grid. (b) The same, as a percentage of the largest absolute relative sea level that VILMA2 produces at that time. (c) The degree-0 (solid) and degree-1 (dash-dotted) parts of the difference, from an area-weighted least-squares fit. (d) Fraction of grid cells on which the ocean functions of the two runs differ. Sea level is relative to each run's own present day, so the difference is zero at 0 ka and (b) is undefined there. Model f0c4678, albedo.](figures/deglac-v2v1-summary.png){#fig-deglac-v2v1-summary}
+![Size and composition of the difference in relative sea level, VILMA2 minus VILMA1, through the last deglaciation, for the 3-D viscosity (red), the 3-D viscosity with VILMA2's toroidal field on (dark red) and the 1Db viscosity (blue), all at $\ell_\max = 170$ on the same reference state. (a) RMS difference over the global grid. (b) The same, as a percentage of the largest absolute relative sea level that VILMA2 produces at that time. (c) The degree-0 (solid) and degree-1 (dash-dotted) parts of the difference, from an area-weighted least-squares fit. (d) Fraction of grid cells on which the ocean functions of the two runs differ. Sea level is relative to each run's own present day, so the difference is zero at 0 ka and (b) is undefined there. Model f0c4678, albedo.](figures/deglac-v2v1-summary.png){#fig-deglac-v2v1-summary}
 
 The two maps figures use a separate color scale for the difference column. On
 the scale of the model columns, the difference would not be visible. The
@@ -183,13 +183,45 @@ the same nodes: VILMA2 spreads the elements of a layer evenly, VILMA1 truncates
 each layer to whole elements. With lateral variation, each code also carries it in its own way;
 VILMA2 treats only the elements whose lateral spread exceeds `visc3d_tol =
 1e-3` as 3-D (82 of 220). The lateral variation is the only difference between
-the 3-D and the 1Db pair, and the 3-D pair differs about eight times more. The residual of the 3-D pair is not a low-degree pattern: at
+the 3-D and the 1Db pair, and the 3-D pair differs about eight times more.
+About half of that is the toroidal field, which VILMA1 carries and VILMA2 does
+not by default (next section). The residual without the toroidal field of the 3-D pair is not a low-degree pattern: at
 21 ka the largest single part up to degree 8 is degree 6, order 2, at 0.70 m of
 an area-weighted RMS of 4.08 m, so most of it lies above degree 8. The maps
 place it along the margins of the ice sheets and the steep viscosity gradients
 of the cratonic keels.
 
-### 3. Degree-1 frame
+### 3. Toroidal field
+
+Lateral viscosity drives toroidal flow. VILMA1 includes it; VILMA2 includes it
+only with `l_toroidal = .true.`, which is off by default for speed. A third
+VILMA2 run, identical to the 3-D run but for `l_toroidal = .true.`, measures
+both its effect and how much of the 3-D residual it explains
+(`validation/tables/toroidal.md`, `v2v1.md`).
+
+| quantity | toroidal off | toroidal on |
+|---|---:|---:|
+| V2 − V1 RMS of RSL at 21 ka [m] | 5.14 | 2.60 |
+| V2 − V1 RMS of RSL at 14 ka [m] | 4.62 | 2.25 |
+| V2 − V1 RMS of RSL at 8 ka [m] | 2.13 | 1.03 |
+| V2 − V1 RMS of present-day uplift rate [mm/yr] | 0.183 | 0.096 |
+| Ocean-mean RSL at present day, VILMA2 [m] | 96.90 | 96.84 |
+| Budget closure, delivered / target [%] | 102.86 | 102.82 |
+| Wall time per kyr of deglaciation [min] (64 threads) | 1.82 | 2.67 |
+
+: The 3-D run of VILMA2 with and without the toroidal field. V2 − V1 as in @tbl-deglac-3d (RSL relative to each run's own present day, grid RMS). {#tbl-deglac-toroidal}
+
+With the toroidal field on, the difference between the codes halves at every
+time. The field itself changes RSL, measured against the LGM reference, by
+0.6 m RMS at 21 ka, 2.1 m at 10 ka and 3.0 m at present day, and by up to 92 m
+locally at 10 ka, around the margins of the Cordilleran, Laurentide and
+Fennoscandian ice sheets (@fig-deglac-toroidal). It changes the present-day
+uplift rate by 0.10 mm/yr RMS and up to 2.6 mm/yr, and the ocean-mean sea level
+by 0.06 m. It costs a factor of 1.47 in run time.
+
+![Relative sea level at 10 ka, VILMA2 with the toroidal field on minus off, 3-D viscosity, $\ell_\max = 170$, measured against the LGM reference. The color scale is clipped; the extreme is 92 m. Model f0c4678, albedo.](figures/deglac-toroidal-10ka.png){#fig-deglac-toroidal}
+
+### 4. Degree-1 frame
 
 The two codes must report RSL in the same degree-1 frame. VILMA1 works in the
 center-of-mass frame and carries geocenter motion in its RSL. With
@@ -198,7 +230,7 @@ center-of-mass frame and carries geocenter motion in its RSL. With
 0.38 m (3-D) and 0.08 m (1Db). Unmatched, degree 1 was about half of the
 difference in this experiment and 98 to 99.7 % of it in a disc-load test.
 
-### 4. Rotational feedback (resolved)
+### 5. Rotational feedback (resolved)
 
 Earlier passes (model 907bc74) were dominated by one pattern of degree 2 and
 order 1, the pattern of the rotational feedback. Three fixes to VILMA2's

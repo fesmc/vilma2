@@ -19,16 +19,22 @@ memory state grows by about 50 %. In the lateral-viscosity benchmark (test
 C-i, $\ell_{\max} = 128$, 64 threads) a run takes 1.8 times as long with the
 toroidal field on (18.6 h against 10.5 h to 100 kyr; see
 [lateral viscosity](../benchmarks/visc3d.qmd)). A deglaciation at
-$\ell_{\max} = 170$ with 3-D viscosity took 1.6 times as long with an earlier
-model version. With `l_toroidal = .false.` the model is the
+$\ell_{\max} = 170$ with 3-D viscosity takes 1.47 times as long (2.67 against
+1.82 min per kyr, 64 threads, model f0c4678). With `l_toroidal = .false.` the model is the
 spheroidal-only 3D model. Radially symmetric and laterally uniform runs are unaffected either way.
 
-The effect of toroidal flow on a realistic deglaciation has not been
-quantified with the current model. In the earlier deglaciation test it changed
-relative sea level at 21 ka by about 3 m rms over the globe (up to 34 m
-locally), against about 15 m rms for the whole difference between the 3-D
-viscosity field and its radial mean. A production deglaciation run with
-`l_toroidal = .true.` is planned to quantify the effect.
+**Effect on a realistic deglaciation.** In the last deglaciation (GLAC-1D,
+Bagge et al. 2021 viscosity, $\ell_\max = 170$, model f0c4678) the toroidal
+field changes relative sea level, measured against the LGM reference, by
+0.6 m rms over the globe at 21 ka, 2.1 m at 10 ka and 3.0 m at present day,
+and by up to 92 m locally (10 ka, around the margins of the Cordilleran,
+Laurentide and Fennoscandian ice sheets). The present-day uplift rate changes
+by 0.10 mm/yr rms and up to 2.6 mm/yr; the ocean-mean sea level by 0.06 m.
+For comparison, the whole lateral-viscosity signal (3-D minus radial mean) is
+17 m rms at 21 ka. With the toroidal field on, VILMA2 also agrees about twice
+as well with VILMA1, which carries it: the rms difference at 21 ka falls from
+4.1 to 2.2 m. Global quantities are insensitive to it; local sea level near the
+former ice sheets is not. The numbers are in `validation/tables/toroidal.md`.
 :::
 
 ## Why lateral viscosity drives toroidal flow

@@ -214,7 +214,9 @@ A few conventions worth knowing:
   which elements are treated as genuinely 3-D. The order of these steps is given
   in [Rheology](physics/rheology.qmd#visc3d-input).
 - **Toroidal flow** (`l_toroidal`) is **off by default**, for speed: with
-  lateral viscosity it makes a run 1.6–1.8 times slower (see
+  lateral viscosity it makes a run 1.5–1.8 times slower. Global means change
+  by centimetres, but local relative sea level near former ice sheets by up to
+  about 90 m in a deglaciation; switch it on where that matters (see
   [Toroidal flow](physics/toroidal.qmd)).
 - **Rotational feedback** (`rotation`) is **on by default** for real-Earth runs.
   Set `rotation = .false.` for the non-rotating community benchmarks. The

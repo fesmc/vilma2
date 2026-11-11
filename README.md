@@ -45,8 +45,8 @@ mesh, second order in its spacing), and the 3-D viscosity
 path, which is compared only with VILMA1 and the axisymmetric
 low-viscosity-zone case. The toroidal flow driven by lateral viscosity is
 implemented but **off by default** (`l_toroidal = .false.`) for speed: it makes
-3-D runs 1.6–1.8 times slower. A production deglaciation run with it on is
-planned to quantify its effect. Details:
+3-D runs 1.5–1.8 times slower. In the 3-D last deglaciation at $\ell_\max = 170$ it costs a factor of 1.5 and changes relative sea level by 2–3 m rms over the globe, up to 92 m near the former ice sheets (global means change by
+centimetres); switch it on where local sea level matters. Details:
 [benchmarks](https://fesmc.github.io/vilma2/benchmarks/).
 
 ## Install

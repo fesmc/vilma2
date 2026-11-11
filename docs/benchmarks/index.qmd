@@ -67,8 +67,9 @@ the reference to below 1 m in every field.
   3-D structure at glacial time scales has been run.
 - **Toroidal flow.** No community benchmark exercises it. It is checked by
   internal consistency, symmetry and scaling tests (see
-  [Toroidal flow](../physics/toroidal.qmd#validation)), is off by default, and
-  its effect on a deglaciation run has not been quantified.
+  [Toroidal flow](../physics/toroidal.qmd#validation)) and is off by default.
+  Its effect on the last deglaciation is quantified on that page: up to 92 m
+  of relative sea level locally, 2–3 m rms globally.
 - **Rotation coupled to the sea-level equation** has no published benchmark
   and is checked for consistency only.
 
