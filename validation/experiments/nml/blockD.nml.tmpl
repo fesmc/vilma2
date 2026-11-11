@@ -9,8 +9,8 @@
 !   * scheme = "fe": explicit, sub-stepped to the Maxwell stability limit.
 !   * Every value that the model's defaults have changed since the reference
 !     results (model 907bc74) is set here: the ice density 931 (the default is
-!     now 917) and the lon, lat, r viscosity file (visc_3d_structure = 0; the
-!     default is now the FesmData product).
+!     now 917), the lon, lat, r viscosity file (visc_3d_structure = 0; the
+!     default is now the FesmData product) and the radial mesh (mesh_depth).
 !
 ! Structures, via @V3D@/@V3DTOL@/@VISCF@:
 !   1Da  l_visc_3d=.false.                      the PREM/Clemens radial profile
@@ -38,6 +38,12 @@
     mu       = 5.727e10, 6.655e10, 7.732e10, 1.051e11, 1.225e11, 1.638e11, 1.926e11, 2.313e11, 2.690e11, 2.913e11,      0.0
     eta      = 1.0e40,   4.0e20,   4.0e20,   4.0e20,   4.0e20,   1.0e22,   1.0e22,   1.0e22,   1.0e22,   1.0e22,      0.0
     rheology = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2
+    ! Radial mesh: the 220-element mesh of the reference results (sizes by layer
+    ! mid-depth). VILMA1's densi.inp (experiments/vilma1_input_vilma2grid) is
+    ! written from this mesh, so it must not change on its own; the default
+    ! mesh_depth (70 km, 670 km) gives 219 elements.
+    mesh_dr       = 5.0e3, 10.0e3, 40.0e3
+    mesh_depth    = 80.0e3, 670.0e3
 
     ! --- initial state. With i_eq = 2 the reference is the glacial state and
     ! equil_time_max = 0. The LGM reference run holds the 26 ka load for a fixed
