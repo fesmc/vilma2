@@ -60,7 +60,7 @@ jobs:
           cd fesm-utils
           configme config fesm-utils -m linux -c gfortran --color never
           make openmp=1 fftw shtns
-          make openmp=1 -j 4 fesmutils-static
+          make openmp=1 fesmutils-static   # serial: its Makefile does not order the module builds for -j
 
       - name: Configure VILMA2
         run: configme config vilma2 -m linux -c gfortran --color never
