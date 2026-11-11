@@ -1,0 +1,24 @@
+! Block B — the lateral-viscosity benchmark (Klemann et al. setup note), one
+! 20-kyr segment of one case; docs/benchmarks/visc3d.qmd has the setup.
+! Staged by experiments/run_block_B.sh.
+!
+! The earth model, memory scheme (fe), degree-1 frame (cm), grid, and the
+! absence of ocean and rotation are fixed by the driver. Only lmax, l_toroidal
+! and visc3d_tol are read from &vilma, and all three are set here so no model
+! default decides them.
+!
+! Placeholders: @TEST@ @FORCING@ @TEND@ @RIN@ @ROUT@ @LMAX@ @LTOR@ @V3DTOL@
+
+&benchv3d
+    test        = "@TEST@"     ! A | B | C
+    forcing     = "@FORCING@"  ! heav | ramp
+    time_end    = @TEND@       ! [years] end of this segment
+    restart_in  = "@RIN@"      ! "" for the first segment
+    restart_out = "@ROUT@"     ! state at time_end, for the next segment
+/
+
+&vilma
+    lmax       = @LMAX@
+    l_toroidal = @LTOR@        ! the protocol asks for u_phi: toroidal on
+    visc3d_tol = @V3DTOL@
+/
