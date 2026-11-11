@@ -752,29 +752,29 @@ window.Quarto = {
 <p>The complete, documented <code>&amp;vilma</code> defaults are in <a href="https://github.com/fesmc/vilma2/blob/main/input/vilma_defaults.nml"><code>input/vilma_defaults.nml</code></a> and are loaded automatically. A run configuration such as <a href="https://github.com/fesmc/vilma2/blob/main/vilma.nml"><code>vilma.nml</code></a> (the default) or <a href="https://github.com/fesmc/vilma2/blob/main/examples/deglac_lgm.nml"><code>examples/deglac_lgm.nml</code></a> carries the full <code>&amp;ctl</code> group plus only the <code>&amp;vilma</code> parameters it overrides (the yelmo <code>defaults_file</code> convention):</p>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="ex">./bin/vilma.x</span> examples/deglac_lgm.nml    <span class="co"># default: vilma.nml</span></span>
 <span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="ex">./bin/vilma.x</span> run.nml my_defaults.nml    <span class="co"># optional second argument: another defaults file</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p><code>vilma_remap.x</code> and <code>vilma_mkref.x</code> take the same optional second argument.</p>
+<p><code>vilma_remap.x</code> and <code>vilma_mkref.x</code> take the same optional second argument; they too need the full <code>&amp;ctl</code> group.</p>
 <p>A few conventions worth knowing:</p>
 <ul>
-<li><strong>Time fields</strong> (<code>dt_*</code>, <code>time_*</code>) are given in <strong>years</strong> in the namelist and converted to SI seconds on load. Everything else is SI.</li>
+<li><strong>Time fields</strong> (<code>dt_*</code>, <code>time_*</code>, <code>equil_time_max</code>) are given in <strong>years</strong> in the namelist and converted to SI seconds on load; <code>equil_rate_tol</code> is in m/yr. Everything else is SI. A host that fills <code>se%par</code> in memory sets the time fields in seconds.</li>
 <li><strong>Earth structure</strong> is chosen by <code>earth</code>: a named built-in (<code>"M3-L70-V01"</code>, or <code>"PREM"</code>, which fills <span class="math inline">\(\rho,\mu\)</span> from shell averages of incompressible PREM on the given layer geometry) or <code>"custom"</code> to assemble from the surface-first layer arrays. The radial mesh follows the depth of each element (see <a href="./discretization/radial-fe.html">Radial finite elements</a>).</li>
 <li><strong>Response solver</strong> is chosen by <code>earth_response</code>: <code>"ve"</code> (full viscoelastic, default), <code>"elastic"</code>, or <code>"null"</code>.</li>
 <li><strong>Memory scheme</strong> is chosen by <code>scheme</code>: <code>"fe"</code> (explicit, default) or <code>"trap"</code> (2nd-order, adaptive); see <a href="./physics/rheology.html#memory-time-schemes">Rheology</a>.</li>
 <li><strong>Degree-1 frame</strong> is chosen by <code>deg1_frame</code>: <code>"cm"</code> (default) or <code>"cf"</code>; see <a href="./physics/sea-level.html#reference-frame-and-degree-1">Sea-level equation</a>.</li>
 <li><strong>Reference state</strong> is chosen by <code>i_eq</code> (<code>&amp;ctl</code>). Relative sea level is measured against this relaxed reference.
 <ul>
-<li><code>0</code>: the first forcing slice is the equilibrium.</li>
+<li><code>0</code>: the state at the start of the run window is the equilibrium: the forcing’s ice at that slice and the bed <code>name_zbed_eq</code>, read from <code>file_forcing</code> (lon, lat, time) or, with <code>remap_input = .false.</code>, from the 2-D <code>file_ref</code>.</li>
 <li><code>1</code> (default): a present-day reference from <code>z_bed_ref_file</code> and <code>h_ice_ref_file</code>, so that rsl is about zero at the present day.</li>
 <li><code>2</code>: an equilibrium state read from <code>z_bed_eq_file</code> and <code>h_ice_eq_file</code> (e.g.&nbsp;an LGM state).</li>
 <li><code>3</code>: the present-day reference bed plus the rsl field of <code>rsl_restart_file</code>.</li>
 </ul>
 The variable names in these files are set by <code>name_z_bed_ref</code>, <code>name_h_ice_ref</code> and <code>name_rsl</code>.</li>
 <li><strong>Spin-up</strong> is controlled by <code>equil_time_max</code>, <code>equil_rate_tol</code> (the memory is relaxed under the start-of-run load until the bed is stationary) and <code>pre_spinup_1d</code> (a cheap 1-D pre-equilibration first); see <a href="./discretization/time-stepping.html#spin-up">Spin-up</a>.</li>
-<li><strong>3-D viscosity</strong> is enabled with <code>l_visc_3d = .true.</code> and a lateral <code>log10(eta)</code> field (<code>visc_3d_file</code>). With <code>visc_3d_structure = n</code> (n ≥ 1) the file is in the FesmData layout (<code>log10_visc</code> on <code>lon</code>, <code>lat</code>, <code>depth</code>, <code>structure</code>) and structure <code>n</code> is read. The default is the FesmData product <code>fesmdata/Global/GLOBAL-T170/GLOBAL-T170_SolidEarth-Bagge2021.nc</code> (<span class="citation" data-cites="Bagge2021">Bagge et al. (<a href="#ref-Bagge2021" role="doc-biblioref">2021</a>)</span>; structure 6, <code>v_1.0_s16</code>). The path is relative to the run folder, which needs a <code>fesmdata</code> link to the FesmData store (on levante <code>/work/ba1442/fesmdata</code>). The model does not ship a viscosity file. The field can be scaled by <code>f_visc_sd</code> (in units of its lateral standard deviation) and shifted by region and depth with <code>visc_shift_file</code>. It is then clamped to <code>visc_log10_min</code>–<code>visc_log10_max</code>, and <code>visc3d_lid_depth</code> and <code>visc3d_lid_log10max</code> make its top effectively elastic. <code>visc3d_tol</code> sets which elements are treated as genuinely 3-D. The order of these steps is given in <a href="./physics/rheology.html#visc3d-input">Rheology</a>.</li>
+<li><strong>3-D viscosity</strong> is enabled with <code>l_visc_3d = .true.</code> and a lateral <code>log10(eta)</code> field (<code>visc_3d_file</code>). With <code>visc_3d_structure = n</code> (n ≥ 1) the file is in the FesmData layout (<code>log10_visc</code> on <code>lon</code>, <code>lat</code>, <code>depth</code>, <code>structure</code>) and structure <code>n</code> is read. The default is the FesmData product <code>fesmdata/Global/GLOBAL-T170/GLOBAL-T170_SolidEarth-Bagge2021.nc</code> (<span class="citation" data-cites="Bagge2021">Bagge et al. (<a href="#ref-Bagge2021" role="doc-biblioref">2021</a>)</span>; structure 6, <code>v_1.0_s16</code>). The path is relative to the run folder, which needs a <code>fesmdata</code> link to the FesmData store (on levante <code>/work/ba1442/fesmdata</code>). The model does not ship a viscosity file. The field can be shifted by <code>f_visc_sd</code> standard deviations (σ from the variable <code>name_visc_sd</code>, or <code>f_visc_rel</code> |log10 η|) and by region and depth with <code>visc_shift_file</code>. It is then clamped to <code>visc_log10_min</code>–<code>visc_log10_max</code>, and <code>visc3d_lid_depth</code> and <code>visc3d_lid_log10max</code> make its top effectively elastic. <code>visc3d_tol</code> sets which elements are treated as genuinely 3-D. The order of these steps is given in <a href="./physics/rheology.html#visc3d-input">Rheology</a>.</li>
 <li><strong>Toroidal flow</strong> (<code>l_toroidal</code>) is <strong>on by default</strong>: with lateral viscosity it changes local relative sea level near former ice sheets by up to about 90 m in a deglaciation, though global means only by centimetres. <code>l_toroidal = .false.</code> makes such runs 1.5–1.8 times faster, for quick runs that do not depend on local sea level (see <a href="./physics/toroidal.html">Toroidal flow</a>).</li>
 <li><strong>Rotational feedback</strong> (<code>rotation</code>) is <strong>on by default</strong> for real-Earth runs. Set <code>rotation = .false.</code> for the non-rotating community benchmarks. The secular Love number in the Liouville equation defaults to the model’s own fluid limit; <code>rotation_k_s</code> (&gt; 0) prescribes it and <code>rotation_c_minus_a</code> sets C − A (default 2.63e35 kg m²).</li>
-<li><strong>Forcing.</strong> The ice-thickness forcing is a lon-lat field (global or regional) on a time axis in years (<code>kyr</code> is converted; ages and other units stop the run) that must be strictly ascending. A regional source is remapped with its mass conserved and no ice outside it; latitudes may be ascending or descending. Missing, non-finite or out-of-range values stop the run (put zero where there is no ice).</li>
+<li><strong>Forcing.</strong> The ice-thickness forcing is a lon-lat field (global or regional) on a time axis in years (<code>kyr</code> is converted; ages and other units stop the run) that must be strictly ascending. The ice ramps linearly between slices. The axes <code>name_lon</code>, <code>name_lat</code> are cell centres; longitudes must ascend, latitudes may ascend or descend. A regional source is remapped with its mass conserved and no ice outside it. Missing, non-finite or out-of-range values stop the run (put zero where there is no ice). The remap weights are cached in <code>maps/</code> in the working directory, keyed by the grid dimensions; clear it when a grid changes at fixed dimensions.</li>
 <li><strong>Output.</strong> <code>file_out</code> receives the diagnostic surface fields at every forcing slice, including the convergence of the sea-level solve (<code>sle_resid</code>, the worst relative inner residual of the interval, and <code>sle_n_cap</code>, the number of solves that ended at an iteration cap; the model also warns once per interval when a cap is hit). The folder of <code>file_out</code> is created if needed. <code>file_hor</code> (optional) receives the horizontal surface displacement. The variables and their output precision are listed in <a href="https://github.com/fesmc/vilma2/blob/main/input/vilma-variables.md"><code>input/vilma-variables.md</code></a>. Diagnostics are rounded to that precision. <code>write_lossless = .true.</code> (<code>&amp;ctl</code>) writes them lossless, as needed for bit-for-bit comparisons. Restart files are always lossless.</li>
-<li><strong>Restart.</strong> The driver writes the full model state to <code>spinup/vilma_restart.nc</code> after the spin-up and to <code>final/vilma_restart.nc</code> at the end of the run, in the run directory. <code>restart_in_file</code> (<code>&amp;ctl</code>) resumes from such a file: the model is initialized at the reference and the saved state is restored, so a resumed run continues the original one bit for bit. A restart from a lower resolution is interpolated up to the model grid. The run resumes at the restart’s time: a <code>time_init</code> that selects another start stops it, unless <code>restart_time_reset = .true.</code> (<code>&amp;ctl</code>), which takes the restart as the state at the start of the window. A restart from another radial mesh is refused. A restart from another viscosity (radial profile or 3-D field, both stamped in the file) is refused unless <code>restart_other_visc = .true.</code> (<code>&amp;ctl</code>), which uses its memory as a seed. Restarts of the default PREM model written before the depth-based mesh rule (220 instead of 219 elements) are therefore refused; <code>mesh_depth = 80e3, 670e3</code> rebuilds the old mesh exactly. What the restart carries and what is checked on read is described in <a href="./discretization/time-stepping.html#memory-storage-and-restart">Time stepping</a>.</li>
+<li><strong>Restart.</strong> The driver writes the full model state to <code>spinup/vilma_restart.nc</code> after the spin-up and to <code>final/vilma_restart.nc</code> at the end of the run, in the run directory. <code>restart_in_file</code> (<code>&amp;ctl</code>) resumes from such a file: the model is initialized at the reference and the saved state is restored, so a resumed run continues the original one bit for bit. If a spin-up is enabled, it then runs from the restored state. A restart from a lower degree is padded: its memory fills the shared low degrees and the higher degrees start at zero (not bit for bit). The run resumes at the restart’s time: a <code>time_init</code> that selects another start stops it, unless <code>restart_time_reset = .true.</code> (<code>&amp;ctl</code>), which takes the restart as the state at the start of the window. A restart from another radial mesh is refused. A restart from another viscosity (radial profile or 3-D field, both stamped in the file) is refused unless <code>restart_other_visc = .true.</code> (<code>&amp;ctl</code>), which uses its memory as a seed. Restarts of the default PREM model written before the depth-based mesh rule (220 instead of 219 elements) are therefore refused; <code>mesh_depth = 80e3, 670e3</code> rebuilds the old mesh exactly. What the restart carries and what is checked on read is described in <a href="./discretization/time-stepping.html#memory-storage-and-restart">Time stepping</a>.</li>
 <li><strong>Backend</strong> is chosen by <code>solver</code>: <code>"v2"</code> (this model, default) or <code>"v1"</code>, the VILMA1 library behind the same driver, forcing and output for like-for-like comparison (requires a build with <code>vilma_v1=1</code>).</li>
 </ul>
 <section id="parameter-reference" class="level3">
@@ -797,7 +797,7 @@ The variable names in these files are set by <code>name_z_bed_ref</code>, <code>
 <tr class="odd">
 <td><code>&amp;vilma</code> grid</td>
 <td><code>lmax</code></td>
-<td>maximum spherical-harmonic degree (default 64)</td>
+<td>maximum spherical-harmonic degree (64 in the defaults file; the in-memory record has none, so a host must set it)</td>
 </tr>
 <tr class="even">
 <td></td>
@@ -857,7 +857,7 @@ The variable names in these files are set by <code>name_z_bed_ref</code>, <code>
 <tr class="odd">
 <td></td>
 <td><code>name_lon</code>, <code>name_lat</code></td>
-<td>longitude and latitude axes of the forcing [deg]</td>
+<td>longitude and latitude axes of every 2-D input file [deg], in both modes; with <code>remap_input = .false.</code> they must be the Gauss grid’s (longitudes from 0)</td>
 </tr>
 <tr class="even">
 <td></td>
@@ -870,9 +870,9 @@ The variable names in these files are set by <code>name_z_bed_ref</code>, <code>
 <td><code>.true.</code> (default): remap lon-lat input online; <code>.false.</code>: input already on the Gauss grid</td>
 </tr>
 <tr class="even">
-<td><code>&amp;ctl</code> Gauss-grid reference (<code>remap_input = .false.</code>)</td>
-<td><code>file_ref</code>, <code>name_zbed_eq</code></td>
-<td>reference file and its bed variable</td>
+<td><code>&amp;ctl</code> start-slice bed (<code>i_eq = 0</code>)</td>
+<td><code>name_zbed_eq</code>, <code>file_ref</code></td>
+<td>bed variable, read from <code>file_forcing</code> (lon, lat, time), or from the 2-D Gauss-grid <code>file_ref</code> with <code>remap_input = .false.</code></td>
 </tr>
 <tr class="odd">
 <td><code>&amp;ctl</code> restart</td>
@@ -946,7 +946,7 @@ The variable names in these files are set by <code>name_z_bed_ref</code>, <code>
 <p>The CLIMBER-X coupling path uses the same code behind a single <code>use vilma</code>. The contract is narrow: the host passes <strong>ice thickness</strong> in and receives <strong>relative sea level</strong> and <strong>bedrock</strong> out, on its own grid. The model owns its Gauss grid and the host↔︎Gauss remap (built from the parameter record), and keeps all spherical-harmonic work inside (see <a href="./implementation.html">Implementation</a>):</p>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb12"><pre class="sourceCode fortran code-with-copy"><code class="sourceCode fortranfixed"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="kw">use</span> vilma</span>
 <span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a><span class="dt">type(solid_earth)</span> <span class="dt">::</span> se</span>
-<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a><span class="co">call vilma_par_load(se%par, "vilma.nml")             ! configuration lives in se%par</span></span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a><span class="co">call vilma_par_load(se%par, "vilma.nml", defaults_file=DEFAULTS_FILE)  ! configuration lives in se%par</span></span>
 <span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a><span class="co">call solid_earth_init(se, z_bed_eq, h_ice_eq, grid=host_grid, time=t0)  ! Gauss grid + remap; clock at t0 [yr]</span></span>
 <span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a><span class="co">call solid_earth_spinup(se, h_ice_lgm)                ! optional LGM-memory spin-up (holds the clock)</span></span>
 <span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a><span class="kw">do</span></span>
@@ -957,9 +957,73 @@ The variable names in these files are set by <code>name_z_bed_ref</code>, <code>
 <span id="cb12-11"><a href="#cb12-11" aria-hidden="true" tabindex="-1"></a><span class="co">call solid_earth_finalize(se)                         ! frees the grid too</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p><code>use vilma</code> is the only module a host needs: it exports the parameter record, <code>solid_earth</code> and its life cycle, the checks and the restart routines, and nothing internal. <code>h_ice</code> is the whole ice column; the model applies its own flotation rule to it. The model keeps its own clock: <code>solid_earth_init</code> sets it (<code>time</code>, default 0), each update advances it, and <code>solid_earth_set_time</code> relabels it without changing the state. A host never writes <code>se%time</code>. A negative <code>dt_yr</code> stops the run; <code>dt_yr = 0</code> re-solves the surface fields under the ice passed in.</p>
 <p><code>grid</code> (a coords lon-lat grid) is optional: omit it when the fields are already on the model’s Gauss grid in the SHTns layout (rows north first). A <code>grid</code> that is the Gauss grid passes the fields through exactly, in its own row order (latitude ascending, as coords builds it, or descending). Any other global grid is remapped; a regional grid is refused. The host-grid fields are always in the order the host supplied; <code>se%gg</code> is the internal Gauss-grid state. The full prognostic state is persisted on restart (<code>vilma_restart_write</code>, <code>vilma_restart_read</code>), so a coupled run resumes bit for bit; the host-grid outputs are re-derived on read.</p>
+<p><code>vilma_par_load</code> overlays the user file on <code>defaults_file</code>; without it the user file must hold every <code>&amp;vilma</code> parameter. A host that fills <code>se%par</code> in memory instead starts from the in-code defaults, which leave <code>lmax</code> unset. The rest of the interface:</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 50%">
+<col style="width: 50%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Procedure</th>
+<th>Use</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>solid_earth_check_solver(par)</code></td>
+<td>validate <code>solver</code> (and that a <code>"v1"</code> build has VILMA1) before any work</td>
+</tr>
+<tr class="even">
+<td><code>solid_earth_set_time(se, time)</code></td>
+<td>relabel the clock [yr] without changing the state</td>
+</tr>
+<tr class="odd">
+<td><code>solid_earth_sync_host(se)</code></td>
+<td>refresh the host-grid outputs from the Gauss-grid state</td>
+</tr>
+<tr class="even">
+<td><code>solid_earth_enable_visc_3d(se, sht)</code></td>
+<td>switch to the 3-D memory advance, keeping the memory (e.g.&nbsp;after a 1-D spin-up); init calls it when <code>l_visc_3d</code> is on</td>
+</tr>
+<tr class="odd">
+<td><code>solid_earth_host_check(w, I_g, C, F, msg, tol)</code></td>
+<td>admissibility of host-resolved terms (<code>tol</code> default 1e-9)</td>
+</tr>
+<tr class="even">
+<td><code>vilma_restart_write(se, time, filename, folder, init)</code></td>
+<td>write the full state; defaults <code>./vilma_restart.nc</code>, <code>init = .false.</code> appends a snapshot</td>
+</tr>
+<tr class="odd">
+<td><code>vilma_restart_read(se, filename, time, other_visc)</code></td>
+<td>restore the state at <code>time</code> (default the last snapshot) into an initialized <code>se</code></td>
+</tr>
+<tr class="even">
+<td><code>vilma_restart_time(filename)</code></td>
+<td>time [yr] of the last snapshot</td>
+</tr>
+<tr class="odd">
+<td><code>vilma_restart_compatible(se, filename, msg, other_visc)</code></td>
+<td>the checks <code>vilma_restart_read</code> applies, without reading</td>
+</tr>
+<tr class="even">
+<td><code>vilma_write_step</code>, <code>vilma_write_horizontal</code></td>
+<td>diagnostic output, as the standalone driver writes it</td>
+</tr>
+<tr class="odd">
+<td><code>vilma_io_set_table(filename)</code></td>
+<td>path of the variable table (default <code>input/vilma-variables.md</code>)</td>
+</tr>
+<tr class="even">
+<td><code>vilma_version</code></td>
+<td>the model version string</td>
+</tr>
+</tbody>
+</table>
+<p>Two files are read relative to the working directory: the variable table <code>input/vilma-variables.md</code>, which every output and restart write uses (set another path with <code>vilma_io_set_table</code>), and the remap-weight cache <code>maps/</code>, keyed by the grid dimensions (clear it when a host grid changes at fixed dimensions).</p>
 <section id="host-resolved-terms-optional" class="level3">
 <h3 class="anchored" data-anchor-id="host-resolved-terms-optional">Host-resolved terms (optional)</h3>
-<p>A host that resolves the ice margin on its own grid, inside regions of weight <span class="math inline">\(w\)</span>, can pass per unit Gauss-cell area the grounded-ice column <span class="math inline">\(I_g = w H f_g\)</span>, the ocean fraction <span class="math inline">\(C = w (1 - f_g)\)</span> and the flooded-area fill <span class="math inline">\(F = w \zeta^{(0)} (C - C_\text{ref})\)</span>:</p>
+<p>A host that resolves the ice margin on its own grid, inside regions of weight <span class="math inline">\(w\)</span>, can pass on that grid, per unit cell area, the grounded-ice column <span class="math inline">\(I_g = w H f_g\)</span>, the ocean fraction <span class="math inline">\(C = w (1 - f_g)\)</span> and the flooded-area fill <span class="math inline">\(F = w \zeta^{(0)} (C - C_\text{ref})\)</span>:</p>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb13"><pre class="sourceCode fortran code-with-copy"><code class="sourceCode fortranfixed"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="co">call solid_earth_init(se, z_bed_eq, h_ice_eq, grid, w=w, I_g=I_g, C=C)    ! reference terms</span></span>
 <span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a><span class="co">call solid_earth_spinup(se, h_ice_lgm, w, I_g, C, F)                      ! held over every pass</span></span>
 <span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a><span class="co">call solid_earth_update(se, h_ice, dt_yr, w, I_g, C, F)                   ! ramped like the ice</span></span>
