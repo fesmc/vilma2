@@ -87,8 +87,8 @@ contains
       !! Run a forced simulation defined by cfg_file. Its &vilma (physics) group is
       !! overlaid on the complete physics defaults in defaults_file (the program
       !! passes vilma_control's DEFAULTS_FILE = input/vilma_defaults.nml); its &ctl
-      !! (run control) group is read from cfg_file alone, with the vilma_ctl_class in-code
-      !! defaults filling any gaps.
+      !! (run control) group is read from cfg_file alone and must be complete, apart from
+      !! the optional keys vilma_ctl_load names.
       character(len=*), intent(in) :: cfg_file
       character(len=*), intent(in) :: defaults_file
 

@@ -165,12 +165,15 @@ carries the full `&ctl` group plus only the `&vilma` parameters it overrides
 ./bin/vilma.x run.nml my_defaults.nml    # optional second argument: another defaults file
 ```
 
-`vilma_remap.x` and `vilma_mkref.x` take the same optional second argument.
+`vilma_remap.x` and `vilma_mkref.x` take the same optional second argument;
+they too need the full `&ctl` group.
 
 A few conventions worth knowing:
 
-- **Time fields** (`dt_*`, `time_*`) are given in **years** in the namelist and
-  converted to SI seconds on load. Everything else is SI.
+- **Time fields** (`dt_*`, `time_*`, `equil_time_max`) are given in **years**
+  in the namelist and converted to SI seconds on load; `equil_rate_tol` is in
+  m/yr. Everything else is SI. A host that fills `se%par` in memory sets the
+  time fields in seconds.
 - **Earth structure** is chosen by `earth`: a named built-in (`"M3-L70-V01"`,
   or `"PREM"`, which fills $\rho,\mu$ from shell averages of incompressible PREM
   on the given layer geometry) or `"custom"` to assemble from the surface-first
@@ -185,7 +188,10 @@ A few conventions worth knowing:
   [Sea-level equation](physics/sea-level.qmd#reference-frame-and-degree-1).
 - **Reference state** is chosen by `i_eq` (`&ctl`). Relative sea level is
   measured against this relaxed reference.
-  - `0`: the first forcing slice is the equilibrium.
+  - `0`: the state at the start of the run window is the equilibrium: the
+    forcing's ice at that slice and the bed `name_zbed_eq`, read from
+    `file_forcing` (lon, lat, time) or, with `remap_input = .false.`, from
+    the 2-D `file_ref`.
   - `1` (default): a present-day reference from `z_bed_ref_file` and
     `h_ice_ref_file`, so that rsl is about zero at the present day.
   - `2`: an equilibrium state read from `z_bed_eq_file` and `h_ice_eq_file`
@@ -207,8 +213,9 @@ A few conventions worth knowing:
   (@Bagge2021; structure 6, `v_1.0_s16`). The path is relative to the run
   folder, which needs a `fesmdata` link to the FesmData store (on levante
   `/work/ba1442/fesmdata`). The model does not ship a viscosity file. The field
-  can be scaled by `f_visc_sd` (in units of its lateral standard deviation) and
-  shifted by region and depth with `visc_shift_file`. It is then clamped to
+  can be shifted by `f_visc_sd` standard deviations (σ from the variable
+  `name_visc_sd`, or `f_visc_rel` |log10 η|) and by region and depth with
+  `visc_shift_file`. It is then clamped to
   `visc_log10_min`–`visc_log10_max`, and `visc3d_lid_depth` and
   `visc3d_lid_log10max` make its top effectively elastic. `visc3d_tol` sets
   which elements are treated as genuinely 3-D. The order of these steps is given
@@ -226,10 +233,13 @@ A few conventions worth knowing:
   C − A (default 2.63e35 kg m²).
 - **Forcing.** The ice-thickness forcing is a lon-lat field (global or
   regional) on a time axis in years (`kyr` is converted; ages and other units
-  stop the run) that must be strictly ascending. A regional source is remapped
-  with its mass conserved and no ice outside it; latitudes may be ascending or
-  descending. Missing, non-finite or out-of-range values stop the run (put
-  zero where there is no ice).
+  stop the run) that must be strictly ascending. The ice ramps linearly between
+  slices. The axes `name_lon`, `name_lat` are cell centres; longitudes must
+  ascend, latitudes may ascend or descend. A regional source is remapped with
+  its mass conserved and no ice outside it. Missing, non-finite or
+  out-of-range values stop the run (put zero where there is no ice).
+  The remap weights are cached in `maps/` in the working directory, keyed by
+  the grid dimensions; clear it when a grid changes at fixed dimensions.
 - **Output.** `file_out` receives the diagnostic surface fields at every
   forcing slice, including the convergence of the sea-level solve
   (`sle_resid`, the worst relative inner residual of the interval, and
@@ -247,7 +257,9 @@ A few conventions worth knowing:
   at the end of the run, in the run directory. `restart_in_file` (`&ctl`)
   resumes from such a file: the model is initialized at the reference and the
   saved state is restored, so a resumed run continues the original one bit for
-  bit. A restart from a lower resolution is interpolated up to the model grid.
+  bit. If a spin-up is enabled, it then runs from the restored state. A
+  restart from a lower degree is padded: its memory fills the shared low
+  degrees and the higher degrees start at zero (not bit for bit).
   The run resumes at the restart's time: a `time_init` that selects another
   start stops it, unless `restart_time_reset = .true.` (`&ctl`), which takes the
   restart as the state at the start of the window. A restart from another
@@ -272,7 +284,7 @@ numerics pages describe most of them in context. The remaining ones are:
 
 | Group | Parameter | Meaning |
 |---|---|---|
-| `&vilma` grid | `lmax` | maximum spherical-harmonic degree (default 64) |
+| `&vilma` grid | `lmax` | maximum spherical-harmonic degree (64 in the defaults file; the in-memory record has none, so a host must set it) |
 | | `nlat`, `nphi` | Gauss latitudes and longitudes; 0 gives the de-aliased defaults $2\ell_\max + 2$ and $4\ell_\max$ |
 | | `mmax`, `mres` | maximum order (< 0: `lmax`) and order stride |
 | | `eps_polar` | SHTns polar-optimization threshold (< 0: library default) |
@@ -284,10 +296,10 @@ numerics pages describe most of them in context. The remaining ones are:
 | | `vilma_v1_input_dir`, `vilma_v1_out_dir`, `vilma_v1_grid_file` | VILMA1 input directory, scratch directory and grid |
 | | `vilma_v1_visc_1d_file`, `vilma_v1_visc_3d_file`, `vilma_v1_l_prem` | VILMA1 viscosity files and earth-structure choice |
 | `&ctl` forcing | `file_forcing`, `name_ice`, `name_time` | ice-thickness forcing (lon, lat, time [yr]) and its variable names |
-| | `name_lon`, `name_lat` | longitude and latitude axes of the forcing [deg] |
+| | `name_lon`, `name_lat` | longitude and latitude axes of every 2-D input file [deg], in both modes; with `remap_input = .false.` they must be the Gauss grid's (longitudes from 0) |
 | | `time_init`, `time_end` | run window [yr]; default the first and the last forcing slice |
 | | `remap_input` | `.true.` (default): remap lon-lat input online; `.false.`: input already on the Gauss grid |
-| `&ctl` Gauss-grid reference (`remap_input = .false.`) | `file_ref`, `name_zbed_eq` | reference file and its bed variable |
+| `&ctl` start-slice bed (`i_eq = 0`) | `name_zbed_eq`, `file_ref` | bed variable, read from `file_forcing` (lon, lat, time), or from the 2-D Gauss-grid `file_ref` with `remap_input = .false.` |
 | `&ctl` restart | `restart_in_file`, `restart_time_reset`, `restart_other_visc` | see above |
 | `&ctl` output | `file_out`, `file_hor`, `write_lossless` | see above |
 
@@ -361,7 +373,7 @@ and keeps all spherical-harmonic work inside (see
 ```fortran
 use vilma
 type(solid_earth) :: se
-call vilma_par_load(se%par, "vilma.nml")             ! configuration lives in se%par
+call vilma_par_load(se%par, "vilma.nml", defaults_file=DEFAULTS_FILE)  ! configuration lives in se%par
 call solid_earth_init(se, z_bed_eq, h_ice_eq, grid=host_grid, time=t0)  ! Gauss grid + remap; clock at t0 [yr]
 call solid_earth_spinup(se, h_ice_lgm)                ! optional LGM-memory spin-up (holds the clock)
 do
@@ -391,10 +403,36 @@ prognostic state is persisted on restart (`vilma_restart_write`,
 `vilma_restart_read`), so a coupled run resumes bit for bit; the host-grid
 outputs are re-derived on read.
 
+`vilma_par_load` overlays the user file on `defaults_file`; without it the
+user file must hold every `&vilma` parameter. A host that fills `se%par` in
+memory instead starts from the in-code defaults, which leave `lmax` unset.
+The rest of the interface:
+
+| Procedure | Use |
+|---|---|
+| `solid_earth_check_solver(par)` | validate `solver` (and that a `"v1"` build has VILMA1) before any work |
+| `solid_earth_set_time(se, time)` | relabel the clock [yr] without changing the state |
+| `solid_earth_sync_host(se)` | refresh the host-grid outputs from the Gauss-grid state |
+| `solid_earth_enable_visc_3d(se, sht)` | switch to the 3-D memory advance, keeping the memory (e.g. after a 1-D spin-up); init calls it when `l_visc_3d` is on |
+| `solid_earth_host_check(w, I_g, C, F, msg, tol)` | admissibility of host-resolved terms (`tol` default 1e-9) |
+| `vilma_restart_write(se, time, filename, folder, init)` | write the full state; defaults `./vilma_restart.nc`, `init = .false.` appends a snapshot |
+| `vilma_restart_read(se, filename, time, other_visc)` | restore the state at `time` (default the last snapshot) into an initialized `se` |
+| `vilma_restart_time(filename)` | time [yr] of the last snapshot |
+| `vilma_restart_compatible(se, filename, msg, other_visc)` | the checks `vilma_restart_read` applies, without reading |
+| `vilma_write_step`, `vilma_write_horizontal` | diagnostic output, as the standalone driver writes it |
+| `vilma_io_set_table(filename)` | path of the variable table (default `input/vilma-variables.md`) |
+| `vilma_version` | the model version string |
+
+Two files are read relative to the working directory: the variable table
+`input/vilma-variables.md`, which every output and restart write uses (set
+another path with `vilma_io_set_table`), and the remap-weight cache `maps/`,
+keyed by the grid dimensions (clear it when a host grid changes at fixed
+dimensions).
+
 ### Host-resolved terms (optional)
 
 A host that resolves the ice margin on its own grid, inside regions of weight
-$w$, can pass per unit Gauss-cell area the grounded-ice column
+$w$, can pass on that grid, per unit cell area, the grounded-ice column
 $I_g = w H f_g$, the ocean fraction $C = w (1 - f_g)$ and the flooded-area fill
 $F = w \zeta^{(0)} (C - C_\text{ref})$:
 

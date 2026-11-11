@@ -131,7 +131,7 @@ module vilma_params
       real(wp) :: equil_time_max = 0.0_wp
          !! >0: spin up the LGM memory state by holding the start-slice ice (relaxing to
          !! isostatic equilibrium) in the FULL model BEFORE the transient, with the
-         !! reference held as the datum. A cap [years]: the relaxation exits early once
+         !! reference held as the datum. A cap [s; years in the nml]: the relaxation exits early once
          !! the bed stops moving, or at this time with a warning if it has not
          !! converged. =0 skips the full-model equilibration phase. Non-default.
       real(wp) :: equil_rate_tol = 1.0e-3_wp

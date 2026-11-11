@@ -14,8 +14,8 @@
     ! A host model (CLIMBER-X) does not read this file at all: it fills the
     ! record in memory, relying on the in-code type defaults plus its own &vilma.
     !
-    ! Δt fields (dt_*) are in YEARS here and converted to SI seconds on load;
-    ! everything else is SI.
+    ! Δt fields (dt_*) and equil_time_max are in YEARS here and converted to SI
+    ! seconds on load; equil_rate_tol is in m/yr; everything else is SI.
     ! ====================================================================
 
     ! --- solid-earth solver backend -----------------------------------
@@ -184,6 +184,7 @@
     vilma_v1_grid_file    = "input/vilma/vilma_grid.nc" ! lon/lat axes of VILMA1's own grid
     vilma_v1_visc_1d_file = "visko.inp"               ! 1-D radial viscosity, rel. to vilma_v1_input_dir
     vilma_v1_visc_3d_file = "visc3d_Bagge2021.nc"     ! 3-D viscosity NetCDF, rel. to vilma_v1_input_dir
+                                                   ! (read only when l_visc_3d = .true.)
     vilma_v1_l_prem       = 1                         ! 1: VILMA1's polynomial PREM (densi.inp gives only
                                                    !    boundaries + element sizes). 0: use densi.inp's
                                                    !    rho/mu, e.g. one written from VILMA2's own
@@ -191,5 +192,4 @@
     vilma_v1_nsub         = 1                         ! VILMA1 sub-steps per coupling interval; raise
                                                    ! until dt/nsub < VILMA1's minimum Maxwell time
                                                    ! (it prints both and aborts if too large)
-                                                   ! (read only when l_visc_3d = .true.)
 /

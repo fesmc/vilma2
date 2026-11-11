@@ -122,7 +122,7 @@ module vilma_coupling
       real(wp), allocatable :: z_bed(:,:)      !! bedrock = z_bed_eq − rsl [m]
       real(wp), allocatable :: dz_bed(:,:)     !! bed change u [m] (solid uplift); rsl = dz_ss − dz_bed
       real(wp), allocatable :: dz_ss(:,:)      !! sea-surface change N + Δφ [m] (geoid rise + uniform shift)
-      real(wp), allocatable :: C(:,:)          !! ocean function (1 ocean / 0 land)
+      real(wp), allocatable :: C(:,:)          !! ocean function (1 ocean / 0 land; a fraction with host terms)
       real(wp), allocatable :: C0(:,:)         !! REFERENCE ocean function, from (z_bed_eq,
                                                !! h_ice_eq). Both are fixed at init, so this
                                                !! is a RUN CONSTANT: built once in
@@ -717,7 +717,7 @@ contains
       !!                   viscosity is the lateral geometric mean of the 3-D field),
       !!                   then switch to the full model carrying the spun-up memory.
       !!   equil_time_max: relax the FULL model, exiting early when the bed stops moving
-      !!                   (rate < equil_rate_tol) or at this cap [years] with a warning
+      !!                   (rate < equil_rate_tol [m/yr]) or at this cap [s] with a warning
       !!                   if not yet converged.
       !!
       !! Both phases relax to bed-stationary convergence; the relaxation interval is
