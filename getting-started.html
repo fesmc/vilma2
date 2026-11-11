@@ -2,7 +2,7 @@
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
 
 <meta charset="utf-8">
-<meta name="generator" content="quarto-1.10.20">
+<meta name="generator" content="quarto-1.11.9">
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
@@ -94,18 +94,19 @@ div.csl-indent {
 <link href="./index.html" rel="prev">
 <script src="site_libs/quarto-html/quarto.js" type="module"></script>
 <script src="site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="site_libs/quarto-html/scrollable-regions/scrollable-regions.js" type="module"></script>
 <script src="site_libs/quarto-html/popper.min.js"></script>
 <script src="site_libs/quarto-html/tippy.umd.min.js"></script>
 <script src="site_libs/quarto-html/anchor.min.js"></script>
 <link href="site_libs/quarto-html/tippy.css" rel="stylesheet">
-<link href="site_libs/quarto-html/quarto-syntax-highlighting-17888a1159294d3eb470f19f6f52f5a5.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-text-highlighting-styles">
-<link href="site_libs/quarto-html/quarto-syntax-highlighting-dark-0ae969d3293726db143f6e9eb89af930.css" rel="stylesheet" class="quarto-color-scheme quarto-color-alternate" id="quarto-text-highlighting-styles">
-<link href="site_libs/quarto-html/quarto-syntax-highlighting-17888a1159294d3eb470f19f6f52f5a5.css" rel="stylesheet" class="quarto-color-scheme-extra" id="quarto-text-highlighting-styles">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-63b5708e65d6cd79cd7618c58d0c21e7.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-text-highlighting-styles">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-dark-447e42e69aaa9833c0ba1b986f430b20.css" rel="stylesheet" class="quarto-color-scheme quarto-color-alternate" id="quarto-text-highlighting-styles">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-63b5708e65d6cd79cd7618c58d0c21e7.css" rel="stylesheet" class="quarto-color-scheme-extra" id="quarto-text-highlighting-styles">
 <script src="site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="site_libs/bootstrap/bootstrap-fe9ab94330ff2cdc5105c70272dca3f0.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
-<link href="site_libs/bootstrap/bootstrap-dark-bddab9ad0d549410cca6a651ad8ac0e7.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
-<link href="site_libs/bootstrap/bootstrap-fe9ab94330ff2cdc5105c70272dca3f0.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
+<link href="site_libs/bootstrap/bootstrap-3a1610f0a8f0b9b7bc4c1e6d49db0d8a.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
+<link href="site_libs/bootstrap/bootstrap-dark-f829436f7c543b6c5fa77b733bfa68fa.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
+<link href="site_libs/bootstrap/bootstrap-3a1610f0a8f0b9b7bc4c1e6d49db0d8a.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
 <script id="quarto-search-options" type="application/json">{
   "location": "navbar",
   "copy-button": false,
@@ -166,7 +167,7 @@ window.Quarto = {
 
 </head>
 
-<body class="nav-sidebar floating nav-fixed quarto-light"><script id="quarto-html-before-body" type="application/javascript">
+<body class="nav-sidebar floating nav-fixed quarto-light"><a id="quarto-skip-link" class="visually-hidden-focusable" href="#quarto-document-content">Skip to main content</a><script id="quarto-html-before-body" type="application/javascript">
     const toggleBodyColorMode = (bsSheetEl) => {
       const mode = bsSheetEl.getAttribute("data-mode");
       const bodyEl = window.document.querySelector("body");
@@ -189,6 +190,7 @@ window.Quarto = {
       for (let i=0; i < toggles.length; i++) {
         const toggle = toggles[i];
         if (toggle) {
+          toggle.setAttribute("aria-checked", alternate ? "true" : "false");
           if (alternate) {
             toggle.classList.add("alternate");
           } else {
@@ -218,13 +220,19 @@ window.Quarto = {
       manageTransitions('#quarto-margin-sidebar .nav-link', true);
       // Switch the toggles
       setColorSchemeToggle(alternate)
-      // Hack to workaround the fact that safari doesn't
-      // properly recolor the scrollbar when toggling (#1455)
+    }
+    // Hack to workaround the fact that safari doesn't
+    // properly recolor the scrollbar when toggling (#1455).
+    // Not run on load: stylesheets are set before first paint there, and
+    // scrolling would undo the scroll to a URL fragment (#14973).
+    // The one pixel nudge keeps the reader where they were.
+    const refreshSafariScrollbar = () => {
       if (navigator.userAgent.indexOf('Safari') > 0 && navigator.userAgent.indexOf('Chrome') == -1) {
         manageTransitions("body", false);
-        window.scrollTo(0, 1);
+        const scrollY = window.scrollY;
+        window.scrollTo(0, scrollY > 0 ? scrollY - 1 : 1);
         setTimeout(() => {
-          window.scrollTo(0, 0);
+          window.scrollTo(0, scrollY);
           manageTransitions("body", true);
         }, 40);
       }
@@ -318,6 +326,7 @@ window.Quarto = {
       // Read the current dark / light value
       let toAlternate = !hasAlternateSentinel();
       toggleColorMode(toAlternate);
+      refreshSafariScrollbar();
       setStyleSentinel(toAlternate);
       toggleGiscusIfUsed(toAlternate, darkModeDefault);
       window.dispatchEvent(new Event('resize'));
@@ -332,15 +341,14 @@ window.Quarto = {
 
 <div id="quarto-search-results"></div>
   <header id="quarto-header" class="headroom fixed-top">
-    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark" aria-label="Site">
       <div class="navbar-container container-fluid">
       <div class="navbar-brand-container mx-auto">
     <a class="navbar-brand" href="./index.html">
     <span class="navbar-title">VILMA2</span>
     </a>
   </div>
-            <div id="quarto-search" class="" title="Search"></div>
-          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" role="menu" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
   <span class="navbar-toggler-icon"></span>
 </button>
           <div class="collapse navbar-collapse" id="navbarCollapse">
@@ -425,17 +433,18 @@ window.Quarto = {
 </ul>
           </div> <!-- /navcollapse -->
             <div class="quarto-navbar-tools">
-  <a href="" class="quarto-color-scheme-toggle quarto-navigation-tool  px-1" onclick="window.quartoToggleColorScheme(); return false;" title="Toggle dark mode"><i class="bi"></i></a>
+  <button type="button" role="switch" aria-checked="false" class="quarto-color-scheme-toggle quarto-navigation-tool  px-1" onclick="window.quartoToggleColorScheme(); return false;" title="Toggle dark mode" aria-label="Toggle dark mode"><i class="bi"></i></button>
 </div>
+            <div id="quarto-search" class="" title="Search"></div>
       </div> <!-- /container-fluid -->
     </nav>
-  <nav class="quarto-secondary-nav">
+  <nav class="quarto-secondary-nav" aria-label="Toolbar">
     <div class="container-fluid d-flex">
       <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
         <i class="bi bi-layout-text-sidebar-reverse"></i>
       </button>
-        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="./index.html">Getting started</a></li><li class="breadcrumb-item"><a href="./getting-started.html">Installation and running</a></li></ol></nav>
-        <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
+        <nav class="quarto-page-breadcrumbs" aria-label="Breadcrumbs"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="./index.html">Getting started</a></li><li class="breadcrumb-item"><a href="./getting-started.html">Installation and running</a></li></ol></nav>
+        <a class="flex-grow-1" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
         </a>
     </div>
   </nav>
@@ -443,18 +452,15 @@ window.Quarto = {
 <!-- content -->
 <div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
 <!-- sidebar -->
-  <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal quarto-sidebar-collapse-item sidebar-navigation floating overflow-auto">
+  <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal quarto-sidebar-collapse-item sidebar-navigation floating overflow-auto" aria-label="Section">
     <div class="sidebar-menu-container"> 
     <ul class="list-unstyled mt-1">
         <li class="sidebar-item sidebar-item-section">
       <div class="sidebar-item-container"> 
-            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true">
- <span class="menu-text">Getting started</span></a>
-          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true" aria-label="Toggle section">
-            <i class="bi bi-chevron-right ms-2"></i>
-          </a> 
+            <button type="button" class="sidebar-item-text sidebar-item-toggle sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" aria-controls="quarto-sidebar-section-1" aria-expanded="true">
+ <span class="menu-text" id="quarto-sidebar-section-1-label">Getting started</span><i class="bi bi-chevron-right" aria-hidden="true"></i></button>
       </div>
-      <ul id="quarto-sidebar-section-1" class="collapse list-unstyled sidebar-section depth1 show">  
+      <ul id="quarto-sidebar-section-1" aria-labelledby="quarto-sidebar-section-1-label" class="collapse list-unstyled sidebar-section depth1 show">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="./index.html" class="sidebar-item-text sidebar-link">
@@ -477,13 +483,10 @@ window.Quarto = {
   </li>
         <li class="sidebar-item sidebar-item-section">
       <div class="sidebar-item-container"> 
-            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="true">
- <span class="menu-text">Physics</span></a>
-          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="true" aria-label="Toggle section">
-            <i class="bi bi-chevron-right ms-2"></i>
-          </a> 
+            <button type="button" class="sidebar-item-text sidebar-item-toggle sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" aria-controls="quarto-sidebar-section-2" aria-expanded="true">
+ <span class="menu-text" id="quarto-sidebar-section-2-label">Physics</span><i class="bi bi-chevron-right" aria-hidden="true"></i></button>
       </div>
-      <ul id="quarto-sidebar-section-2" class="collapse list-unstyled sidebar-section depth1 show">  
+      <ul id="quarto-sidebar-section-2" aria-labelledby="quarto-sidebar-section-2-label" class="collapse list-unstyled sidebar-section depth1 show">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="./physics/governing-equations.html" class="sidebar-item-text sidebar-link">
@@ -518,13 +521,10 @@ window.Quarto = {
   </li>
         <li class="sidebar-item sidebar-item-section">
       <div class="sidebar-item-container"> 
-            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="true">
- <span class="menu-text">Discretization</span></a>
-          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="true" aria-label="Toggle section">
-            <i class="bi bi-chevron-right ms-2"></i>
-          </a> 
+            <button type="button" class="sidebar-item-text sidebar-item-toggle sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" aria-controls="quarto-sidebar-section-3" aria-expanded="true">
+ <span class="menu-text" id="quarto-sidebar-section-3-label">Discretization</span><i class="bi bi-chevron-right" aria-hidden="true"></i></button>
       </div>
-      <ul id="quarto-sidebar-section-3" class="collapse list-unstyled sidebar-section depth1 show">  
+      <ul id="quarto-sidebar-section-3" aria-labelledby="quarto-sidebar-section-3-label" class="collapse list-unstyled sidebar-section depth1 show">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="./discretization/spectral.html" class="sidebar-item-text sidebar-link">
@@ -553,13 +553,10 @@ window.Quarto = {
   </li>
         <li class="sidebar-item sidebar-item-section">
       <div class="sidebar-item-container"> 
-            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="true">
- <span class="menu-text">Benchmarks</span></a>
-          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="true" aria-label="Toggle section">
-            <i class="bi bi-chevron-right ms-2"></i>
-          </a> 
+            <button type="button" class="sidebar-item-text sidebar-item-toggle sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" aria-controls="quarto-sidebar-section-4" aria-expanded="true">
+ <span class="menu-text" id="quarto-sidebar-section-4-label">Benchmarks</span><i class="bi bi-chevron-right" aria-hidden="true"></i></button>
       </div>
-      <ul id="quarto-sidebar-section-4" class="collapse list-unstyled sidebar-section depth1 show">  
+      <ul id="quarto-sidebar-section-4" aria-labelledby="quarto-sidebar-section-4-label" class="collapse list-unstyled sidebar-section depth1 show">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="./benchmarks/index.html" class="sidebar-item-text sidebar-link">
@@ -584,6 +581,18 @@ window.Quarto = {
  <span class="menu-text">Benchmark: the sea-level equation</span></a>
   </div>
 </li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./benchmarks/rotation.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Benchmark: rotation (polar motion)</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./benchmarks/lvz.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Benchmark: low-viscosity zone (lateral viscosity)</span></a>
+  </div>
+</li>
       </ul>
   </li>
         <li class="sidebar-item">
@@ -598,25 +607,37 @@ window.Quarto = {
 <div id="quarto-sidebar-glass" class="quarto-sidebar-collapse-item" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item"></div>
 <!-- margin-sidebar -->
     <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
-        <nav id="TOC" role="doc-toc" class="toc-active">
+        <nav id="TOC" role="doc-toc" aria-labelledby="toc-title" class="toc-active">
     <h2 id="toc-title">On this page</h2>
    
   <ul>
   <li><a href="#dependencies" id="toc-dependencies" class="nav-link active" data-scroll-target="#dependencies">Dependencies</a></li>
-  <li><a href="#install-with-configme" id="toc-install-with-configme" class="nav-link" data-scroll-target="#install-with-configme">Install with configme</a></li>
+  <li><a href="#install" id="toc-install" class="nav-link" data-scroll-target="#install">Install</a>
+  <ul class="collapse">
+  <li><a href="#macbook-gfortran" id="toc-macbook-gfortran" class="nav-link" data-scroll-target="#macbook-gfortran">MacBook (gfortran)</a></li>
+  <li><a href="#awi-albedo-ifx" id="toc-awi-albedo-ifx" class="nav-link" data-scroll-target="#awi-albedo-ifx">AWI albedo (ifx)</a></li>
+  <li><a href="#dkrz-levante-ifx" id="toc-dkrz-levante-ifx" class="nav-link" data-scroll-target="#dkrz-levante-ifx">DKRZ levante (ifx)</a></li>
+  </ul></li>
   <li><a href="#build" id="toc-build" class="nav-link" data-scroll-target="#build">Build</a></li>
-  <li><a href="#configuration-vilma-and-ctl" id="toc-configuration-vilma-and-ctl" class="nav-link" data-scroll-target="#configuration-vilma-and-ctl">Configuration: <code>&amp;vilma</code> and <code>&amp;ctl</code></a></li>
+  <li><a href="#testing-the-build" id="toc-testing-the-build" class="nav-link" data-scroll-target="#testing-the-build">Testing the build</a></li>
+  <li><a href="#configuration-vilma-and-ctl" id="toc-configuration-vilma-and-ctl" class="nav-link" data-scroll-target="#configuration-vilma-and-ctl">Configuration: <code>&amp;vilma</code> and <code>&amp;ctl</code></a>
+  <ul class="collapse">
+  <li><a href="#parameter-reference" id="toc-parameter-reference" class="nav-link" data-scroll-target="#parameter-reference">Parameter reference</a></li>
+  </ul></li>
   <li><a href="#the-drivers" id="toc-the-drivers" class="nav-link" data-scroll-target="#the-drivers">The drivers</a></li>
   <li><a href="#running-with-runme" id="toc-running-with-runme" class="nav-link" data-scroll-target="#running-with-runme">Running with runme</a></li>
-  <li><a href="#embedding-in-a-host-model" id="toc-embedding-in-a-host-model" class="nav-link" data-scroll-target="#embedding-in-a-host-model">Embedding in a host model</a></li>
+  <li><a href="#embedding-in-a-host-model" id="toc-embedding-in-a-host-model" class="nav-link" data-scroll-target="#embedding-in-a-host-model">Embedding in a host model</a>
+  <ul class="collapse">
+  <li><a href="#host-resolved-terms-optional" id="toc-host-resolved-terms-optional" class="nav-link" data-scroll-target="#host-resolved-terms-optional">Host-resolved terms (optional)</a></li>
+  </ul></li>
   </ul>
 <div class="toc-actions"><ul><li><a href="https://github.com/fesmc/vilma2/blob/main/getting-started.qmd" class="toc-action"><i class="bi bi-github"></i>View source</a></li><li><a href="https://github.com/fesmc/vilma2/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></nav>
     </div>
 <!-- main -->
-<main class="content" id="quarto-document-content">
+<main class="content" id="quarto-document-content" tabindex="-1">
 
 
-<header id="title-block-header" class="quarto-title-block default"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="./index.html">Getting started</a></li><li class="breadcrumb-item"><a href="./getting-started.html">Installation and running</a></li></ol></nav>
+<header id="title-block-header" class="quarto-title-block default"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="Breadcrumbs"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="./index.html">Getting started</a></li><li class="breadcrumb-item"><a href="./getting-started.html">Installation and running</a></li></ol></nav>
 <div class="quarto-title">
 <h1 class="title">Installation and running</h1>
 </div>
@@ -635,23 +656,9 @@ window.Quarto = {
 </header>
 
 
-<div class="callout callout-style-default callout-warning callout-titled" title="Under heavy development">
-<div class="callout-header d-flex align-content-center">
-<div class="callout-icon-container">
-<i class="callout-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-<span class="screen-reader-only">Warning</span>Under heavy development
-</div>
-</div>
-<div class="callout-body-container callout-body">
-<p>VILMA2 is not yet ready for use in a scientific production capacity. If you want to use VILMA1 for now, please contact Volker Klemann at GFZ.</p>
-</div>
-</div>
-<p>This page covers getting VILMA2 built and running a forced simulation. The build is driven by <strong>configme</strong> (one source of machine/compiler truth) and runs are staged by <strong>runme</strong> (single simulations and ensembles, locally or on SLURM).</p>
+<p>This page covers building VILMA2, testing the build, and running a forced simulation. The build is driven by <strong>configme</strong> (one source of machine and compiler settings) and runs are staged by <strong>runme</strong> (single simulations and ensembles, locally or on SLURM). The model is built and tested on three machines: a MacBook (gfortran), the AWI cluster albedo (ifx) and the DKRZ cluster levante (ifx). Production runs are currently made on albedo.</p>
 <section id="dependencies" class="level2">
 <h2 class="anchored" data-anchor-id="dependencies">Dependencies</h2>
-<p>VILMA2 needs only a small, well-established stack:</p>
 <table class="caption-top table">
 <thead>
 <tr class="header">
@@ -662,41 +669,78 @@ window.Quarto = {
 </thead>
 <tbody>
 <tr class="odd">
-<td><strong><a href="https://github.com/fesm-org/fesm-utils">fesm-utils</a></strong> (branch <code>dev</code>)</td>
-<td>FFTW, SHTns, the <code>fesmutils</code> helper library (precision, ncio, namelists), and the <code>coords</code> module used by the remapper</td>
-<td>cloned/linked by configme</td>
+<td><strong><a href="https://github.com/fesmc/fesm-utils">fesm-utils</a></strong>, branch <code>phase0-kryos</code></td>
+<td>FFTW, SHTns, the <code>fesmutils</code> helper library (precision, ncio, namelists) and the <code>coords</code> module used by the remapper</td>
+<td>cloned and built by configme</td>
 </tr>
 <tr class="even">
-<td><strong>netCDF</strong> (C + Fortran)</td>
-<td>restart and output I/O</td>
-<td>system package (Homebrew, modules, …)</td>
+<td><strong>netCDF</strong> (C and Fortran)</td>
+<td>input, output and restart files</td>
+<td>system package (Homebrew, environment modules, apt)</td>
+</tr>
+<tr class="odd">
+<td><strong>configme</strong>, <strong>runme</strong></td>
+<td>Makefile generation; run staging</td>
+<td><a href="https://github.com/fesmc/configme">fesmc/configme</a>, <a href="https://github.com/fesmc/runme">fesmc/runme</a> (<code>pip install</code>)</td>
 </tr>
 </tbody>
 </table>
-<p>The <code>dev</code> branch is pinned in <code>.configme/manifest.toml</code>, so the checkout self-describes the exact ref it needs. The <code>phase0-kryos</code> branch that kryos uses contains it.</p>
+<p>The fesm-utils branch is pinned in <code>.configme/manifest.toml</code>, so a checkout records the ref it needs. VILMA2 needs the <code>coords</code> routine <code>grid_init_gaussian</code>, which is in <code>phase0-kryos</code> but not yet in the fesm-utils <code>dev</code> branch: <code>src/vilma_remap.f90</code> does not compile against <code>dev</code> v1.4. The pin returns to <code>dev</code> once <code>phase0-kryos</code> is merged there.</p>
 </section>
-<section id="install-with-configme" class="level2">
-<h2 class="anchored" data-anchor-id="install-with-configme">Install with configme</h2>
-<p><code>configme</code> clones (or reuses) the dependencies, generates the machine/compiler Makefile fragment, and links everything together:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ex">configme</span> install vilma2</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>It resolves the machine and compiler from flags, your <code>~/.configme/config.toml</code>, hostname detection, or a prompt. To be explicit, or to reuse an existing fesm-utils checkout instead of cloning:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="co"># pick machine + compiler explicitly</span></span>
-<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="ex">configme</span> install vilma2 <span class="at">-m</span> macbook <span class="at">-c</span> gfortran</span>
-<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="co"># symlink an on-disk fesm-utils rather than cloning it</span></span>
-<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a><span class="ex">configme</span> install vilma2 <span class="at">--link</span> fesm-utils=/abs/path/to/fesm-utils</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>Supported machines include <code>awi_albedo</code>, <code>chinook</code>, <code>dkrz_levante</code>, <code>linux</code>, <code>macbook</code>, <code>pik_hpc2024</code>; compilers <code>gfortran</code>, <code>ifort</code>, <code>ifx</code>. Run <code>configme list</code> for the current set and <code>configme status</code> to see what is present versus pending. If you only need to (re)generate the Makefile for an already-present checkout, <code>configme config vilma2</code> does that without cloning.</p>
+<section id="install" class="level2">
+<h2 class="anchored" data-anchor-id="install">Install</h2>
+<p><code>configme install vilma2</code> clones fesm-utils into the checkout, builds its serial and OpenMP variants (FFTW, SHTns, LIS and libfesmutils; about 10 minutes), and writes the top-level <code>Makefile</code> from <code>config/Makefile</code> and the machine and compiler fragments. <code>configme show &lt;machine&gt;</code> prints a fragment, <code>configme status</code> reports what is present and what is pending, and <code>configme config vilma2</code> regenerates the Makefile of an existing checkout without cloning. To reuse an existing fesm-utils checkout instead of cloning one, add <code>--link fesm-utils=/abs/path/to/fesm-utils</code>.</p>
+<p>The optimization flags differ by machine. The macbook fragment is the repository’s own (<code>.configme/machines/macbook.mk</code>): gfortran <code>-O3 -mcpu=native -funroll-loops -ffast-math</code>. The clusters use configme’s fragments: ifx <code>-Ofast -march=znver2 -traceback</code> on albedo (AMD EPYC 7702) and <code>-Ofast -march=znver3 -traceback</code> on levante (AMD EPYC 7763). The benchmark numbers in these pages were measured with the albedo build.</p>
+<section id="macbook-gfortran" class="level3">
+<h3 class="anchored" data-anchor-id="macbook-gfortran">MacBook (gfortran)</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ex">brew</span> install gcc netcdf netcdf-fortran</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="ex">pip</span> install git+https://github.com/fesmc/configme.git git+https://github.com/fesmc/runme.git</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> clone git@github.com:fesmc/vilma2.git <span class="kw">&amp;&amp;</span> <span class="bu">cd</span> vilma2</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="ex">configme</span> install vilma2 <span class="at">-m</span> macbook <span class="at">-c</span> gfortran</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> <span class="at">-j</span> 8 vilma</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> check</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+<section id="awi-albedo-ifx" class="level3">
+<h3 class="anchored" data-anchor-id="awi-albedo-ifx">AWI albedo (ifx)</h3>
+<p>The system git has been removed from the login nodes, so load the git module first. The Intel compiler and netCDF modules must be loaded before configme runs, so that it finds <code>nf-config</code>.</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="ex">module</span> load git intel-oneapi-compilers netcdf-c netcdf-fortran</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> clone git@github.com:fesmc/vilma2.git <span class="kw">&amp;&amp;</span> <span class="bu">cd</span> vilma2</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="ex">configme</span> install vilma2 <span class="at">-m</span> awi_albedo <span class="at">-c</span> ifx</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> openmp=1 <span class="at">-j</span> 8 vilma            <span class="co"># on the login node, at most -j 8</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Compile on the login node and run the tests and the model through SLURM (see <a href="#testing-the-build">Testing the build</a>). The compute nodes have no git. The build does not need it: the version string compiled into the model comes from <code>git describe</code> and falls back to <code>"unknown"</code> where git is missing.</p>
+</section>
+<section id="dkrz-levante-ifx" class="level3">
+<h3 class="anchored" data-anchor-id="dkrz-levante-ifx">DKRZ levante (ifx)</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="ex">module</span> load git intel-oneapi-compilers netcdf-c netcdf-fortran</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> clone git@github.com:fesmc/vilma2.git <span class="kw">&amp;&amp;</span> <span class="bu">cd</span> vilma2</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="ex">configme</span> install vilma2 <span class="at">-m</span> dkrz_levante <span class="at">-c</span> ifx</span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> openmp=1 <span class="at">-j</span> 8 vilma</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>The build on levante has been verified (ifx 2023.2, netCDF-Fortran 4.6.2). No runs have been made there yet.</p>
+</section>
 </section>
 <section id="build" class="level2">
 <h2 class="anchored" data-anchor-id="build">Build</h2>
-<p>configme writes the compiler fragment into the <code>Makefile</code>; building is then plain <code>make</code>:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> vilma        <span class="co"># -&gt; bin/vilma.x        (standalone forced-run driver)</span></span>
-<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> vilma_mkref  <span class="co"># -&gt; bin/vilma_mkref.x  (build a Gauss-grid reference state)</span></span>
-<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> vilma_remap  <span class="co"># -&gt; bin/vilma_remap.x  (offline lon-lat -&gt; Gauss remap)</span></span>
-<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> check            <span class="co"># build + run the test suite</span></span>
-<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> vilma-static     <span class="co"># -&gt; libvilma/include/libvilma.a and the .mod files</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p><code>make vilma-static</code> is the library that a host (kryos) links: objects, <code>.mod</code> files and <code>libvilma.a</code> are written to <code>libvilma/include/</code>, and the archive is rebuilt only when an object changes. <code>openmp=0</code> and <code>openmp=1</code> share that directory; changing the setting rebuilds every object, and the host must use the matching fesm-utils variant (<code>include-serial</code> or <code>include-omp</code>).</p>
-<p>Build switches: <code>debug = 0|1|2</code> (optimized / checks / profile) and <code>openmp = 0|1</code> (<strong>default 1</strong>). The threaded degree loop is what makes production resolutions fast — build <code>openmp=1</code> (see <a href="./discretization/solver.html">Solver</a>).</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> vilma        <span class="co"># -&gt; bin/vilma.x        (standalone forced-run driver)</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> vilma_mkref  <span class="co"># -&gt; bin/vilma_mkref.x  (build a Gauss-grid reference state)</span></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> vilma_remap  <span class="co"># -&gt; bin/vilma_remap.x  (offline lon-lat -&gt; Gauss remap)</span></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> vilma-static <span class="co"># -&gt; libvilma/include/libvilma.a and the .mod files</span></span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> bench_visc3d <span class="co"># -&gt; bin/bench_visc3d.x (lateral-viscosity benchmark driver)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><code>make vilma-static</code> is the library that a host (kryos, CLIMBER-X) links: objects, <code>.mod</code> files and <code>libvilma.a</code> are written to <code>libvilma/include/</code>, and the archive is rebuilt only when an object changes. <code>openmp=0</code> and <code>openmp=1</code> share that directory. Changing the setting rebuilds every object, and the host must use the matching fesm-utils variant (<code>include-serial</code> or <code>include-omp</code>).</p>
+<p>Build switches: <code>debug = 0|1|2</code> (optimized, checks, profile), <code>openmp = 0|1</code> (<strong>default 1</strong>) and <code>vilma_v1 = 0|1</code> (the optional VILMA1 backend, see <a href="https://github.com/fesmc/vilma2/blob/main/doc/vilma-v1-backend.md"><code>doc/vilma-v1-backend.md</code></a>). The threaded degree loop is what makes production resolutions fast (see <a href="./discretization/solver.html">Solver</a>). After switching to another fesm-utils checkout, run <code>make clean</code>: objects compiled against the old module files can fail to rebuild.</p>
+</section>
+<section id="testing-the-build" class="level2">
+<h2 class="anchored" data-anchor-id="testing-the-build">Testing the build</h2>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> check                  <span class="co"># the test suite: about 50 tests, ~2 min</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> openmp=1 check-slow    <span class="co"># full-resolution benchmarks and order tests, ~10 min on 32 threads</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Both targets run every test, print a summary that names the failing tests, and exit with a non-zero status if any failed. <code>check-slow</code> runs the four sea-level benchmark cases, the low-viscosity-zone benchmark, the off-pole rotational-invariance test at <span class="math inline">\(\ell_\max = 128\)</span> and three convergence-order tests (strain–memory coupling, sea-level–memory coupling, adaptive step control). It raises the stack limit itself. Setting <code>VILMA_BENCH_DUMP</code> to a directory makes the benchmark tests write their comparison tables there (see <a href="./benchmarks/index.html#dumping-the-comparison-data">Benchmarks</a>).</p>
+<p>On albedo, run both suites in a job, with the executables built beforehand on the login node (<code>make openmp=1 -j 8 check</code> builds them and then runs the tests; interrupt it once the build is done, or build the targets listed in <code>TESTS</code> and <code>SLOW</code> in <code>config/Makefile_vilma.mk</code>). A minimal job script:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="co">#!/bin/bash</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="co">#SBATCH --account=&lt;project&gt; --partition=smp --qos=12h --time=01:00:00</span></span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a><span class="co">#SBATCH --cpus-per-task=32 --mem=60G</span></span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a><span class="bu">source</span> ~/.bash_profile</span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a><span class="bu">export</span> <span class="va">OMP_NUM_THREADS</span><span class="op">=</span><span class="va">$SLURM_CPUS_PER_TASK</span></span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> openmp=1 check<span class="kw">;</span> <span class="fu">make</span> openmp=1 check-slow</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><strong>Known state.</strong> With ifx <code>-Ofast</code> on albedo, all 49 tests of <code>make check</code> and all 9 runs of <code>make check-slow</code> pass, with the default stack settings. A GitHub workflow builds the model with gfortran on Ubuntu and runs <code>make check</code> on every push and pull request to <code>main</code>.</p>
 </section>
 <section id="configuration-vilma-and-ctl" class="level2">
 <h2 class="anchored" data-anchor-id="configuration-vilma-and-ctl">Configuration: <code>&amp;vilma</code> and <code>&amp;ctl</code></h2>
@@ -706,19 +750,143 @@ window.Quarto = {
 <li><strong><code>&amp;ctl</code></strong>: the standalone run itself: forcing, reference and output files, the time window, <code>i_eq</code>, online remapping and the restart path. A host model never reads it.</li>
 </ul>
 <p>The complete, documented <code>&amp;vilma</code> defaults are in <a href="https://github.com/fesmc/vilma2/blob/main/input/vilma_defaults.nml"><code>input/vilma_defaults.nml</code></a> and are loaded automatically. A run configuration such as <a href="https://github.com/fesmc/vilma2/blob/main/vilma.nml"><code>vilma.nml</code></a> (the default) or <a href="https://github.com/fesmc/vilma2/blob/main/examples/deglac_lgm.nml"><code>examples/deglac_lgm.nml</code></a> carries the full <code>&amp;ctl</code> group plus only the <code>&amp;vilma</code> parameters it overrides (the yelmo <code>defaults_file</code> convention):</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="ex">./bin/vilma.x</span> examples/deglac_lgm.nml    <span class="co"># default: vilma.nml</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="ex">./bin/vilma.x</span> examples/deglac_lgm.nml    <span class="co"># default: vilma.nml</span></span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="ex">./bin/vilma.x</span> run.nml my_defaults.nml    <span class="co"># optional second argument: another defaults file</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><code>vilma_remap.x</code> and <code>vilma_mkref.x</code> take the same optional second argument.</p>
 <p>A few conventions worth knowing:</p>
 <ul>
-<li><strong>Time fields</strong> (<code>dt_*</code>, <code>time_*</code>) are given in <strong>years</strong> in the namelist and converted to SI seconds on load; everything else is SI.</li>
-<li><strong>Earth structure</strong> is chosen by <code>earth</code>: a named built-in (<code>"M3-L70-V01"</code>, or <code>"PREM"</code>, which fills <span class="math inline">\(\rho,\mu\)</span> from shell averages of incompressible PREM on the given layer geometry) or <code>"custom"</code> to assemble from the surface-first layer arrays.</li>
+<li><strong>Time fields</strong> (<code>dt_*</code>, <code>time_*</code>) are given in <strong>years</strong> in the namelist and converted to SI seconds on load. Everything else is SI.</li>
+<li><strong>Earth structure</strong> is chosen by <code>earth</code>: a named built-in (<code>"M3-L70-V01"</code>, or <code>"PREM"</code>, which fills <span class="math inline">\(\rho,\mu\)</span> from shell averages of incompressible PREM on the given layer geometry) or <code>"custom"</code> to assemble from the surface-first layer arrays. The radial mesh follows the depth of each element (see <a href="./discretization/radial-fe.html">Radial finite elements</a>).</li>
 <li><strong>Response solver</strong> is chosen by <code>earth_response</code>: <code>"ve"</code> (full viscoelastic, default), <code>"elastic"</code>, or <code>"null"</code>.</li>
 <li><strong>Memory scheme</strong> is chosen by <code>scheme</code>: <code>"fe"</code> (explicit, default) or <code>"trap"</code> (2nd-order, adaptive); see <a href="./physics/rheology.html#memory-time-schemes">Rheology</a>.</li>
 <li><strong>Degree-1 frame</strong> is chosen by <code>deg1_frame</code>: <code>"cm"</code> (default) or <code>"cf"</code>; see <a href="./physics/sea-level.html#reference-frame-and-degree-1">Sea-level equation</a>.</li>
-<li><strong>Reference state / spin-up</strong> is controlled by <code>i_eq</code> (<code>&amp;ctl</code>), <code>equil_time_max</code>, <code>equil_rate_tol</code> (LGM-memory spin-up cap, relaxing to bed-stationary equilibrium), <code>pre_spinup_1d</code> (run a cheap 1-D pre-equilibration first), and <code>restart_in_file</code> (<code>&amp;ctl</code>; resume full state, interpolated up if lower-resolution).</li>
-<li><strong>3-D viscosity</strong> is enabled with <code>l_visc_3d = .true.</code> and a lateral <code>log10(eta)</code> field (<code>visc_3d_file</code>); <code>visc3d_tol</code> sets which elements are treated as genuinely 3-D. With <code>visc_3d_structure = n</code> (n &gt;= 1) the file is in the FesmData layout (<code>log10_visc</code> on <code>lon</code>, <code>lat</code>, <code>depth</code>, <code>structure</code>) and structure <code>n</code> is read. The default is the FesmData product <code>fesmdata/Global/GLOBAL-T170/GLOBAL-T170_SolidEarth-Bagge2021.nc</code> (<span class="citation" data-cites="Bagge2021">Bagge et al. (<a href="#ref-Bagge2021" role="doc-biblioref">2021</a>)</span>; structure 6, <code>v_1.0_s16</code>); the path is relative to the run folder, which needs a <code>fesmdata</code> link to the FesmData store (on Levante <code>/work/ba1442/fesmdata</code>). The model does not ship a viscosity file.</li>
-<li><strong>Rotational feedback</strong> (<code>rotation</code>) is <strong>on by default</strong> for real-Earth runs; set <code>rotation = .false.</code> for the non-rotating community benchmarks. The secular Love number in the Liouville equation defaults to the model’s own fluid limit; <code>rotation_k_s</code> (&gt; 0) prescribes it and <code>rotation_c_minus_a</code> sets C − A (default 2.63e35 kg m²).</li>
+<li><strong>Reference state</strong> is chosen by <code>i_eq</code> (<code>&amp;ctl</code>). Relative sea level is measured against this relaxed reference.
+<ul>
+<li><code>0</code>: the first forcing slice is the equilibrium.</li>
+<li><code>1</code> (default): a present-day reference from <code>z_bed_ref_file</code> and <code>h_ice_ref_file</code>, so that rsl is about zero at the present day.</li>
+<li><code>2</code>: an equilibrium state read from <code>z_bed_eq_file</code> and <code>h_ice_eq_file</code> (e.g.&nbsp;an LGM state).</li>
+<li><code>3</code>: the present-day reference bed plus the rsl field of <code>rsl_restart_file</code>.</li>
+</ul>
+The variable names in these files are set by <code>name_z_bed_ref</code>, <code>name_h_ice_ref</code> and <code>name_rsl</code>.</li>
+<li><strong>Spin-up</strong> is controlled by <code>equil_time_max</code>, <code>equil_rate_tol</code> (the memory is relaxed under the start-of-run load until the bed is stationary) and <code>pre_spinup_1d</code> (a cheap 1-D pre-equilibration first); see <a href="./discretization/time-stepping.html#spin-up">Spin-up</a>.</li>
+<li><strong>3-D viscosity</strong> is enabled with <code>l_visc_3d = .true.</code> and a lateral <code>log10(eta)</code> field (<code>visc_3d_file</code>). With <code>visc_3d_structure = n</code> (n ≥ 1) the file is in the FesmData layout (<code>log10_visc</code> on <code>lon</code>, <code>lat</code>, <code>depth</code>, <code>structure</code>) and structure <code>n</code> is read. The default is the FesmData product <code>fesmdata/Global/GLOBAL-T170/GLOBAL-T170_SolidEarth-Bagge2021.nc</code> (<span class="citation" data-cites="Bagge2021">Bagge et al. (<a href="#ref-Bagge2021" role="doc-biblioref">2021</a>)</span>; structure 6, <code>v_1.0_s16</code>). The path is relative to the run folder, which needs a <code>fesmdata</code> link to the FesmData store (on levante <code>/work/ba1442/fesmdata</code>). The model does not ship a viscosity file. The field can be scaled by <code>f_visc_sd</code> (in units of its lateral standard deviation) and shifted by region and depth with <code>visc_shift_file</code>. It is then clamped to <code>visc_log10_min</code>–<code>visc_log10_max</code>, and <code>visc3d_lid_depth</code> and <code>visc3d_lid_log10max</code> make its top effectively elastic. <code>visc3d_tol</code> sets which elements are treated as genuinely 3-D. The order of these steps is given in <a href="./physics/rheology.html#visc3d-input">Rheology</a>.</li>
+<li><strong>Toroidal flow</strong> (<code>l_toroidal</code>) is <strong>on by default</strong>: with lateral viscosity it changes local relative sea level near former ice sheets by up to about 90 m in a deglaciation, though global means only by centimetres. <code>l_toroidal = .false.</code> makes such runs 1.5–1.8 times faster, for quick runs that do not depend on local sea level (see <a href="./physics/toroidal.html">Toroidal flow</a>).</li>
+<li><strong>Rotational feedback</strong> (<code>rotation</code>) is <strong>on by default</strong> for real-Earth runs. Set <code>rotation = .false.</code> for the non-rotating community benchmarks. The secular Love number in the Liouville equation defaults to the model’s own fluid limit; <code>rotation_k_s</code> (&gt; 0) prescribes it and <code>rotation_c_minus_a</code> sets C − A (default 2.63e35 kg m²).</li>
+<li><strong>Forcing.</strong> The ice-thickness forcing is a lon-lat field (global or regional) on a time axis in years (<code>kyr</code> is converted; ages and other units stop the run) that must be strictly ascending. A regional source is remapped with its mass conserved and no ice outside it; latitudes may be ascending or descending. Missing, non-finite or out-of-range values stop the run (put zero where there is no ice).</li>
+<li><strong>Output.</strong> <code>file_out</code> receives the diagnostic surface fields at every forcing slice, including the convergence of the sea-level solve (<code>sle_resid</code>, the worst relative inner residual of the interval, and <code>sle_n_cap</code>, the number of solves that ended at an iteration cap; the model also warns once per interval when a cap is hit). The folder of <code>file_out</code> is created if needed. <code>file_hor</code> (optional) receives the horizontal surface displacement. The variables and their output precision are listed in <a href="https://github.com/fesmc/vilma2/blob/main/input/vilma-variables.md"><code>input/vilma-variables.md</code></a>. Diagnostics are rounded to that precision. <code>write_lossless = .true.</code> (<code>&amp;ctl</code>) writes them lossless, as needed for bit-for-bit comparisons. Restart files are always lossless.</li>
+<li><strong>Restart.</strong> The driver writes the full model state to <code>spinup/vilma_restart.nc</code> after the spin-up and to <code>final/vilma_restart.nc</code> at the end of the run, in the run directory. <code>restart_in_file</code> (<code>&amp;ctl</code>) resumes from such a file: the model is initialized at the reference and the saved state is restored, so a resumed run continues the original one bit for bit. A restart from a lower resolution is interpolated up to the model grid. The run resumes at the restart’s time: a <code>time_init</code> that selects another start stops it, unless <code>restart_time_reset = .true.</code> (<code>&amp;ctl</code>), which takes the restart as the state at the start of the window. A restart from another radial mesh is refused. A restart from another viscosity (radial profile or 3-D field, both stamped in the file) is refused unless <code>restart_other_visc = .true.</code> (<code>&amp;ctl</code>), which uses its memory as a seed. Restarts of the default PREM model written before the depth-based mesh rule (220 instead of 219 elements) are therefore refused; <code>mesh_depth = 80e3, 670e3</code> rebuilds the old mesh exactly. What the restart carries and what is checked on read is described in <a href="./discretization/time-stepping.html#memory-storage-and-restart">Time stepping</a>.</li>
 <li><strong>Backend</strong> is chosen by <code>solver</code>: <code>"v2"</code> (this model, default) or <code>"v1"</code>, the VILMA1 library behind the same driver, forcing and output for like-for-like comparison (requires a build with <code>vilma_v1=1</code>).</li>
 </ul>
+<section id="parameter-reference" class="level3">
+<h3 class="anchored" data-anchor-id="parameter-reference">Parameter reference</h3>
+<p>Every <code>&amp;vilma</code> parameter and its default is documented in <a href="https://github.com/fesmc/vilma2/blob/main/input/vilma_defaults.nml"><code>input/vilma_defaults.nml</code></a>, and every <code>&amp;ctl</code> parameter in <code>src/vilma_control.f90</code>. The physics and numerics pages describe most of them in context. The remaining ones are:</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%">
+<col style="width: 33%">
+<col style="width: 33%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Group</th>
+<th>Parameter</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>&amp;vilma</code> grid</td>
+<td><code>lmax</code></td>
+<td>maximum spherical-harmonic degree (default 64)</td>
+</tr>
+<tr class="even">
+<td></td>
+<td><code>nlat</code>, <code>nphi</code></td>
+<td>Gauss latitudes and longitudes; 0 gives the de-aliased defaults <span class="math inline">\(2\ell_\max + 2\)</span> and <span class="math inline">\(4\ell_\max\)</span></td>
+</tr>
+<tr class="odd">
+<td></td>
+<td><code>mmax</code>, <code>mres</code></td>
+<td>maximum order (&lt; 0: <code>lmax</code>) and order stride</td>
+</tr>
+<tr class="even">
+<td></td>
+<td><code>eps_polar</code></td>
+<td>SHTns polar-optimization threshold (&lt; 0: library default)</td>
+</tr>
+<tr class="odd">
+<td><code>&amp;vilma</code> custom earth (<code>earth = "custom"</code> or <code>"PREM"</code>)</td>
+<td><code>n_layer</code>, <code>r_earth</code>, <code>r_core</code></td>
+<td>number of layers (surface first), surface and core radius [m]</td>
+</tr>
+<tr class="even">
+<td></td>
+<td><code>r_bot</code>, <code>r_top</code></td>
+<td>inner and outer radius of each layer [m]</td>
+</tr>
+<tr class="odd">
+<td></td>
+<td><code>rho</code>, <code>mu</code>, <code>eta</code></td>
+<td>density, shear modulus and viscosity of each layer (<code>rho</code>, <code>mu</code> filled from PREM for <code>"PREM"</code>)</td>
+</tr>
+<tr class="even">
+<td></td>
+<td><code>rheology</code></td>
+<td>per layer: 0 elastic, 1 Maxwell, 2 fluid</td>
+</tr>
+<tr class="odd">
+<td><code>&amp;vilma</code> VILMA1 backend (<code>solver = "v1"</code> only)</td>
+<td><code>vilma_v1_jmax</code>, <code>vilma_v1_nsub</code></td>
+<td>VILMA1 degree and sub-steps per coupling interval</td>
+</tr>
+<tr class="even">
+<td></td>
+<td><code>vilma_v1_input_dir</code>, <code>vilma_v1_out_dir</code>, <code>vilma_v1_grid_file</code></td>
+<td>VILMA1 input directory, scratch directory and grid</td>
+</tr>
+<tr class="odd">
+<td></td>
+<td><code>vilma_v1_visc_1d_file</code>, <code>vilma_v1_visc_3d_file</code>, <code>vilma_v1_l_prem</code></td>
+<td>VILMA1 viscosity files and earth-structure choice</td>
+</tr>
+<tr class="even">
+<td><code>&amp;ctl</code> forcing</td>
+<td><code>file_forcing</code>, <code>name_ice</code>, <code>name_time</code></td>
+<td>ice-thickness forcing (lon, lat, time [yr]) and its variable names</td>
+</tr>
+<tr class="odd">
+<td></td>
+<td><code>name_lon</code>, <code>name_lat</code></td>
+<td>longitude and latitude axes of the forcing [deg]</td>
+</tr>
+<tr class="even">
+<td></td>
+<td><code>time_init</code>, <code>time_end</code></td>
+<td>run window [yr]; default the first and the last forcing slice</td>
+</tr>
+<tr class="odd">
+<td></td>
+<td><code>remap_input</code></td>
+<td><code>.true.</code> (default): remap lon-lat input online; <code>.false.</code>: input already on the Gauss grid</td>
+</tr>
+<tr class="even">
+<td><code>&amp;ctl</code> Gauss-grid reference (<code>remap_input = .false.</code>)</td>
+<td><code>file_ref</code>, <code>name_zbed_eq</code></td>
+<td>reference file and its bed variable</td>
+</tr>
+<tr class="odd">
+<td><code>&amp;ctl</code> restart</td>
+<td><code>restart_in_file</code>, <code>restart_time_reset</code>, <code>restart_other_visc</code></td>
+<td>see above</td>
+</tr>
+<tr class="even">
+<td><code>&amp;ctl</code> output</td>
+<td><code>file_out</code>, <code>file_hor</code>, <code>write_lossless</code></td>
+<td>see above</td>
+</tr>
+</tbody>
+</table>
+</section>
 </section>
 <section id="the-drivers" class="level2">
 <h2 class="anchored" data-anchor-id="the-drivers">The drivers</h2>
@@ -736,11 +904,11 @@ window.Quarto = {
 <tbody>
 <tr class="odd">
 <td><code>bin/vilma.x</code></td>
-<td>reads a reference state + an ice-thickness forcing <code>h_ice(lon,lat,time)</code>, marches the model across the forcing (online lon-lat → Gauss remap by default), and writes the diagnostic surface fields (<code>rsl</code>, <code>z_bed</code>, <code>h_ice</code>, ocean function) to <code>file_out</code>, and optionally the horizontal surface displacement to <code>file_hor</code></td>
+<td>reads a reference state and an ice-thickness forcing <code>h_ice(lon,lat,time)</code>, marches the model across the forcing (online lon-lat → Gauss remap by default), and writes the diagnostic surface fields (<code>rsl</code>, <code>z_bed</code>, <code>h_ice</code>, ocean function) to <code>file_out</code>, and optionally the horizontal surface displacement to <code>file_hor</code></td>
 </tr>
 <tr class="even">
 <td><code>bin/vilma_mkref.x</code></td>
-<td>generates the canonical Gauss-grid present-day reference (e.g.&nbsp;RTopo) used by <code>i_eq = 1</code>; other resolutions remap it online (cached)</td>
+<td>generates the canonical Gauss-grid present-day reference (e.g.&nbsp;RTopo) used by <code>i_eq = 1</code>; other resolutions remap it online (cached in <code>maps/</code>)</td>
 </tr>
 <tr class="odd">
 <td><code>bin/vilma_remap.x</code></td>
@@ -748,40 +916,59 @@ window.Quarto = {
 </tr>
 </tbody>
 </table>
-<p>A complete worked configuration — an LGM → present-day deglaciation forced by the Tarasov ice/bed reconstruction — is in <a href="https://github.com/fesmc/vilma2/blob/main/examples/deglac_lgm.nml"><code>examples/deglac_lgm.nml</code></a>.</p>
+<p>A complete worked configuration, an LGM to present-day deglaciation, is in <a href="https://github.com/fesmc/vilma2/blob/main/examples/deglac_lgm.nml"><code>examples/deglac_lgm.nml</code></a>.</p>
 </section>
 <section id="running-with-runme" class="level2">
 <h2 class="anchored" data-anchor-id="running-with-runme">Running with runme</h2>
-<p><code>runme</code> stages a clean run directory (linking in <code>data</code> and <code>input</code>, copying the namelist, recording the parameters), then runs or submits it. The executable aliases match the drivers: <code>main</code> → <code>vilma.x</code>, <code>mkref</code> → <code>vilma_mkref.x</code>, <code>remap</code> → <code>vilma_remap.x</code>.</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="co"># single local run, 8 OpenMP threads, overriding a few parameters</span></span>
-<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="ex">runme</span> <span class="at">-o</span> runs/deglac <span class="at">-e</span> main <span class="at">--omp</span> 8 <span class="at">-r</span> <span class="dt">\</span></span>
-<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>      <span class="at">-p</span> vilma.lmax=128 vilma.earth_response=ve ctl.file_out=out.nc</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><code>runme</code> stages a clean run directory (linking in <code>data</code> and <code>input</code>, copying the namelist, recording the parameters), then runs or submits it. The executable aliases match the drivers: <code>main</code> → <code>vilma.x</code>, <code>mkref</code> → <code>vilma_mkref.x</code>, <code>remap</code> → <code>vilma_remap.x</code>, <code>visc3d</code> → <code>bench_visc3d.x</code>.</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="co"># single local run, 8 OpenMP threads, overriding a few parameters</span></span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a><span class="ex">runme</span> <span class="at">-o</span> runs/deglac <span class="at">-e</span> main <span class="at">--omp</span> 8 <span class="at">-r</span> <span class="dt">\</span></span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>      <span class="at">-p</span> vilma.lmax=128 vilma.earth_response=ve ctl.file_out=out.nc</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>How a run is launched is set by two flags:</p>
 <ul>
-<li><code>-r</code> run the executable;</li>
-<li><code>-s</code> prepare a SLURM submit script (and submit it, with <code>-r</code>);</li>
-<li><code>-s -r</code> prepare <strong>and</strong> submit on HPC; <code>-s</code> alone stages the script to inspect; omitting both stages the run directory only.</li>
+<li><code>-r</code> runs the executable;</li>
+<li><code>-s</code> prepares a SLURM submit script (and submits it, with <code>-r</code>);</li>
+<li><code>-s -r</code> prepares <strong>and</strong> submits on HPC; <code>-s</code> alone stages the script to inspect; omitting both stages the run directory only.</li>
 </ul>
-<p>A comma list, range, or distribution in <code>-p</code> turns a parameter into an <strong>ensemble dimension</strong> (<code>-p vilma.lmax=64,128</code>), with <code>-a</code> naming the member directories from their parameter values. SLURM settings (cluster, account, threads) live in <code>.runme/config.toml</code>; bootstrap it with <code>runme config init</code> and inspect what runme reads with <code>runme info</code>.</p>
+<p>A comma list, range, or distribution in <code>-p</code> turns a parameter into an <strong>ensemble dimension</strong> (<code>-p vilma.lmax=64,128</code>), with <code>-a</code> naming the member directories from their parameter values.</p>
+<p>SLURM settings live in <code>.runme/config.toml</code>, which is not tracked. Copy <code>.runme/config.default.toml</code> or run <code>runme config init</code>, then set the cluster (<code>hpc</code>, a key of <code>runme queues --all</code>) and the account; <code>runme info</code> shows what runme reads. On albedo:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9"><pre class="sourceCode toml code-with-copy"><code class="sourceCode toml"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="dt">hpc</span>     <span class="op">=</span> <span class="st">"awi_albedo"</span></span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a><span class="dt">account</span> <span class="op">=</span> <span class="st">"&lt;project&gt;"</span>        <span class="co"># e.g. the p_forclima project account</span></span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a><span class="dt">omp</span>     <span class="op">=</span> <span class="dv">32</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb10"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="ex">runme</span> <span class="at">-o</span> runs/deglac_lgm <span class="at">-e</span> main <span class="at">-n</span> examples/deglac_lgm.nml <span class="at">--omp</span> 32 <span class="dt">\</span></span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>      <span class="at">-q</span> 12h <span class="at">-w</span> 06:00:00 <span class="at">-s</span> <span class="at">-r</span> <span class="at">-p</span> vilma.lmax=128</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>On levante (<code>hpc = "dkrz_levante"</code>, <code>account = "&lt;project&gt;"</code>):</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb11"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="ex">runme</span> <span class="at">-o</span> runs/deglac_lgm <span class="at">-e</span> main <span class="at">-n</span> examples/deglac_lgm.nml <span class="at">--omp</span> 64 <span class="dt">\</span></span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>      <span class="at">-q</span> compute <span class="at">-w</span> 06:00:00 <span class="at">-s</span> <span class="at">-r</span> <span class="at">-p</span> vilma.lmax=128</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
 <section id="embedding-in-a-host-model" class="level2">
 <h2 class="anchored" data-anchor-id="embedding-in-a-host-model">Embedding in a host model</h2>
-<p>The CLIMBER-X coupling path uses the same code behind a single <code>use vilma</code>. The contract is intentionally narrow — the host passes <strong>ice thickness</strong> in and receives <strong>relative sea level</strong> and <strong>bedrock</strong> out, on its own grid. The model owns its Gauss grid and the host↔︎Gauss remap (built from the parameter record), and keeps all spherical-harmonic work inside (see <a href="./implementation.html">Implementation</a>):</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode fortran code-with-copy"><code class="sourceCode fortranfixed"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="kw">use</span> vilma</span>
-<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="dt">type(solid_earth)</span> <span class="dt">::</span> se</span>
-<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a><span class="co">call vilma_par_load(se%par, "vilma.nml")             ! configuration lives in se%par</span></span>
-<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a><span class="co">call solid_earth_init(se, z_bed_eq, h_ice_eq, grid=host_grid)  ! builds the Gauss grid + remap</span></span>
-<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a><span class="co">call solid_earth_spinup(se, h_ice_lgm)                ! optional LGM-memory spin-up</span></span>
-<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a><span class="kw">do</span></span>
-<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>   <span class="kw">call</span> solid_earth_update(se, h_ice, dt_yr)          <span class="co">! advance dt_yr [years]</span></span>
-<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a>   <span class="co">! ... read se%rsl, se%z_bed, se%dz_bed, se%dz_ss, se%C on the host grid ...</span></span>
-<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a>   <span class="co">! ... rsl = se%dz_ss - se%dz_bed: the sea-surface change N + dphi and the bed change u ...</span></span>
-<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a><span class="kw">end do</span></span>
-<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a><span class="co">call solid_earth_finalize(se)                         ! frees the grid too</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p><code>grid</code> (a coords lon-lat grid) is optional: omit it when the fields are already on the model’s Gauss grid in the SHTns layout (rows north first). A <code>grid</code> that is the Gauss grid passes the fields through exactly, in its own row order (latitude ascending, as coords builds it, or descending); any other grid is remapped. The host-grid fields are always in the order the host supplied; <code>se%gg</code> is the internal Gauss-grid state. The full prognostic state (the Maxwell memory, the integrator state, and the model clock) is persisted on restart, so a coupled run resumes bit-for-bit; the host-grid outputs are re-derived on read.</p>
+<p>The CLIMBER-X coupling path uses the same code behind a single <code>use vilma</code>. The contract is narrow: the host passes <strong>ice thickness</strong> in and receives <strong>relative sea level</strong> and <strong>bedrock</strong> out, on its own grid. The model owns its Gauss grid and the host↔︎Gauss remap (built from the parameter record), and keeps all spherical-harmonic work inside (see <a href="./implementation.html">Implementation</a>):</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb12"><pre class="sourceCode fortran code-with-copy"><code class="sourceCode fortranfixed"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="kw">use</span> vilma</span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a><span class="dt">type(solid_earth)</span> <span class="dt">::</span> se</span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a><span class="co">call vilma_par_load(se%par, "vilma.nml")             ! configuration lives in se%par</span></span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a><span class="co">call solid_earth_init(se, z_bed_eq, h_ice_eq, grid=host_grid, time=t0)  ! Gauss grid + remap; clock at t0 [yr]</span></span>
+<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a><span class="co">call solid_earth_spinup(se, h_ice_lgm)                ! optional LGM-memory spin-up (holds the clock)</span></span>
+<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a><span class="kw">do</span></span>
+<span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a>   <span class="kw">call</span> solid_earth_update(se, h_ice, dt_yr)          <span class="co">! advance dt_yr [years]</span></span>
+<span id="cb12-8"><a href="#cb12-8" aria-hidden="true" tabindex="-1"></a>   <span class="co">! ... read se%rsl, se%z_bed, se%dz_bed, se%dz_ss, se%C on the host grid ...</span></span>
+<span id="cb12-9"><a href="#cb12-9" aria-hidden="true" tabindex="-1"></a>   <span class="co">! ... rsl = se%dz_ss - se%dz_bed: the sea-surface change N + dphi and the bed change u ...</span></span>
+<span id="cb12-10"><a href="#cb12-10" aria-hidden="true" tabindex="-1"></a><span class="kw">end do</span></span>
+<span id="cb12-11"><a href="#cb12-11" aria-hidden="true" tabindex="-1"></a><span class="co">call solid_earth_finalize(se)                         ! frees the grid too</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><code>use vilma</code> is the only module a host needs: it exports the parameter record, <code>solid_earth</code> and its life cycle, the checks and the restart routines, and nothing internal. <code>h_ice</code> is the whole ice column; the model applies its own flotation rule to it. The model keeps its own clock: <code>solid_earth_init</code> sets it (<code>time</code>, default 0), each update advances it, and <code>solid_earth_set_time</code> relabels it without changing the state. A host never writes <code>se%time</code>. A negative <code>dt_yr</code> stops the run; <code>dt_yr = 0</code> re-solves the surface fields under the ice passed in.</p>
+<p><code>grid</code> (a coords lon-lat grid) is optional: omit it when the fields are already on the model’s Gauss grid in the SHTns layout (rows north first). A <code>grid</code> that is the Gauss grid passes the fields through exactly, in its own row order (latitude ascending, as coords builds it, or descending). Any other global grid is remapped; a regional grid is refused. The host-grid fields are always in the order the host supplied; <code>se%gg</code> is the internal Gauss-grid state. The full prognostic state is persisted on restart (<code>vilma_restart_write</code>, <code>vilma_restart_read</code>), so a coupled run resumes bit for bit; the host-grid outputs are re-derived on read.</p>
+<section id="host-resolved-terms-optional" class="level3">
+<h3 class="anchored" data-anchor-id="host-resolved-terms-optional">Host-resolved terms (optional)</h3>
+<p>A host that resolves the ice margin on its own grid, inside regions of weight <span class="math inline">\(w\)</span>, can pass per unit Gauss-cell area the grounded-ice column <span class="math inline">\(I_g = w H f_g\)</span>, the ocean fraction <span class="math inline">\(C = w (1 - f_g)\)</span> and the flooded-area fill <span class="math inline">\(F = w \zeta^{(0)} (C - C_\text{ref})\)</span>:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb13"><pre class="sourceCode fortran code-with-copy"><code class="sourceCode fortranfixed"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="co">call solid_earth_init(se, z_bed_eq, h_ice_eq, grid, w=w, I_g=I_g, C=C)    ! reference terms</span></span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a><span class="co">call solid_earth_spinup(se, h_ice_lgm, w, I_g, C, F)                      ! held over every pass</span></span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a><span class="co">call solid_earth_update(se, h_ice, dt_yr, w, I_g, C, F)                   ! ramped like the ice</span></span>
+<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a>ok <span class="kw">=</span> solid_earth_host_check(w, I_g, C, F, msg)                            <span class="co">! admissibility</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Inside <span class="math inline">\(w\)</span> the sea-level solve uses these terms. On <span class="math inline">\(1 - w\)</span> it applies its own flotation and coastline rule, and <code>h_ice</code>, <code>h_ice_eq</code> are the ice of that part (cells with <span class="math inline">\(w = 1\)</span> ignore them). The terms are all or none and fixed for the run. They cannot be combined with <code>solver = "v1"</code> or <code>sle_fixed_ocean</code>, and <span class="math inline">\(F\)</span> enters only through the sub-grid term (<code>sle_subgrid</code>). Without them, or with <span class="math inline">\(w \equiv 0\)</span>, a run is bit-identical to one without. The terms are part of the restart. Details are in the <a href="./physics/sea-level.html">sea-level equation</a> page and in <a href="https://github.com/fesmc/vilma2/blob/main/doc/design.md"><code>doc/design.md</code> §15</a>.</p>
 
 
 
+</section>
 </section>
 
 <a onclick="window.scrollTo(0, 0); return false;" role="button" id="quarto-back-to-top"><i class="bi bi-arrow-up"></i> Back to top</a><div id="quarto-appendix" class="default"><section class="quarto-appendix-contents" role="doc-bibliography" id="quarto-bibliography"><h2 class="anchored quarto-appendix-heading">References</h2><div id="refs" class="references csl-bib-body hanging-indent" role="list">
@@ -793,15 +980,50 @@ Bagge, M., V. Klemann, B. Steinberger, M. Latinović, and M. Thomas. 2021. <span
   window.document.addEventListener("DOMContentLoaded", function (event) {
     // Ensure there is a toggle, if there isn't float one in the top right
     if (window.document.querySelector('.quarto-color-scheme-toggle') === null) {
-      const a = window.document.createElement('a');
-      a.classList.add('top-right');
-      a.classList.add('quarto-color-scheme-toggle');
-      a.href = "";
-      a.onclick = function() { try { window.quartoToggleColorScheme(); } catch {} return false; };
+      const toggle = window.document.createElement('button');
+      toggle.type = "button";
+      toggle.setAttribute("role", "switch");
+      toggle.setAttribute("aria-checked", "false");
+      toggle.classList.add('top-right');
+      toggle.classList.add('quarto-color-scheme-toggle');
+      toggle.setAttribute("aria-label", "Toggle dark mode");
+      toggle.onclick = function() { try { window.quartoToggleColorScheme(); } catch {} return false; };
       const i = window.document.createElement("i");
       i.classList.add('bi');
-      a.appendChild(i);
-      window.document.body.appendChild(a);
+      toggle.appendChild(i);
+      // Put the toggle in a landmark of its own, so that landmark navigation
+      // can reach it.
+      //
+      // The container is always a fresh direct child of body, and the toggle is
+      // never moved into page furniture that the theme or the author controls.
+      // The toggle is positioned against the page, so any ancestor that
+      // establishes a containing block captures it: a positioned element or a
+      // grid for position: absolute, and transform, filter, will-change or
+      // contain for position: fixed. A direct child of body has none of these
+      // to inherit, and the shift when one appears is silent and visual.
+      //
+      // ARIA says a document should have at most one banner, and axe reports a
+      // duplicate whether or not the banners carry distinct labels. So use a
+      // header when the page has no banner yet, and a named region otherwise.
+      //
+      // A header is a banner wherever it sits, unless it is inside sectioning
+      // content, so this cannot just look at the children of body: a custom
+      // page layout wraps the title block header in a plain div. An explicit
+      // role="banner" always counts.
+      const sectioning = 'article, aside, main, nav, section, [role="article"], [role="complementary"], [role="main"], [role="navigation"], [role="region"]';
+      const hasBanner = Array.from(
+        window.document.querySelectorAll('header:not([role]), [role="banner"]')
+      ).some(function(el) {
+        return el.hasAttribute("role") || el.closest(sectioning) === null;
+      });
+      const container = window.document.createElement(hasBanner ? "div" : "header");
+      if (hasBanner) {
+        container.setAttribute("role", "region");
+        container.setAttribute("aria-label", "Toggle dark mode");
+      }
+      container.classList.add('quarto-color-scheme-toggle-container');
+      container.appendChild(toggle);
+      window.document.body.appendChild(container);
     }
     setColorSchemeToggle(hasAlternateSentinel())
     const icon = "";
@@ -880,7 +1102,8 @@ Bagge, M., V. Klemann, B. Steinberger, M. Latinović, and M. Thomas. 2021. <span
           return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
       }
       // Inspect non-navigation links and adorn them if external
-     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      window.quartoDecorateExternalLinks = function (root) {
+     var links = (root || window.document).querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
       for (var i=0; i<links.length; i++) {
         const link = links[i];
         if (!isInternal(link.href)) {
@@ -889,8 +1112,69 @@ Bagge, M., V. Klemann, B. Steinberger, M. Latinović, and M. Thomas. 2021. <span
           if (link.dataset.originalHref !== undefined) {
             link.href = link.dataset.originalHref;
           }
+          if (!link.classList.contains('no-external-icon')) {
+          }
         }
       }
+      };
+      window.quartoDecorateExternalLinks(window.document);
+    // Esc closes the popup (WCAG 1.4.13) and focus leaving both trigger and
+    // popup closes it (WCAG 2.4.11); tippy handles neither for interactive popups.
+    const hideOnEscAndFocusOut = {
+      name: 'hideOnEscAndFocusOut',
+      defaultValue: true,
+      fn(instance) {
+        const dismiss = () => {
+          // A show scheduled by the trigger delay would otherwise reopen it
+          instance.clearDelayTimeouts();
+          instance.hide();
+        };
+        const onKeyDown = (event) => {
+          if (event.key !== 'Escape') {
+            return;
+          }
+          // Keep Esc from also reaching page handlers (e.g. reveal.js overview),
+          // except an open reveal.js slide menu, which Esc should close too.
+          // The menu handles keys only when its keyboard option is on.
+          const menuHandlesEsc = window.Reveal?.getPlugin?.('menu')?.isOpen() &&
+            window.Reveal.getConfig().menu?.keyboard !== false;
+          if (!menuHandlesEsc) {
+            event.stopPropagation();
+          }
+          if (instance.popper.contains(window.document.activeElement)) {
+            // Disabled while refocusing so the focus trigger does not reopen it
+            instance.disable();
+            instance.reference.focus();
+            instance.enable();
+          }
+          dismiss();
+        };
+        const onFocusOut = (event) => {
+          const target = event.relatedTarget;
+          if (target && !instance.reference.contains(target) &&
+              !instance.popper.contains(target)) {
+            dismiss();
+          }
+        };
+        // On the trigger too: a click trigger (code-annotations: select) has no
+        // blur handling. Attached for the instance's lifetime so leaving the
+        // trigger also cancels a show still pending on the trigger delay.
+        instance.reference.addEventListener('focusout', onFocusOut);
+        return {
+          onShow() {
+            window.document.addEventListener('keydown', onKeyDown, true);
+            instance.popper.addEventListener('focusout', onFocusOut);
+          },
+          onHide() {
+            window.document.removeEventListener('keydown', onKeyDown, true);
+            instance.popper.removeEventListener('focusout', onFocusOut);
+          },
+          onDestroy() {
+            instance.reference.removeEventListener('focusout', onFocusOut);
+          },
+        };
+      },
+    };
     function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
       const config = {
         allowHTML: true,
@@ -904,6 +1188,7 @@ Bagge, M., V. Klemann, B. Steinberger, M. Latinović, and M. Thomas. 2021. <span
         interactiveBorder: 10,
         theme: 'quarto',
         placement: 'bottom-start',
+        plugins: [hideOnEscAndFocusOut],
       };
       if (contentFn) {
         config.content = contentFn;
@@ -1066,44 +1351,54 @@ Bagge, M., V. Klemann, B. Steinberger, M. Latinović, and M. Thomas. 2021. <span
           const lineIds = lines.map((line) => {
             return targetCell + "-" + line;
           })
-          let top = null;
-          let height = null;
-          let parent = null;
+          // Each band is positioned against its own containing block, which is
+          // not the offsetParent of the lines, so place it from client rects.
+          const placeBand = (band, firstEl, lastEl, codeBlock) => {
+            const container = band.offsetParent;
+            if (container === null) {
+              return;
+            }
+            const containerRect = container.getBoundingClientRect();
+            // Reveal.js scales slides with a transform, so convert client
+            // pixels back to the CSS pixels of the container.
+            const scale = containerRect.height / container.offsetHeight || 1;
+            const firstRect = firstEl.getBoundingClientRect();
+            const lastRect = lastEl.getBoundingClientRect();
+            const top = (firstRect.top - containerRect.top) / scale - container.clientTop + container.scrollTop;
+            const height = (lastRect.bottom - firstRect.top) / scale;
+            band.style.top = top - 2 + "px";
+            band.style.height = height + 4 + "px";
+            if (codeBlock) {
+              // Without the copy button wrapper, the containing block is wider
+              // than the code block, so span the code block explicitly.
+              const blockRect = codeBlock.getBoundingClientRect();
+              band.style.left = (blockRect.left - containerRect.left) / scale - container.clientLeft + container.scrollLeft + "px";
+              band.style.width = blockRect.width / scale + "px";
+            }
+          };
           if (lineIds.length > 0) {
-              //compute the position of the single el (top and bottom and make a div)
-              const el = window.document.getElementById(lineIds[0]);
-              top = el.offsetTop;
-              height = el.offsetHeight;
-              parent = el.parentElement.parentElement;
-            if (lineIds.length > 1) {
-              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
-              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
-              height = bottom - top;
+            const el = window.document.getElementById(lineIds[0]);
+            const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+            const parent = el.parentElement.parentElement;
+            // cook up a div (if necessary) and position it
+            let div = window.document.getElementById("code-annotation-line-highlight");
+            if (div === null) {
+              div = window.document.createElement("div");
+              div.setAttribute("id", "code-annotation-line-highlight");
+              div.style.position = 'absolute';
+              parent.appendChild(div);
             }
-            if (top !== null && height !== null && parent !== null) {
-              // cook up a div (if necessary) and position it 
-              let div = window.document.getElementById("code-annotation-line-highlight");
-              if (div === null) {
-                div = window.document.createElement("div");
-                div.setAttribute("id", "code-annotation-line-highlight");
-                div.style.position = 'absolute';
-                parent.appendChild(div);
-              }
-              div.style.top = top - 2 + "px";
-              div.style.height = height + 4 + "px";
-              div.style.left = 0;
-              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
-              if (gutterDiv === null) {
-                gutterDiv = window.document.createElement("div");
-                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
-                gutterDiv.style.position = 'absolute';
-                const codeCell = window.document.getElementById(targetCell);
-                const gutter = codeCell.querySelector('.code-annotation-gutter');
-                gutter.appendChild(gutterDiv);
-              }
-              gutterDiv.style.top = top - 2 + "px";
-              gutterDiv.style.height = height + 4 + "px";
+            placeBand(div, el, lastEl, parent.closest("div.sourceCode") || parent);
+            let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+            if (gutterDiv === null) {
+              gutterDiv = window.document.createElement("div");
+              gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+              gutterDiv.style.position = 'absolute';
+              const codeCell = window.document.getElementById(targetCell);
+              const gutter = codeCell.querySelector('.code-annotation-gutter');
+              gutter.appendChild(gutterDiv);
             }
+            placeBand(gutterDiv, el, lastEl);
             selectedAnnoteEl = annoteEl;
           }
         };
@@ -1202,7 +1497,10 @@ Bagge, M., V. Klemann, B. Steinberger, M. Latinović, and M. Thomas. 2021. <span
     }
   });
   </script>
-<nav class="page-navigation">
+  <script type="application/javascript">
+  window.quartoScrollableRegionsLabels = {"code":"Scrollable code","output":"Scrollable output"};
+  </script>
+<nav class="page-navigation" aria-label="Page">
   <div class="nav-page nav-page-previous">
       <a href="./index.html" class="pagination-link" aria-label="VILMA2">
         <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text">VILMA2</span>

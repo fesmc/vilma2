@@ -2,7 +2,7 @@
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
 
 <meta charset="utf-8">
-<meta name="generator" content="quarto-1.10.20">
+<meta name="generator" content="quarto-1.11.9">
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
@@ -25,6 +25,41 @@ ul.task-list li input[type="checkbox"] {
   width: 0.8em;
   margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
   vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
 }
 /* CSS for citations */
 div.csl-bib-body { }
@@ -59,18 +94,19 @@ div.csl-indent {
 <link href="../discretization/solver.html" rel="prev">
 <script src="../site_libs/quarto-html/quarto.js" type="module"></script>
 <script src="../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../site_libs/quarto-html/scrollable-regions/scrollable-regions.js" type="module"></script>
 <script src="../site_libs/quarto-html/popper.min.js"></script>
 <script src="../site_libs/quarto-html/tippy.umd.min.js"></script>
 <script src="../site_libs/quarto-html/anchor.min.js"></script>
 <link href="../site_libs/quarto-html/tippy.css" rel="stylesheet">
-<link href="../site_libs/quarto-html/quarto-syntax-highlighting-17888a1159294d3eb470f19f6f52f5a5.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-text-highlighting-styles">
-<link href="../site_libs/quarto-html/quarto-syntax-highlighting-dark-0ae969d3293726db143f6e9eb89af930.css" rel="stylesheet" class="quarto-color-scheme quarto-color-alternate" id="quarto-text-highlighting-styles">
-<link href="../site_libs/quarto-html/quarto-syntax-highlighting-17888a1159294d3eb470f19f6f52f5a5.css" rel="stylesheet" class="quarto-color-scheme-extra" id="quarto-text-highlighting-styles">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-63b5708e65d6cd79cd7618c58d0c21e7.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-text-highlighting-styles">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-dark-447e42e69aaa9833c0ba1b986f430b20.css" rel="stylesheet" class="quarto-color-scheme quarto-color-alternate" id="quarto-text-highlighting-styles">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-63b5708e65d6cd79cd7618c58d0c21e7.css" rel="stylesheet" class="quarto-color-scheme-extra" id="quarto-text-highlighting-styles">
 <script src="../site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="../site_libs/bootstrap/bootstrap-fe9ab94330ff2cdc5105c70272dca3f0.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
-<link href="../site_libs/bootstrap/bootstrap-dark-bddab9ad0d549410cca6a651ad8ac0e7.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
-<link href="../site_libs/bootstrap/bootstrap-fe9ab94330ff2cdc5105c70272dca3f0.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
+<link href="../site_libs/bootstrap/bootstrap-3a1610f0a8f0b9b7bc4c1e6d49db0d8a.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
+<link href="../site_libs/bootstrap/bootstrap-dark-f829436f7c543b6c5fa77b733bfa68fa.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
+<link href="../site_libs/bootstrap/bootstrap-3a1610f0a8f0b9b7bc4c1e6d49db0d8a.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
 <script id="quarto-search-options" type="application/json">{
   "location": "navbar",
   "copy-button": false,
@@ -131,7 +167,7 @@ window.Quarto = {
 
 </head>
 
-<body class="nav-sidebar floating nav-fixed quarto-light"><script id="quarto-html-before-body" type="application/javascript">
+<body class="nav-sidebar floating nav-fixed quarto-light"><a id="quarto-skip-link" class="visually-hidden-focusable" href="#quarto-document-content">Skip to main content</a><script id="quarto-html-before-body" type="application/javascript">
     const toggleBodyColorMode = (bsSheetEl) => {
       const mode = bsSheetEl.getAttribute("data-mode");
       const bodyEl = window.document.querySelector("body");
@@ -154,6 +190,7 @@ window.Quarto = {
       for (let i=0; i < toggles.length; i++) {
         const toggle = toggles[i];
         if (toggle) {
+          toggle.setAttribute("aria-checked", alternate ? "true" : "false");
           if (alternate) {
             toggle.classList.add("alternate");
           } else {
@@ -183,13 +220,19 @@ window.Quarto = {
       manageTransitions('#quarto-margin-sidebar .nav-link', true);
       // Switch the toggles
       setColorSchemeToggle(alternate)
-      // Hack to workaround the fact that safari doesn't
-      // properly recolor the scrollbar when toggling (#1455)
+    }
+    // Hack to workaround the fact that safari doesn't
+    // properly recolor the scrollbar when toggling (#1455).
+    // Not run on load: stylesheets are set before first paint there, and
+    // scrolling would undo the scroll to a URL fragment (#14973).
+    // The one pixel nudge keeps the reader where they were.
+    const refreshSafariScrollbar = () => {
       if (navigator.userAgent.indexOf('Safari') > 0 && navigator.userAgent.indexOf('Chrome') == -1) {
         manageTransitions("body", false);
-        window.scrollTo(0, 1);
+        const scrollY = window.scrollY;
+        window.scrollTo(0, scrollY > 0 ? scrollY - 1 : 1);
         setTimeout(() => {
-          window.scrollTo(0, 0);
+          window.scrollTo(0, scrollY);
           manageTransitions("body", true);
         }, 40);
       }
@@ -283,6 +326,7 @@ window.Quarto = {
       // Read the current dark / light value
       let toAlternate = !hasAlternateSentinel();
       toggleColorMode(toAlternate);
+      refreshSafariScrollbar();
       setStyleSentinel(toAlternate);
       toggleGiscusIfUsed(toAlternate, darkModeDefault);
       window.dispatchEvent(new Event('resize'));
@@ -297,15 +341,14 @@ window.Quarto = {
 
 <div id="quarto-search-results"></div>
   <header id="quarto-header" class="headroom fixed-top">
-    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark" aria-label="Site">
       <div class="navbar-container container-fluid">
       <div class="navbar-brand-container mx-auto">
     <a class="navbar-brand" href="../index.html">
     <span class="navbar-title">VILMA2</span>
     </a>
   </div>
-            <div id="quarto-search" class="" title="Search"></div>
-          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" role="menu" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
   <span class="navbar-toggler-icon"></span>
 </button>
           <div class="collapse navbar-collapse" id="navbarCollapse">
@@ -390,17 +433,18 @@ window.Quarto = {
 </ul>
           </div> <!-- /navcollapse -->
             <div class="quarto-navbar-tools">
-  <a href="" class="quarto-color-scheme-toggle quarto-navigation-tool  px-1" onclick="window.quartoToggleColorScheme(); return false;" title="Toggle dark mode"><i class="bi"></i></a>
+  <button type="button" role="switch" aria-checked="false" class="quarto-color-scheme-toggle quarto-navigation-tool  px-1" onclick="window.quartoToggleColorScheme(); return false;" title="Toggle dark mode" aria-label="Toggle dark mode"><i class="bi"></i></button>
 </div>
+            <div id="quarto-search" class="" title="Search"></div>
       </div> <!-- /container-fluid -->
     </nav>
-  <nav class="quarto-secondary-nav">
+  <nav class="quarto-secondary-nav" aria-label="Toolbar">
     <div class="container-fluid d-flex">
       <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
         <i class="bi bi-layout-text-sidebar-reverse"></i>
       </button>
-        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../benchmarks/index.html">Benchmarks</a></li><li class="breadcrumb-item"><a href="../benchmarks/index.html">Benchmarks</a></li></ol></nav>
-        <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
+        <nav class="quarto-page-breadcrumbs" aria-label="Breadcrumbs"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../benchmarks/index.html">Benchmarks</a></li><li class="breadcrumb-item"><a href="../benchmarks/index.html">Benchmarks</a></li></ol></nav>
+        <a class="flex-grow-1" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
         </a>
     </div>
   </nav>
@@ -408,18 +452,15 @@ window.Quarto = {
 <!-- content -->
 <div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
 <!-- sidebar -->
-  <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal quarto-sidebar-collapse-item sidebar-navigation floating overflow-auto">
+  <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal quarto-sidebar-collapse-item sidebar-navigation floating overflow-auto" aria-label="Section">
     <div class="sidebar-menu-container"> 
     <ul class="list-unstyled mt-1">
         <li class="sidebar-item sidebar-item-section">
       <div class="sidebar-item-container"> 
-            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true">
- <span class="menu-text">Getting started</span></a>
-          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true" aria-label="Toggle section">
-            <i class="bi bi-chevron-right ms-2"></i>
-          </a> 
+            <button type="button" class="sidebar-item-text sidebar-item-toggle sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" aria-controls="quarto-sidebar-section-1" aria-expanded="true">
+ <span class="menu-text" id="quarto-sidebar-section-1-label">Getting started</span><i class="bi bi-chevron-right" aria-hidden="true"></i></button>
       </div>
-      <ul id="quarto-sidebar-section-1" class="collapse list-unstyled sidebar-section depth1 show">  
+      <ul id="quarto-sidebar-section-1" aria-labelledby="quarto-sidebar-section-1-label" class="collapse list-unstyled sidebar-section depth1 show">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="../index.html" class="sidebar-item-text sidebar-link">
@@ -442,13 +483,10 @@ window.Quarto = {
   </li>
         <li class="sidebar-item sidebar-item-section">
       <div class="sidebar-item-container"> 
-            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="true">
- <span class="menu-text">Physics</span></a>
-          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="true" aria-label="Toggle section">
-            <i class="bi bi-chevron-right ms-2"></i>
-          </a> 
+            <button type="button" class="sidebar-item-text sidebar-item-toggle sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" aria-controls="quarto-sidebar-section-2" aria-expanded="true">
+ <span class="menu-text" id="quarto-sidebar-section-2-label">Physics</span><i class="bi bi-chevron-right" aria-hidden="true"></i></button>
       </div>
-      <ul id="quarto-sidebar-section-2" class="collapse list-unstyled sidebar-section depth1 show">  
+      <ul id="quarto-sidebar-section-2" aria-labelledby="quarto-sidebar-section-2-label" class="collapse list-unstyled sidebar-section depth1 show">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="../physics/governing-equations.html" class="sidebar-item-text sidebar-link">
@@ -483,13 +521,10 @@ window.Quarto = {
   </li>
         <li class="sidebar-item sidebar-item-section">
       <div class="sidebar-item-container"> 
-            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="true">
- <span class="menu-text">Discretization</span></a>
-          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="true" aria-label="Toggle section">
-            <i class="bi bi-chevron-right ms-2"></i>
-          </a> 
+            <button type="button" class="sidebar-item-text sidebar-item-toggle sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" aria-controls="quarto-sidebar-section-3" aria-expanded="true">
+ <span class="menu-text" id="quarto-sidebar-section-3-label">Discretization</span><i class="bi bi-chevron-right" aria-hidden="true"></i></button>
       </div>
-      <ul id="quarto-sidebar-section-3" class="collapse list-unstyled sidebar-section depth1 show">  
+      <ul id="quarto-sidebar-section-3" aria-labelledby="quarto-sidebar-section-3-label" class="collapse list-unstyled sidebar-section depth1 show">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="../discretization/spectral.html" class="sidebar-item-text sidebar-link">
@@ -518,13 +553,10 @@ window.Quarto = {
   </li>
         <li class="sidebar-item sidebar-item-section">
       <div class="sidebar-item-container"> 
-            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="true">
- <span class="menu-text">Benchmarks</span></a>
-          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="true" aria-label="Toggle section">
-            <i class="bi bi-chevron-right ms-2"></i>
-          </a> 
+            <button type="button" class="sidebar-item-text sidebar-item-toggle sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" aria-controls="quarto-sidebar-section-4" aria-expanded="true">
+ <span class="menu-text" id="quarto-sidebar-section-4-label">Benchmarks</span><i class="bi bi-chevron-right" aria-hidden="true"></i></button>
       </div>
-      <ul id="quarto-sidebar-section-4" class="collapse list-unstyled sidebar-section depth1 show">  
+      <ul id="quarto-sidebar-section-4" aria-labelledby="quarto-sidebar-section-4-label" class="collapse list-unstyled sidebar-section depth1 show">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="../benchmarks/index.html" class="sidebar-item-text sidebar-link active">
@@ -549,6 +581,18 @@ window.Quarto = {
  <span class="menu-text">Benchmark: the sea-level equation</span></a>
   </div>
 </li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../benchmarks/rotation.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Benchmark: rotation (polar motion)</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../benchmarks/lvz.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Benchmark: low-viscosity zone (lateral viscosity)</span></a>
+  </div>
+</li>
       </ul>
   </li>
         <li class="sidebar-item">
@@ -563,21 +607,26 @@ window.Quarto = {
 <div id="quarto-sidebar-glass" class="quarto-sidebar-collapse-item" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item"></div>
 <!-- margin-sidebar -->
     <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
-        <nav id="TOC" role="doc-toc" class="toc-active">
+        <nav id="TOC" role="doc-toc" aria-labelledby="toc-title" class="toc-active">
     <h2 id="toc-title">On this page</h2>
    
   <ul>
   <li><a href="#summary-results" id="toc-summary-results" class="nav-link active" data-scroll-target="#summary-results">Summary results</a></li>
+  <li><a href="#what-is-validated-and-what-is-open" id="toc-what-is-validated-and-what-is-open" class="nav-link" data-scroll-target="#what-is-validated-and-what-is-open">What is validated and what is open</a></li>
   <li><a href="#how-to-read-the-rungs" id="toc-how-to-read-the-rungs" class="nav-link" data-scroll-target="#how-to-read-the-rungs">How to read the rungs</a></li>
+  <li><a href="#running-the-benchmarks" id="toc-running-the-benchmarks" class="nav-link" data-scroll-target="#running-the-benchmarks">Running the benchmarks</a>
+  <ul class="collapse">
+  <li><a href="#dumping-the-comparison-data" id="toc-dumping-the-comparison-data" class="nav-link" data-scroll-target="#dumping-the-comparison-data">Dumping the comparison data</a></li>
+  </ul></li>
   <li><a href="#per-benchmark-pages" id="toc-per-benchmark-pages" class="nav-link" data-scroll-target="#per-benchmark-pages">Per-benchmark pages</a></li>
   </ul>
 <div class="toc-actions"><ul><li><a href="https://github.com/fesmc/vilma2/blob/main/benchmarks/index.qmd" class="toc-action"><i class="bi bi-github"></i>View source</a></li><li><a href="https://github.com/fesmc/vilma2/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></nav>
     </div>
 <!-- main -->
-<main class="content" id="quarto-document-content">
+<main class="content" id="quarto-document-content" tabindex="-1">
 
 
-<header id="title-block-header" class="quarto-title-block default"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../benchmarks/index.html">Benchmarks</a></li><li class="breadcrumb-item"><a href="../benchmarks/index.html">Benchmarks</a></li></ol></nav>
+<header id="title-block-header" class="quarto-title-block default"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="Breadcrumbs"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../benchmarks/index.html">Benchmarks</a></li><li class="breadcrumb-item"><a href="../benchmarks/index.html">Benchmarks</a></li></ol></nav>
 <div class="quarto-title">
 <h1 class="title">Benchmarks</h1>
 </div>
@@ -596,8 +645,9 @@ window.Quarto = {
 </header>
 
 
-<p>VILMA2 is validated against the <strong>published GIA community benchmarks</strong> — the Charles University / Spada et al.&nbsp;(2011) intercomparison <span class="citation" data-cites="Spada2011">(<a href="#ref-Spada2011" role="doc-biblioref">Spada et al. 2011</a>)</span> and the sea-level-equation intercomparison of Martinec et al.&nbsp;(2018) <span class="citation" data-cites="Martinec2018">(<a href="#ref-Martinec2018" role="doc-biblioref">Martinec et al. 2018</a>)</span>. Validation proceeds along a <strong>ladder</strong>: each rung is an independent benchmark that exercises one more piece of physics, so a failure localizes to the rung just added.</p>
-<p>The reference datasets are vendored in the repository under <code>data/benchmarks/</code> with full provenance and licensing in <code>data/benchmarks/PROVENANCE.md</code>. None of it is VILMA2 output; it is external reference data, so the validation tests are self-contained.</p>
+<p>VILMA2 is validated against the <strong>published GIA community benchmarks</strong>: the Charles University / Spada et al.&nbsp;(2011) intercomparison <span class="citation" data-cites="Spada2011">(<a href="#ref-Spada2011" role="doc-biblioref">Spada et al. 2011</a>)</span>, the sea-level-equation intercomparison of Martinec et al.&nbsp;(2018) <span class="citation" data-cites="Martinec2018">(<a href="#ref-Martinec2018" role="doc-biblioref">Martinec et al. 2018</a>)</span> and, for lateral viscosity, the low-viscosity-zone case of Weerdesteijn et al.&nbsp;(2023) <span class="citation" data-cites="Weerdesteijn2023">(<a href="#ref-Weerdesteijn2023" role="doc-biblioref">Weerdesteijn et al. 2023</a>)</span>. Validation proceeds along a <strong>ladder</strong>. Each rung is an independent benchmark that exercises one more piece of physics, so a failure localizes to the rung just added.</p>
+<p>Every benchmark is an executable test with a pass/fail exit. The pages below quote two numbers for each: the <strong>tolerance</strong> the test asserts, and the <strong>difference measured</strong> with the reference build (model 1790f86, ifx 2024.1, <code>-Ofast -march=znver2</code>, on the AWI cluster albedo). The tolerance is the claim the test suite protects. The measured difference shows how much margin there is.</p>
+<p>The reference datasets are vendored in the repository under <code>data/benchmarks/</code> with provenance and licensing in <code>data/benchmarks/PROVENANCE.md</code>. None of it is VILMA2 output.</p>
 <section id="summary-results" class="level2">
 <h2 class="anchored" data-anchor-id="summary-results">Summary results</h2>
 <table class="caption-top table">
@@ -607,93 +657,140 @@ window.Quarto = {
 <th>Benchmark</th>
 <th>Physics exercised</th>
 <th>Reference</th>
-<th style="text-align: center;">Status</th>
-<th>Agreement</th>
+<th>Test (suite)</th>
+<th>Asserted</th>
+<th>Measured</th>
 </tr>
 </thead>
 <tbody>
 <tr class="odd">
 <td style="text-align: center;">1</td>
-<td>SH transform round-trip</td>
+<td>SH transform round trip</td>
 <td>spectral kernel</td>
-<td>— (analytic)</td>
-<td style="text-align: center;">✅</td>
+<td>analytic</td>
+<td><code>test_sht</code> (check)</td>
+<td><span class="math inline">\(10^{-12}\)</span></td>
 <td><span class="math inline">\(\sim 10^{-15}\)</span></td>
 </tr>
 <tr class="even">
 <td style="text-align: center;">2</td>
 <td><a href="../benchmarks/love-numbers.html">Love numbers <span class="math inline">\(h,\ell,k\)</span></a></td>
-<td>elastic + fluid radial solve, self-gravity</td>
+<td>elastic and fluid radial solve, self-gravity</td>
 <td>M3–L70–V01 table <span class="citation" data-cites="Spada2011">(<a href="#ref-Spada2011" role="doc-biblioref">Spada et al. 2011</a>)</span></td>
-<td style="text-align: center;">✅</td>
-<td><span class="math inline">\(\sim 0.1\%\)</span>, all degrees 2–256</td>
+<td><code>test_benchmark_love</code> (check)</td>
+<td>1 %: elastic <span class="math inline">\(h,k\)</span> at degrees 2–48, fluid <span class="math inline">\(h,\ell,k\)</span> at 2–8</td>
+<td><span class="math inline">\(h\)</span> ≤ 0.08 % to degree 256; <span class="math inline">\(k\)</span>, <span class="math inline">\(\ell\)</span> exceed 1 % above degrees 96, 144</td>
 </tr>
 <tr class="odd">
 <td style="text-align: center;">3</td>
 <td><a href="../benchmarks/disc.html">Disc-load response</a></td>
-<td>deformation + geoid, time relaxation</td>
+<td>spatial synthesis, time relaxation</td>
 <td>Spada disc test <span class="citation" data-cites="Spada2011">(<a href="#ref-Spada2011" role="doc-biblioref">Spada et al. 2011</a>)</span></td>
-<td style="text-align: center;">✅</td>
-<td><span class="math inline">\(u\)</span> <span class="math inline">\(\sim 1\%\)</span> near-field; geoid <span class="math inline">\(\sim 1\%\)</span> (<span class="math inline">\(\ell\ge2\)</span>)</td>
+<td><code>test_benchmark_disc</code> (check)</td>
+<td>elastic profile 6 % (<span class="math inline">\(u\)</span>), 4 % (<span class="math inline">\(N\)</span>); center uplift 3 % at 1–10 kyr</td>
+<td>4.0 %, 2.8 %; ≤ 0.6 %</td>
 </tr>
 <tr class="even">
-<td style="text-align: center;">4</td>
-<td><a href="../benchmarks/sea-level.html">Sea-level equation</a></td>
-<td>migrating-coastline SLE, flotation, sub-grid</td>
-<td>Martinec 2018 cases A/C2/D3/E2/F1 <span class="citation" data-cites="Martinec2018">(<a href="#ref-Martinec2018" role="doc-biblioref">Martinec et al. 2018</a>)</span></td>
-<td style="text-align: center;">✅</td>
-<td>within inter-code scatter (esl <span class="math inline">\(\lesssim 5\)</span> m; D3 <span class="math inline">\(\sim 0.2\)</span> m)</td>
+<td style="text-align: center;">4a</td>
+<td><a href="../benchmarks/sea-level.html">Cap loading, case A</a></td>
+<td>vertical and horizontal displacement, geoid</td>
+<td>Martinec 2018 fig.&nbsp;10 <span class="citation" data-cites="Martinec2018">(<a href="#ref-Martinec2018" role="doc-biblioref">Martinec et al. 2018</a>)</span></td>
+<td><code>test_benchmark_martinec</code> (check)</td>
+<td>1.5 % (<span class="math inline">\(u\)</span>, <span class="math inline">\(v\)</span>), 3 % (<span class="math inline">\(N\)</span>)</td>
+<td>0.5 %, 0.7 %, 1.9 %</td>
 </tr>
 <tr class="odd">
-<td style="text-align: center;">5</td>
-<td><a href="../physics/rotation.html">Rotation / polar motion</a></td>
-<td>rotational feedback (TPW)</td>
-<td>Spada test 3/2 <span class="citation" data-cites="Spada2011">(<a href="#ref-Spada2011" role="doc-biblioref">Spada et al. 2011</a>)</span></td>
-<td style="text-align: center;">✅</td>
-<td>polar motion vs Spada 3/2; on by default</td>
+<td style="text-align: center;">4b</td>
+<td><a href="../benchmarks/sea-level.html">Sea-level equation</a></td>
+<td>migrating coastline, flotation, sub-grid coast</td>
+<td>Martinec 2018 cases C2, D3, E2, F1 <span class="citation" data-cites="Martinec2018">(<a href="#ref-Martinec2018" role="doc-biblioref">Martinec et al. 2018</a>)</span></td>
+<td><code>test_benchmark_sle</code> (check-slow)</td>
+<td>30 % (<span class="math inline">\(u\)</span>), 35 % (<span class="math inline">\(v\)</span>), 12 % (<span class="math inline">\(N\)</span>), 8 % (sea surface), 12 % (rsl)</td>
+<td>D3, E2, F1: ≤ 7.6 %, rsl ≤ 1.8 %; C2: ≤ 28 %, rsl ≤ 7.2 %</td>
 </tr>
 <tr class="even">
+<td style="text-align: center;">5</td>
+<td><a href="../benchmarks/rotation.html">Rotation / polar motion</a></td>
+<td>Liouville equation, tidal Love numbers</td>
+<td>Spada test 3/2, Table 14 <span class="citation" data-cites="Spada2011">(<a href="#ref-Spada2011" role="doc-biblioref">Spada et al. 2011</a>)</span></td>
+<td><code>test_rotation</code> (check)</td>
+<td>3 % in <span class="math inline">\(\lvert m(t)\rvert\)</span>, 2 % in rigid inertia</td>
+<td>≤ 0.9 %, ≤ 0.4 %</td>
+</tr>
+<tr class="odd">
 <td style="text-align: center;">6</td>
-<td>3D (lateral viscosity) [to do]</td>
-<td>laterally varying <span class="math inline">\(\eta\)</span>, <a href="../physics/toroidal.html">toroidal flow</a></td>
-<td>[to do]</td>
-<td style="text-align: center;">🔧</td>
-<td>code path implemented + tested; cross-code validation ongoing</td>
+<td><a href="../benchmarks/lvz.html">Low-viscosity zone</a></td>
+<td>laterally varying viscosity</td>
+<td>ASPECT, Abaqus, TABOO <span class="citation" data-cites="Weerdesteijn2023">(<a href="#ref-Weerdesteijn2023" role="doc-biblioref">Weerdesteijn et al. 2023</a>)</span></td>
+<td><code>test_benchmark_lvz</code> (check-slow)</td>
+<td>8 % in center displacement</td>
+<td>2.6 %, 1.0 %</td>
 </tr>
 </tbody>
 </table>
-<p>Legend: ✅ implemented and validated · 🔧 implemented, validation ongoing · ⏳ planned. “Agreement” quotes the representative relative error against the reference; see each page for the full breakdown.</p>
+<p>All percentages are relative to the peak of the reference along the compared profile, or to the reference value itself for single numbers. The per-benchmark pages define each measure and give the full tables.</p>
+</section>
+<section id="what-is-validated-and-what-is-open" class="level2">
+<h2 class="anchored" data-anchor-id="what-is-validated-and-what-is-open">What is validated and what is open</h2>
+<p><strong>Validated.</strong> The radial solver, the Maxwell time stepping, the spatial synthesis, the horizontal displacement, the sea-level equation with a fixed and a migrating coastline, the Liouville polar-motion solve and the laterally varying viscosity each pass a published benchmark at the tolerances above. The two migrating-coastline cases and the deep-basin fixed-ocean case agree with the reference to below 1 m in every field.</p>
+<p><strong>Open.</strong></p>
+<ul>
+<li><strong>Case C2 of the sea-level benchmark.</strong> The model differs from the reference by a uniform 5.9 m in sea surface (4.9 % of the signal) and by a degree-1 pattern of about 7 m in uplift. The test passes only because its uplift and horizontal tolerances are 30 % and 35 %. The cause is not attributed (see <a href="../benchmarks/sea-level.html#what-the-numbers-mean">Sea-level equation</a>).</li>
+<li><strong>Love numbers <span class="math inline">\(k\)</span> and <span class="math inline">\(\ell\)</span> at high degree.</strong> They leave 1 % of the normal-mode table above degrees 96 and 144 at the default radial mesh, while <span class="math inline">\(h\)</span> stays within 0.1 %. The error is second order in the element size and falls below 1 % to degree 256 with a mesh four times finer (see <a href="../benchmarks/love-numbers.html#result">Love numbers</a>). The asserted range of the test (degree 48) has not been extended.</li>
+<li><strong>The disc response at 100 kyr and the uplift rate</strong> are not compared (see <a href="../benchmarks/disc.html#reference-data-and-metrics">Disc-load response</a>).</li>
+<li><strong>Three-dimensional viscosity.</strong> The only comparison with other codes is the axisymmetric low-viscosity-zone case on a 200 yr time scale, and a deglaciation comparison with VILMA1. No multi-code benchmark of a realistic 3-D structure at glacial time scales has been run.</li>
+<li><strong>Toroidal flow.</strong> No community benchmark exercises it. It is checked by internal consistency, symmetry and scaling tests (see <a href="../physics/toroidal.html#validation">Toroidal flow</a>) and by the VILMA1 comparison of the last deglaciation, and is on by default. Its effect there is up to 92 m of relative sea level locally, 2–3 m rms globally.</li>
+<li><strong>Rotation coupled to the sea-level equation</strong> has no published benchmark and is checked for consistency only.</li>
+</ul>
 </section>
 <section id="how-to-read-the-rungs" class="level2">
 <h2 class="anchored" data-anchor-id="how-to-read-the-rungs">How to read the rungs</h2>
 <ul>
-<li><strong>Rungs 1–2</strong> isolate the <em>linear-algebra and radial physics</em>: the transform, then the per-degree elastic and fluid Love numbers. The fluid limit is an analytic anchor (<span class="math inline">\(h_j\to-(2j+1)/3\)</span>, <span class="math inline">\(k_j\to-1\)</span>); the elastic numbers are the stringent test, and they exposed the <a href="../benchmarks/love-numbers.html"><span class="math inline">\(U\)</span>–<span class="math inline">\(F\)</span> symmetry bug</a>.</li>
-<li><strong>Rung 3</strong> integrates the per-degree response over a spatial load (the disc) and adds the <em>time relaxation</em>, testing the spatial synthesis and the Maxwell stepper together against a spatial reference.</li>
-<li><strong>Rung 4</strong> turns on the full <em>self-consistent sea-level equation</em> — ocean function, mass conservation, coastline migration, flotation, and the sub-grid sloping coast — against the dedicated SLE intercomparison. This is the benchmark VILMA1 itself passed.</li>
-<li><strong>Rung 5</strong> (rotation) is implemented and coupled into the SLE, with the Liouville polar-motion solve checked against Spada test 3/2. It is on by default for real-Earth runs (off for the non-rotating benchmarks). <strong>Rung 6</strong> (laterally varying viscosity) is implemented in the full viscoelastic solver and exercised by unit tests, with cross-code validation ongoing. No community benchmark exercises the toroidal field; it is checked by internal consistency, symmetry and scaling tests (see <a href="../physics/toroidal.html#validation">Toroidal flow</a>).</li>
+<li><strong>Rungs 1–2</strong> isolate the linear algebra and the radial physics: the transform, then the per-degree elastic and fluid Love numbers. The fluid limit of a homogeneous sphere is an analytic anchor (<span class="math inline">\(h_j\to-(2j+1)/3\)</span>, <span class="math inline">\(k_j\to-1\)</span>).</li>
+<li><strong>Rung 3</strong> integrates the per-degree response over a spatial load (the disc) and adds the time relaxation.</li>
+<li><strong>Rung 4</strong> adds the horizontal displacement (case A) and then the full self-consistent sea-level equation: ocean function, mass conservation, coastline migration, flotation, and the sub-grid sloping coast.</li>
+<li><strong>Rung 5</strong> adds the rotational feedback. It is on by default for real-Earth runs and off in the non-rotating benchmarks.</li>
+<li><strong>Rung 6</strong> adds laterally varying viscosity.</li>
 </ul>
-<div class="callout callout-style-default callout-note callout-titled" title="Analytic vs. inter-code benchmarks">
+<div class="callout callout-style-default callout-note callout-titled">
 <div class="callout-header d-flex align-content-center">
 <div class="callout-icon-container">
 <i class="callout-icon"></i>
 </div>
 <div class="callout-title-container flex-fill">
-<span class="screen-reader-only">Note</span>Analytic vs.&nbsp;inter-code benchmarks
+<span class="screen-reader-only">Note</span>Analytic and inter-code benchmarks
 </div>
 </div>
 <div class="callout-body-container callout-body">
-<p>Rungs 2–3 are effectively <em>analytic</em> (normal-mode Love numbers and their spatial synthesis), so tight tolerances (<span class="math inline">\(\sim 0.1\)</span>–<span class="math inline">\(1\%\)</span>) are meaningful. Rung 4 is a <em>numerical inter-comparison</em> — the reference (giapy’s SBK curves) is itself one code’s output, not a closed-form solution — so agreement is assessed against the documented inter-code scatter rather than an exact match.</p>
+<p>Rungs 2, 3 and 5 compare with normal-mode solutions, which are accurate to their tabulated digits at low degree. Rungs 4b and 6 are comparisons between numerical codes. The reference is one code’s output, and the published scatter between codes (a few percent) bounds what agreement can show.</p>
 </div>
 </div>
 </section>
+<section id="running-the-benchmarks" class="level2">
+<h2 class="anchored" data-anchor-id="running-the-benchmarks">Running the benchmarks</h2>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> check                  <span class="co"># the fast suite: rungs 1–3, 4a, 5 and the unit tests</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> openmp=1 check-slow    <span class="co"># rungs 4b and 6, test_rotinv at lmax 128, and three order tests</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Both targets run every test, print a summary that names the failing tests, and return a non-zero exit status if any failed. <code>check-slow</code> takes about ten minutes on 32 threads. It raises the stack limit itself, since the 3-D path at <span class="math inline">\(\ell_\max \ge 128\)</span> needs more than the default 8 MB per thread.</p>
+<section id="dumping-the-comparison-data" class="level3">
+<h3 class="anchored" data-anchor-id="dumping-the-comparison-data">Dumping the comparison data</h3>
+<p>The benchmark tests can write the numbers behind their comparison. Set the environment variable <code>VILMA_BENCH_DUMP</code> to an existing directory, and each test writes plain-text column tables there (model and reference values on the reference abscissa, with a header line naming the columns):</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">mkdir</span> <span class="at">-p</span> dump</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="va">VILMA_BENCH_DUMP</span><span class="op">=</span><span class="va">$PWD</span>/dump <span class="ex">bin/test_benchmark_love.x</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="va">VILMA_BENCH_DUMP</span><span class="op">=</span><span class="va">$PWD</span>/dump <span class="ex">bin/test_benchmark_sle.x</span> E2</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Without the variable the tests write nothing. The figures on the benchmark pages are made from these tables by the scripts in the repository’s <code>validation/</code> directory.</p>
+</section>
+</section>
 <section id="per-benchmark-pages" class="level2">
 <h2 class="anchored" data-anchor-id="per-benchmark-pages">Per-benchmark pages</h2>
-<p>The pages below give the model setup, the comparison metrics, and a place for figures (to be added as the benchmark figures are generated):</p>
 <ul>
-<li><strong><a href="../benchmarks/love-numbers.html">Love numbers</a></strong> — elastic and fluid <span class="math inline">\(h,\ell,k\)</span> for M3–L70–V01.</li>
-<li><strong><a href="../benchmarks/disc.html">Disc-load response</a></strong> — vertical displacement, geoid, and uplift rate for the 10° disc.</li>
-<li><strong><a href="../benchmarks/sea-level.html">Sea-level equation</a></strong> — the five <span class="citation" data-cites="Martinec2018">Martinec et al. (<a href="#ref-Martinec2018" role="doc-biblioref">2018</a>)</span> cases.</li>
-<li><strong>Lateral viscosity</strong> — [to do]</li>
+<li><strong><a href="../benchmarks/love-numbers.html">Love numbers</a></strong>: elastic and fluid <span class="math inline">\(h,\ell,k\)</span> for M3–L70–V01.</li>
+<li><strong><a href="../benchmarks/disc.html">Disc-load response</a></strong>: elastic profiles and the center uplift for the 10° disc.</li>
+<li><strong><a href="../benchmarks/sea-level.html">Sea-level equation</a></strong>: the five <span class="citation" data-cites="Martinec2018">Martinec et al. (<a href="#ref-Martinec2018" role="doc-biblioref">2018</a>)</span> cases.</li>
+<li><strong><a href="../benchmarks/rotation.html">Rotation</a></strong>: polar motion against Spada test 3/2.</li>
+<li><strong><a href="../benchmarks/lvz.html">Low-viscosity zone</a></strong>: lateral viscosity against
+<ol class="example" type="1">
+<li></li>
+</ol></li>
 </ul>
 
 
@@ -707,20 +804,58 @@ Martinec, Z., V. Klemann, W. van der Wal, et al. 2018. <span>“A Benchmark Stud
 <div id="ref-Spada2011" class="csl-entry" role="listitem">
 Spada, G., V. R. Barletta, V. Klemann, et al. 2011. <span>“A Benchmark Study for Glacial Isostatic Adjustment Codes.”</span> <em>Geophysical Journal International</em> 185 (1): 106–32. <a href="https://doi.org/10.1111/j.1365-246X.2011.04952.x">https://doi.org/10.1111/j.1365-246X.2011.04952.x</a>.
 </div>
+<div id="ref-Weerdesteijn2023" class="csl-entry" role="listitem">
+Weerdesteijn, M. F. M., J. B. Naliboff, C. P. Conrad, et al. 2023. <span>“Modeling Viscoelastic Solid Earth Deformation Due to Ice Age and Contemporary Glacial Mass Changes in <span>ASPECT</span>.”</span> <em>Geochemistry, Geophysics, Geosystems</em> 24 (3): e2022GC010813. <a href="https://doi.org/10.1029/2022GC010813">https://doi.org/10.1029/2022GC010813</a>.
+</div>
 </div></section></div></main> <!-- /main -->
 <script id="quarto-html-after-body" type="application/javascript">
   window.document.addEventListener("DOMContentLoaded", function (event) {
     // Ensure there is a toggle, if there isn't float one in the top right
     if (window.document.querySelector('.quarto-color-scheme-toggle') === null) {
-      const a = window.document.createElement('a');
-      a.classList.add('top-right');
-      a.classList.add('quarto-color-scheme-toggle');
-      a.href = "";
-      a.onclick = function() { try { window.quartoToggleColorScheme(); } catch {} return false; };
+      const toggle = window.document.createElement('button');
+      toggle.type = "button";
+      toggle.setAttribute("role", "switch");
+      toggle.setAttribute("aria-checked", "false");
+      toggle.classList.add('top-right');
+      toggle.classList.add('quarto-color-scheme-toggle');
+      toggle.setAttribute("aria-label", "Toggle dark mode");
+      toggle.onclick = function() { try { window.quartoToggleColorScheme(); } catch {} return false; };
       const i = window.document.createElement("i");
       i.classList.add('bi');
-      a.appendChild(i);
-      window.document.body.appendChild(a);
+      toggle.appendChild(i);
+      // Put the toggle in a landmark of its own, so that landmark navigation
+      // can reach it.
+      //
+      // The container is always a fresh direct child of body, and the toggle is
+      // never moved into page furniture that the theme or the author controls.
+      // The toggle is positioned against the page, so any ancestor that
+      // establishes a containing block captures it: a positioned element or a
+      // grid for position: absolute, and transform, filter, will-change or
+      // contain for position: fixed. A direct child of body has none of these
+      // to inherit, and the shift when one appears is silent and visual.
+      //
+      // ARIA says a document should have at most one banner, and axe reports a
+      // duplicate whether or not the banners carry distinct labels. So use a
+      // header when the page has no banner yet, and a named region otherwise.
+      //
+      // A header is a banner wherever it sits, unless it is inside sectioning
+      // content, so this cannot just look at the children of body: a custom
+      // page layout wraps the title block header in a plain div. An explicit
+      // role="banner" always counts.
+      const sectioning = 'article, aside, main, nav, section, [role="article"], [role="complementary"], [role="main"], [role="navigation"], [role="region"]';
+      const hasBanner = Array.from(
+        window.document.querySelectorAll('header:not([role]), [role="banner"]')
+      ).some(function(el) {
+        return el.hasAttribute("role") || el.closest(sectioning) === null;
+      });
+      const container = window.document.createElement(hasBanner ? "div" : "header");
+      if (hasBanner) {
+        container.setAttribute("role", "region");
+        container.setAttribute("aria-label", "Toggle dark mode");
+      }
+      container.classList.add('quarto-color-scheme-toggle-container');
+      container.appendChild(toggle);
+      window.document.body.appendChild(container);
     }
     setColorSchemeToggle(hasAlternateSentinel())
     const icon = "";
@@ -799,7 +934,8 @@ Spada, G., V. R. Barletta, V. Klemann, et al. 2011. <span>“A Benchmark Study f
           return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
       }
       // Inspect non-navigation links and adorn them if external
-     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      window.quartoDecorateExternalLinks = function (root) {
+     var links = (root || window.document).querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
       for (var i=0; i<links.length; i++) {
         const link = links[i];
         if (!isInternal(link.href)) {
@@ -808,8 +944,69 @@ Spada, G., V. R. Barletta, V. Klemann, et al. 2011. <span>“A Benchmark Study f
           if (link.dataset.originalHref !== undefined) {
             link.href = link.dataset.originalHref;
           }
+          if (!link.classList.contains('no-external-icon')) {
+          }
         }
       }
+      };
+      window.quartoDecorateExternalLinks(window.document);
+    // Esc closes the popup (WCAG 1.4.13) and focus leaving both trigger and
+    // popup closes it (WCAG 2.4.11); tippy handles neither for interactive popups.
+    const hideOnEscAndFocusOut = {
+      name: 'hideOnEscAndFocusOut',
+      defaultValue: true,
+      fn(instance) {
+        const dismiss = () => {
+          // A show scheduled by the trigger delay would otherwise reopen it
+          instance.clearDelayTimeouts();
+          instance.hide();
+        };
+        const onKeyDown = (event) => {
+          if (event.key !== 'Escape') {
+            return;
+          }
+          // Keep Esc from also reaching page handlers (e.g. reveal.js overview),
+          // except an open reveal.js slide menu, which Esc should close too.
+          // The menu handles keys only when its keyboard option is on.
+          const menuHandlesEsc = window.Reveal?.getPlugin?.('menu')?.isOpen() &&
+            window.Reveal.getConfig().menu?.keyboard !== false;
+          if (!menuHandlesEsc) {
+            event.stopPropagation();
+          }
+          if (instance.popper.contains(window.document.activeElement)) {
+            // Disabled while refocusing so the focus trigger does not reopen it
+            instance.disable();
+            instance.reference.focus();
+            instance.enable();
+          }
+          dismiss();
+        };
+        const onFocusOut = (event) => {
+          const target = event.relatedTarget;
+          if (target && !instance.reference.contains(target) &&
+              !instance.popper.contains(target)) {
+            dismiss();
+          }
+        };
+        // On the trigger too: a click trigger (code-annotations: select) has no
+        // blur handling. Attached for the instance's lifetime so leaving the
+        // trigger also cancels a show still pending on the trigger delay.
+        instance.reference.addEventListener('focusout', onFocusOut);
+        return {
+          onShow() {
+            window.document.addEventListener('keydown', onKeyDown, true);
+            instance.popper.addEventListener('focusout', onFocusOut);
+          },
+          onHide() {
+            window.document.removeEventListener('keydown', onKeyDown, true);
+            instance.popper.removeEventListener('focusout', onFocusOut);
+          },
+          onDestroy() {
+            instance.reference.removeEventListener('focusout', onFocusOut);
+          },
+        };
+      },
+    };
     function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
       const config = {
         allowHTML: true,
@@ -823,6 +1020,7 @@ Spada, G., V. R. Barletta, V. Klemann, et al. 2011. <span>“A Benchmark Study f
         interactiveBorder: 10,
         theme: 'quarto',
         placement: 'bottom-start',
+        plugins: [hideOnEscAndFocusOut],
       };
       if (contentFn) {
         config.content = contentFn;
@@ -985,44 +1183,54 @@ Spada, G., V. R. Barletta, V. Klemann, et al. 2011. <span>“A Benchmark Study f
           const lineIds = lines.map((line) => {
             return targetCell + "-" + line;
           })
-          let top = null;
-          let height = null;
-          let parent = null;
+          // Each band is positioned against its own containing block, which is
+          // not the offsetParent of the lines, so place it from client rects.
+          const placeBand = (band, firstEl, lastEl, codeBlock) => {
+            const container = band.offsetParent;
+            if (container === null) {
+              return;
+            }
+            const containerRect = container.getBoundingClientRect();
+            // Reveal.js scales slides with a transform, so convert client
+            // pixels back to the CSS pixels of the container.
+            const scale = containerRect.height / container.offsetHeight || 1;
+            const firstRect = firstEl.getBoundingClientRect();
+            const lastRect = lastEl.getBoundingClientRect();
+            const top = (firstRect.top - containerRect.top) / scale - container.clientTop + container.scrollTop;
+            const height = (lastRect.bottom - firstRect.top) / scale;
+            band.style.top = top - 2 + "px";
+            band.style.height = height + 4 + "px";
+            if (codeBlock) {
+              // Without the copy button wrapper, the containing block is wider
+              // than the code block, so span the code block explicitly.
+              const blockRect = codeBlock.getBoundingClientRect();
+              band.style.left = (blockRect.left - containerRect.left) / scale - container.clientLeft + container.scrollLeft + "px";
+              band.style.width = blockRect.width / scale + "px";
+            }
+          };
           if (lineIds.length > 0) {
-              //compute the position of the single el (top and bottom and make a div)
-              const el = window.document.getElementById(lineIds[0]);
-              top = el.offsetTop;
-              height = el.offsetHeight;
-              parent = el.parentElement.parentElement;
-            if (lineIds.length > 1) {
-              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
-              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
-              height = bottom - top;
+            const el = window.document.getElementById(lineIds[0]);
+            const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+            const parent = el.parentElement.parentElement;
+            // cook up a div (if necessary) and position it
+            let div = window.document.getElementById("code-annotation-line-highlight");
+            if (div === null) {
+              div = window.document.createElement("div");
+              div.setAttribute("id", "code-annotation-line-highlight");
+              div.style.position = 'absolute';
+              parent.appendChild(div);
             }
-            if (top !== null && height !== null && parent !== null) {
-              // cook up a div (if necessary) and position it 
-              let div = window.document.getElementById("code-annotation-line-highlight");
-              if (div === null) {
-                div = window.document.createElement("div");
-                div.setAttribute("id", "code-annotation-line-highlight");
-                div.style.position = 'absolute';
-                parent.appendChild(div);
-              }
-              div.style.top = top - 2 + "px";
-              div.style.height = height + 4 + "px";
-              div.style.left = 0;
-              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
-              if (gutterDiv === null) {
-                gutterDiv = window.document.createElement("div");
-                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
-                gutterDiv.style.position = 'absolute';
-                const codeCell = window.document.getElementById(targetCell);
-                const gutter = codeCell.querySelector('.code-annotation-gutter');
-                gutter.appendChild(gutterDiv);
-              }
-              gutterDiv.style.top = top - 2 + "px";
-              gutterDiv.style.height = height + 4 + "px";
+            placeBand(div, el, lastEl, parent.closest("div.sourceCode") || parent);
+            let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+            if (gutterDiv === null) {
+              gutterDiv = window.document.createElement("div");
+              gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+              gutterDiv.style.position = 'absolute';
+              const codeCell = window.document.getElementById(targetCell);
+              const gutter = codeCell.querySelector('.code-annotation-gutter');
+              gutter.appendChild(gutterDiv);
             }
+            placeBand(gutterDiv, el, lastEl);
             selectedAnnoteEl = annoteEl;
           }
         };
@@ -1121,7 +1329,10 @@ Spada, G., V. R. Barletta, V. Klemann, et al. 2011. <span>“A Benchmark Study f
     }
   });
   </script>
-<nav class="page-navigation">
+  <script type="application/javascript">
+  window.quartoScrollableRegionsLabels = {"code":"Scrollable code","output":"Scrollable output"};
+  </script>
+<nav class="page-navigation" aria-label="Page">
   <div class="nav-page nav-page-previous">
       <a href="../discretization/solver.html" class="pagination-link" aria-label="The banded direct solver and performance">
         <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text">The banded direct solver and performance</span>

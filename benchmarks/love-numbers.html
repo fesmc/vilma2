@@ -2,7 +2,7 @@
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
 
 <meta charset="utf-8">
-<meta name="generator" content="quarto-1.10.20">
+<meta name="generator" content="quarto-1.11.9">
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
@@ -59,18 +59,19 @@ div.csl-indent {
 <link href="../benchmarks/index.html" rel="prev">
 <script src="../site_libs/quarto-html/quarto.js" type="module"></script>
 <script src="../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../site_libs/quarto-html/scrollable-regions/scrollable-regions.js" type="module"></script>
 <script src="../site_libs/quarto-html/popper.min.js"></script>
 <script src="../site_libs/quarto-html/tippy.umd.min.js"></script>
 <script src="../site_libs/quarto-html/anchor.min.js"></script>
 <link href="../site_libs/quarto-html/tippy.css" rel="stylesheet">
-<link href="../site_libs/quarto-html/quarto-syntax-highlighting-17888a1159294d3eb470f19f6f52f5a5.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-text-highlighting-styles">
-<link href="../site_libs/quarto-html/quarto-syntax-highlighting-dark-0ae969d3293726db143f6e9eb89af930.css" rel="stylesheet" class="quarto-color-scheme quarto-color-alternate" id="quarto-text-highlighting-styles">
-<link href="../site_libs/quarto-html/quarto-syntax-highlighting-17888a1159294d3eb470f19f6f52f5a5.css" rel="stylesheet" class="quarto-color-scheme-extra" id="quarto-text-highlighting-styles">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-63b5708e65d6cd79cd7618c58d0c21e7.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-text-highlighting-styles">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-dark-447e42e69aaa9833c0ba1b986f430b20.css" rel="stylesheet" class="quarto-color-scheme quarto-color-alternate" id="quarto-text-highlighting-styles">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-63b5708e65d6cd79cd7618c58d0c21e7.css" rel="stylesheet" class="quarto-color-scheme-extra" id="quarto-text-highlighting-styles">
 <script src="../site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="../site_libs/bootstrap/bootstrap-fe9ab94330ff2cdc5105c70272dca3f0.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
-<link href="../site_libs/bootstrap/bootstrap-dark-bddab9ad0d549410cca6a651ad8ac0e7.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
-<link href="../site_libs/bootstrap/bootstrap-fe9ab94330ff2cdc5105c70272dca3f0.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
+<link href="../site_libs/bootstrap/bootstrap-3a1610f0a8f0b9b7bc4c1e6d49db0d8a.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
+<link href="../site_libs/bootstrap/bootstrap-dark-f829436f7c543b6c5fa77b733bfa68fa.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
+<link href="../site_libs/bootstrap/bootstrap-3a1610f0a8f0b9b7bc4c1e6d49db0d8a.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
 <script id="quarto-search-options" type="application/json">{
   "location": "navbar",
   "copy-button": false,
@@ -131,7 +132,7 @@ window.Quarto = {
 
 </head>
 
-<body class="nav-sidebar floating nav-fixed quarto-light"><script id="quarto-html-before-body" type="application/javascript">
+<body class="nav-sidebar floating nav-fixed quarto-light"><a id="quarto-skip-link" class="visually-hidden-focusable" href="#quarto-document-content">Skip to main content</a><script id="quarto-html-before-body" type="application/javascript">
     const toggleBodyColorMode = (bsSheetEl) => {
       const mode = bsSheetEl.getAttribute("data-mode");
       const bodyEl = window.document.querySelector("body");
@@ -154,6 +155,7 @@ window.Quarto = {
       for (let i=0; i < toggles.length; i++) {
         const toggle = toggles[i];
         if (toggle) {
+          toggle.setAttribute("aria-checked", alternate ? "true" : "false");
           if (alternate) {
             toggle.classList.add("alternate");
           } else {
@@ -183,13 +185,19 @@ window.Quarto = {
       manageTransitions('#quarto-margin-sidebar .nav-link', true);
       // Switch the toggles
       setColorSchemeToggle(alternate)
-      // Hack to workaround the fact that safari doesn't
-      // properly recolor the scrollbar when toggling (#1455)
+    }
+    // Hack to workaround the fact that safari doesn't
+    // properly recolor the scrollbar when toggling (#1455).
+    // Not run on load: stylesheets are set before first paint there, and
+    // scrolling would undo the scroll to a URL fragment (#14973).
+    // The one pixel nudge keeps the reader where they were.
+    const refreshSafariScrollbar = () => {
       if (navigator.userAgent.indexOf('Safari') > 0 && navigator.userAgent.indexOf('Chrome') == -1) {
         manageTransitions("body", false);
-        window.scrollTo(0, 1);
+        const scrollY = window.scrollY;
+        window.scrollTo(0, scrollY > 0 ? scrollY - 1 : 1);
         setTimeout(() => {
-          window.scrollTo(0, 0);
+          window.scrollTo(0, scrollY);
           manageTransitions("body", true);
         }, 40);
       }
@@ -283,6 +291,7 @@ window.Quarto = {
       // Read the current dark / light value
       let toAlternate = !hasAlternateSentinel();
       toggleColorMode(toAlternate);
+      refreshSafariScrollbar();
       setStyleSentinel(toAlternate);
       toggleGiscusIfUsed(toAlternate, darkModeDefault);
       window.dispatchEvent(new Event('resize'));
@@ -297,15 +306,14 @@ window.Quarto = {
 
 <div id="quarto-search-results"></div>
   <header id="quarto-header" class="headroom fixed-top">
-    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark" aria-label="Site">
       <div class="navbar-container container-fluid">
       <div class="navbar-brand-container mx-auto">
     <a class="navbar-brand" href="../index.html">
     <span class="navbar-title">VILMA2</span>
     </a>
   </div>
-            <div id="quarto-search" class="" title="Search"></div>
-          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" role="menu" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
   <span class="navbar-toggler-icon"></span>
 </button>
           <div class="collapse navbar-collapse" id="navbarCollapse">
@@ -390,17 +398,18 @@ window.Quarto = {
 </ul>
           </div> <!-- /navcollapse -->
             <div class="quarto-navbar-tools">
-  <a href="" class="quarto-color-scheme-toggle quarto-navigation-tool  px-1" onclick="window.quartoToggleColorScheme(); return false;" title="Toggle dark mode"><i class="bi"></i></a>
+  <button type="button" role="switch" aria-checked="false" class="quarto-color-scheme-toggle quarto-navigation-tool  px-1" onclick="window.quartoToggleColorScheme(); return false;" title="Toggle dark mode" aria-label="Toggle dark mode"><i class="bi"></i></button>
 </div>
+            <div id="quarto-search" class="" title="Search"></div>
       </div> <!-- /container-fluid -->
     </nav>
-  <nav class="quarto-secondary-nav">
+  <nav class="quarto-secondary-nav" aria-label="Toolbar">
     <div class="container-fluid d-flex">
       <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
         <i class="bi bi-layout-text-sidebar-reverse"></i>
       </button>
-        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../benchmarks/index.html">Benchmarks</a></li><li class="breadcrumb-item"><a href="../benchmarks/love-numbers.html">Benchmark: Love numbers</a></li></ol></nav>
-        <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
+        <nav class="quarto-page-breadcrumbs" aria-label="Breadcrumbs"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../benchmarks/index.html">Benchmarks</a></li><li class="breadcrumb-item"><a href="../benchmarks/love-numbers.html">Benchmark: Love numbers</a></li></ol></nav>
+        <a class="flex-grow-1" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
         </a>
     </div>
   </nav>
@@ -408,18 +417,15 @@ window.Quarto = {
 <!-- content -->
 <div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
 <!-- sidebar -->
-  <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal quarto-sidebar-collapse-item sidebar-navigation floating overflow-auto">
+  <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal quarto-sidebar-collapse-item sidebar-navigation floating overflow-auto" aria-label="Section">
     <div class="sidebar-menu-container"> 
     <ul class="list-unstyled mt-1">
         <li class="sidebar-item sidebar-item-section">
       <div class="sidebar-item-container"> 
-            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true">
- <span class="menu-text">Getting started</span></a>
-          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true" aria-label="Toggle section">
-            <i class="bi bi-chevron-right ms-2"></i>
-          </a> 
+            <button type="button" class="sidebar-item-text sidebar-item-toggle sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" aria-controls="quarto-sidebar-section-1" aria-expanded="true">
+ <span class="menu-text" id="quarto-sidebar-section-1-label">Getting started</span><i class="bi bi-chevron-right" aria-hidden="true"></i></button>
       </div>
-      <ul id="quarto-sidebar-section-1" class="collapse list-unstyled sidebar-section depth1 show">  
+      <ul id="quarto-sidebar-section-1" aria-labelledby="quarto-sidebar-section-1-label" class="collapse list-unstyled sidebar-section depth1 show">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="../index.html" class="sidebar-item-text sidebar-link">
@@ -442,13 +448,10 @@ window.Quarto = {
   </li>
         <li class="sidebar-item sidebar-item-section">
       <div class="sidebar-item-container"> 
-            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="true">
- <span class="menu-text">Physics</span></a>
-          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="true" aria-label="Toggle section">
-            <i class="bi bi-chevron-right ms-2"></i>
-          </a> 
+            <button type="button" class="sidebar-item-text sidebar-item-toggle sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" aria-controls="quarto-sidebar-section-2" aria-expanded="true">
+ <span class="menu-text" id="quarto-sidebar-section-2-label">Physics</span><i class="bi bi-chevron-right" aria-hidden="true"></i></button>
       </div>
-      <ul id="quarto-sidebar-section-2" class="collapse list-unstyled sidebar-section depth1 show">  
+      <ul id="quarto-sidebar-section-2" aria-labelledby="quarto-sidebar-section-2-label" class="collapse list-unstyled sidebar-section depth1 show">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="../physics/governing-equations.html" class="sidebar-item-text sidebar-link">
@@ -483,13 +486,10 @@ window.Quarto = {
   </li>
         <li class="sidebar-item sidebar-item-section">
       <div class="sidebar-item-container"> 
-            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="true">
- <span class="menu-text">Discretization</span></a>
-          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="true" aria-label="Toggle section">
-            <i class="bi bi-chevron-right ms-2"></i>
-          </a> 
+            <button type="button" class="sidebar-item-text sidebar-item-toggle sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" aria-controls="quarto-sidebar-section-3" aria-expanded="true">
+ <span class="menu-text" id="quarto-sidebar-section-3-label">Discretization</span><i class="bi bi-chevron-right" aria-hidden="true"></i></button>
       </div>
-      <ul id="quarto-sidebar-section-3" class="collapse list-unstyled sidebar-section depth1 show">  
+      <ul id="quarto-sidebar-section-3" aria-labelledby="quarto-sidebar-section-3-label" class="collapse list-unstyled sidebar-section depth1 show">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="../discretization/spectral.html" class="sidebar-item-text sidebar-link">
@@ -518,13 +518,10 @@ window.Quarto = {
   </li>
         <li class="sidebar-item sidebar-item-section">
       <div class="sidebar-item-container"> 
-            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="true">
- <span class="menu-text">Benchmarks</span></a>
-          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="true" aria-label="Toggle section">
-            <i class="bi bi-chevron-right ms-2"></i>
-          </a> 
+            <button type="button" class="sidebar-item-text sidebar-item-toggle sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" aria-controls="quarto-sidebar-section-4" aria-expanded="true">
+ <span class="menu-text" id="quarto-sidebar-section-4-label">Benchmarks</span><i class="bi bi-chevron-right" aria-hidden="true"></i></button>
       </div>
-      <ul id="quarto-sidebar-section-4" class="collapse list-unstyled sidebar-section depth1 show">  
+      <ul id="quarto-sidebar-section-4" aria-labelledby="quarto-sidebar-section-4-label" class="collapse list-unstyled sidebar-section depth1 show">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="../benchmarks/index.html" class="sidebar-item-text sidebar-link">
@@ -549,6 +546,18 @@ window.Quarto = {
  <span class="menu-text">Benchmark: the sea-level equation</span></a>
   </div>
 </li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../benchmarks/rotation.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Benchmark: rotation (polar motion)</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../benchmarks/lvz.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Benchmark: low-viscosity zone (lateral viscosity)</span></a>
+  </div>
+</li>
       </ul>
   </li>
         <li class="sidebar-item">
@@ -563,7 +572,7 @@ window.Quarto = {
 <div id="quarto-sidebar-glass" class="quarto-sidebar-collapse-item" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item"></div>
 <!-- margin-sidebar -->
     <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
-        <nav id="TOC" role="doc-toc" class="toc-active">
+        <nav id="TOC" role="doc-toc" aria-labelledby="toc-title" class="toc-active">
     <h2 id="toc-title">On this page</h2>
    
   <ul>
@@ -577,10 +586,10 @@ window.Quarto = {
 <div class="toc-actions"><ul><li><a href="https://github.com/fesmc/vilma2/blob/main/benchmarks/love-numbers.qmd" class="toc-action"><i class="bi bi-github"></i>View source</a></li><li><a href="https://github.com/fesmc/vilma2/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></nav>
     </div>
 <!-- main -->
-<main class="content" id="quarto-document-content">
+<main class="content" id="quarto-document-content" tabindex="-1">
 
 
-<header id="title-block-header" class="quarto-title-block default"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../benchmarks/index.html">Benchmarks</a></li><li class="breadcrumb-item"><a href="../benchmarks/love-numbers.html">Benchmark: Love numbers</a></li></ol></nav>
+<header id="title-block-header" class="quarto-title-block default"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="Breadcrumbs"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../benchmarks/index.html">Benchmarks</a></li><li class="breadcrumb-item"><a href="../benchmarks/love-numbers.html">Benchmark: Love numbers</a></li></ol></nav>
 <div class="quarto-title">
 <h1 class="title">Benchmark: Love numbers</h1>
 </div>
@@ -605,7 +614,7 @@ window.Quarto = {
 <i class="callout-icon no-icon"></i>
 </div>
 <div class="callout-body-container">
-<p><strong>Reference:</strong> Spada et al.&nbsp;(2011), the Charles University GIA benchmark, earth model <strong>M3–L70–V01</strong> <span class="citation" data-cites="Spada2011">(<a href="#ref-Spada2011" role="doc-biblioref">Spada et al. 2011</a>)</span>. <strong>Test:</strong> <code>test_benchmark_love</code> (in <code>make check</code>). <strong>Status:</strong> ✅ elastic and fluid <span class="math inline">\(h,\ell,k\)</span> match to <span class="math inline">\(\sim 0.1\%\)</span> at every degree 2–256.</p>
+<p><strong>Reference:</strong> Spada et al.&nbsp;(2011), the Charles University GIA benchmark, earth model <strong>M3–L70–V01</strong> <span class="citation" data-cites="Spada2011">(<a href="#ref-Spada2011" role="doc-biblioref">Spada et al. 2011</a>)</span>. <strong>Test:</strong> <code>test_benchmark_love</code> (in <code>make check</code>). <strong>Asserted:</strong> <span class="math inline">\(h\)</span> and <span class="math inline">\(k\)</span> within 1 % for the elastic numbers at degrees 2–48, and <span class="math inline">\(h\)</span>, <span class="math inline">\(\ell\)</span>, <span class="math inline">\(k\)</span> within 1 % for the fluid numbers at degrees 2–8. <strong>Measured</strong> (ifx, albedo): <span class="math inline">\(h\)</span> within 0.08 % at every degree 2–256; <span class="math inline">\(\ell\)</span> and <span class="math inline">\(k\)</span> leave 1 % above degrees 144 and 96.</p>
 </div>
 </div>
 </div>
@@ -632,7 +641,7 @@ k_j = -\frac{F(a)}{\varphi^{L}} - 1.
 </section>
 <section id="analytic-anchors" class="level2">
 <h2 class="anchored" data-anchor-id="analytic-anchors">Analytic anchors</h2>
-<p>Two limits are exact and are checked first (<code>test_love</code>, to <span class="math inline">\(\sim 10^{-5}\)</span>):</p>
+<p>Two limits are exact and are checked first (<code>test_love</code>, to an absolute <span class="math inline">\(10^{-3}\)</span> for the fluid limit and <span class="math inline">\(10^{-4}\)</span> for the rigid limit):</p>
 <ul>
 <li><strong>Fluid</strong> (<span class="math inline">\(\mu\to 0\)</span>, homogeneous): <span class="math inline">\(h_j\to-(2j+1)/3\)</span>, <span class="math inline">\(k_j\to-1\)</span>.</li>
 <li><strong>Rigid</strong> (<span class="math inline">\(\mu\to\infty\)</span>): <span class="math inline">\(h_j,\ell_j,k_j\to 0\)</span>.</li>
@@ -641,15 +650,110 @@ k_j = -\frac{F(a)}{\varphi^{L}} - 1.
 </section>
 <section id="result" class="level2">
 <h2 class="anchored" data-anchor-id="result">Result</h2>
-<p>The elastic and fluid <span class="math inline">\(h,\ell,k\)</span> match the benchmark table to <span class="math inline">\(\sim 0.1\%\)</span> (the P1 discretization level) at every degree from 2 to 256. The fluid limit was always exact (<span class="math inline">\(&lt;0.5\%\)</span>); the elastic numbers are the discriminating test. Correct discretization of the self-gravity <span class="math inline">\(U\)</span>–<span class="math inline">\(F\)</span> block is essential for the low-degree elastic numbers — see the <a href="../discretization/radial-fe.html">typo in <span class="citation" data-cites="Martinec2000">Martinec (<span>2000</span>)</span> eq. (81)</a>. TABOO (NV=3, CODE=7) served as an independent reference to regenerate the M3–L70–V01 table.</p>
+<p>The test computes <span class="math inline">\(h\)</span>, <span class="math inline">\(\ell\)</span> and <span class="math inline">\(k\)</span> at every degree from 2 to 256 for the elastic and the fluid limit, and compares them with the reference table. It asserts agreement within 1 % only over the degree ranges given above. The table below gives the largest relative error measured in each degree band (model 1790f86, ifx, albedo).</p>
+<div id="tbl-love" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-tbl figure">
+<figcaption class="quarto-float-caption-top quarto-float-caption quarto-float-tbl" id="tbl-love-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Table&nbsp;1: Largest relative difference from the M3–L70–V01 table per degree band.
+</figcaption>
+<div aria-describedby="tbl-love-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Limit</th>
+<th style="text-align: center;">Number</th>
+<th style="text-align: center;">2–8</th>
+<th style="text-align: center;">2–48</th>
+<th style="text-align: center;">49–96</th>
+<th style="text-align: center;">97–144</th>
+<th style="text-align: center;">145–200</th>
+<th style="text-align: center;">201–256</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>elastic</td>
+<td style="text-align: center;"><span class="math inline">\(h\)</span></td>
+<td style="text-align: center;">0.06 %</td>
+<td style="text-align: center;">0.06 %</td>
+<td style="text-align: center;">0.05 %</td>
+<td style="text-align: center;">0.02 %</td>
+<td style="text-align: center;">0.04 %</td>
+<td style="text-align: center;">0.08 %</td>
+</tr>
+<tr class="even">
+<td>elastic</td>
+<td style="text-align: center;"><span class="math inline">\(\ell\)</span></td>
+<td style="text-align: center;">0.06 %</td>
+<td style="text-align: center;">0.15 %</td>
+<td style="text-align: center;">0.41 %</td>
+<td style="text-align: center;">1.0 %</td>
+<td style="text-align: center;">2.8 %</td>
+<td style="text-align: center;">7.6 %</td>
+</tr>
+<tr class="odd">
+<td>elastic</td>
+<td style="text-align: center;"><span class="math inline">\(k\)</span></td>
+<td style="text-align: center;">0.07 %</td>
+<td style="text-align: center;">0.25 %</td>
+<td style="text-align: center;">0.99 %</td>
+<td style="text-align: center;">2.5 %</td>
+<td style="text-align: center;">5.9 %</td>
+<td style="text-align: center;">11.7 %</td>
+</tr>
+<tr class="even">
+<td>fluid</td>
+<td style="text-align: center;"><span class="math inline">\(h\)</span></td>
+<td style="text-align: center;">0.003 %</td>
+<td style="text-align: center;">0.10 %</td>
+<td style="text-align: center;">0.20 %</td>
+<td style="text-align: center;">0.19 %</td>
+<td style="text-align: center;">0.11 %</td>
+<td style="text-align: center;">0.10 %</td>
+</tr>
+<tr class="odd">
+<td>fluid</td>
+<td style="text-align: center;"><span class="math inline">\(\ell\)</span></td>
+<td style="text-align: center;">0.008 %</td>
+<td style="text-align: center;">0.13 %</td>
+<td style="text-align: center;">0.25 %</td>
+<td style="text-align: center;">0.25 %</td>
+<td style="text-align: center;">0.25 %</td>
+<td style="text-align: center;">1.6 %</td>
+</tr>
+<tr class="even">
+<td>fluid</td>
+<td style="text-align: center;"><span class="math inline">\(k\)</span></td>
+<td style="text-align: center;">0.001 %</td>
+<td style="text-align: center;">0.10 %</td>
+<td style="text-align: center;">0.35 %</td>
+<td style="text-align: center;">1.1 %</td>
+<td style="text-align: center;">3.9 %</td>
+<td style="text-align: center;">9.8 %</td>
+</tr>
+</tbody>
+</table>
+</div>
+</figure>
+</div>
+<p>The vertical Love number <span class="math inline">\(h\)</span> matches the table to better than 0.1 % (elastic) and 0.2 % (fluid) at every degree. The low degrees, which carry most of the GIA signal, match to better than 0.1 % in all three numbers. Correct discretization of the self-gravity <span class="math inline">\(U\)</span>–<span class="math inline">\(F\)</span> block is essential for the low-degree elastic numbers (see the <a href="../discretization/radial-fe.html">typo in <span class="citation" data-cites="Martinec2000">Martinec (<span>2000</span>)</span> eq. (81)</a>).</p>
+<p>The relative error of <span class="math inline">\(\ell\)</span> and <span class="math inline">\(k\)</span> grows with degree. The elastic <span class="math inline">\(k\)</span> first exceeds 1 % at degree 97 and reaches about 12 % at degree 256, and the elastic <span class="math inline">\(\ell\)</span> first exceeds 1 % at degree 145. Both numbers decay with degree (<span class="math inline">\(|k| &lt; 0.016\)</span> and <span class="math inline">\(|\ell| &lt; 0.0021\)</span> above degree 96), so the absolute differences stay small: at most <span class="math inline">\(8\times10^{-4}\)</span> in <span class="math inline">\(k\)</span> and <span class="math inline">\(2\times10^{-5}\)</span> in <span class="math inline">\(\ell\)</span>. The difference in <span class="math inline">\(k\)</span> is nearly the same in the elastic and the fluid limit and grows roughly as the square of the degree. It is therefore independent of the rheology. It is a discretization error of the radial mesh, not a limit of the reference: halving the element size reduces the error at degree 256 from 11.7 % to 3.0 % in <span class="math inline">\(k\)</span> and from 7.6 % to 2.0 % in <span class="math inline">\(\ell\)</span>, and halving it again to 0.8 % and 0.5 % (second-order convergence; see the <a href="../discretization/radial-fe.html#tbl-mesh">mesh convergence table</a>). At the default mesh (5 km elements above 70 km depth) the short-wavelength <span class="math inline">\(k\)</span> and <span class="math inline">\(\ell\)</span> are thus resolved to about 1 % up to degree 96 and 144. A finer mesh (<code>mesh_dr_scale &lt; 1</code>) improves them at a cost proportional to the number of elements.</p>
+<p>The practical consequence is limited to the geoid at short wavelength. The bedrock displacement, which dominates relative sea level, depends on <span class="math inline">\(h\)</span>. The geoid contribution of a degree above 96 is scaled by <span class="math inline">\(1 + k\)</span>, which the difference changes by less than 0.1 %.</p>
+<p><code>TABOO</code> (NV=3, CODE=7) served as an independent reference to regenerate the M3–L70–V01 table.</p>
 </section>
 <section id="figures" class="level2">
 <h2 class="anchored" data-anchor-id="figures">Figures</h2>
-<p><em>Figures to be added: <span class="math inline">\(h_j,\ell_j,k_j\)</span> versus degree (elastic and fluid), VILMA2 vs.&nbsp;the M3–L70–V01 table; relative-error spectra.</em></p>
-<!--
-![Elastic Love numbers vs degree](figures/love_elastic.png)
-![Relative error vs degree](figures/love_error.png)
--->
+<div id="fig-love-numbers" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-love-numbers-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="figures/love-numbers.png" class="img-fluid figure-img">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-love-numbers-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;1: Loading Love numbers <span class="math inline">\(h\)</span>, <span class="math inline">\(\ell\)</span> and <span class="math inline">\(k\)</span> of M3–L70–V01 against degree for the elastic and the fluid limit, VILMA2 and the reference table, with the relative difference.
+</figcaption>
+</figure>
+</div>
+<p>The full comparison table can be written by the test itself: set <code>VILMA_BENCH_DUMP</code> to an existing directory and the test writes <code>love_elastic.txt</code> and <code>love_fluid.txt</code> there (see <a href="../benchmarks/index.html#dumping-the-comparison-data">Benchmarks</a>).</p>
 </section>
 <section id="provenance" class="level2">
 <h2 class="anchored" data-anchor-id="provenance">Provenance</h2>
@@ -674,15 +778,50 @@ Spada, G., V. R. Barletta, V. Klemann, et al. 2011. <span>“A Benchmark Study f
   window.document.addEventListener("DOMContentLoaded", function (event) {
     // Ensure there is a toggle, if there isn't float one in the top right
     if (window.document.querySelector('.quarto-color-scheme-toggle') === null) {
-      const a = window.document.createElement('a');
-      a.classList.add('top-right');
-      a.classList.add('quarto-color-scheme-toggle');
-      a.href = "";
-      a.onclick = function() { try { window.quartoToggleColorScheme(); } catch {} return false; };
+      const toggle = window.document.createElement('button');
+      toggle.type = "button";
+      toggle.setAttribute("role", "switch");
+      toggle.setAttribute("aria-checked", "false");
+      toggle.classList.add('top-right');
+      toggle.classList.add('quarto-color-scheme-toggle');
+      toggle.setAttribute("aria-label", "Toggle dark mode");
+      toggle.onclick = function() { try { window.quartoToggleColorScheme(); } catch {} return false; };
       const i = window.document.createElement("i");
       i.classList.add('bi');
-      a.appendChild(i);
-      window.document.body.appendChild(a);
+      toggle.appendChild(i);
+      // Put the toggle in a landmark of its own, so that landmark navigation
+      // can reach it.
+      //
+      // The container is always a fresh direct child of body, and the toggle is
+      // never moved into page furniture that the theme or the author controls.
+      // The toggle is positioned against the page, so any ancestor that
+      // establishes a containing block captures it: a positioned element or a
+      // grid for position: absolute, and transform, filter, will-change or
+      // contain for position: fixed. A direct child of body has none of these
+      // to inherit, and the shift when one appears is silent and visual.
+      //
+      // ARIA says a document should have at most one banner, and axe reports a
+      // duplicate whether or not the banners carry distinct labels. So use a
+      // header when the page has no banner yet, and a named region otherwise.
+      //
+      // A header is a banner wherever it sits, unless it is inside sectioning
+      // content, so this cannot just look at the children of body: a custom
+      // page layout wraps the title block header in a plain div. An explicit
+      // role="banner" always counts.
+      const sectioning = 'article, aside, main, nav, section, [role="article"], [role="complementary"], [role="main"], [role="navigation"], [role="region"]';
+      const hasBanner = Array.from(
+        window.document.querySelectorAll('header:not([role]), [role="banner"]')
+      ).some(function(el) {
+        return el.hasAttribute("role") || el.closest(sectioning) === null;
+      });
+      const container = window.document.createElement(hasBanner ? "div" : "header");
+      if (hasBanner) {
+        container.setAttribute("role", "region");
+        container.setAttribute("aria-label", "Toggle dark mode");
+      }
+      container.classList.add('quarto-color-scheme-toggle-container');
+      container.appendChild(toggle);
+      window.document.body.appendChild(container);
     }
     setColorSchemeToggle(hasAlternateSentinel())
     const icon = "";
@@ -761,7 +900,8 @@ Spada, G., V. R. Barletta, V. Klemann, et al. 2011. <span>“A Benchmark Study f
           return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
       }
       // Inspect non-navigation links and adorn them if external
-     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      window.quartoDecorateExternalLinks = function (root) {
+     var links = (root || window.document).querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
       for (var i=0; i<links.length; i++) {
         const link = links[i];
         if (!isInternal(link.href)) {
@@ -770,8 +910,69 @@ Spada, G., V. R. Barletta, V. Klemann, et al. 2011. <span>“A Benchmark Study f
           if (link.dataset.originalHref !== undefined) {
             link.href = link.dataset.originalHref;
           }
+          if (!link.classList.contains('no-external-icon')) {
+          }
         }
       }
+      };
+      window.quartoDecorateExternalLinks(window.document);
+    // Esc closes the popup (WCAG 1.4.13) and focus leaving both trigger and
+    // popup closes it (WCAG 2.4.11); tippy handles neither for interactive popups.
+    const hideOnEscAndFocusOut = {
+      name: 'hideOnEscAndFocusOut',
+      defaultValue: true,
+      fn(instance) {
+        const dismiss = () => {
+          // A show scheduled by the trigger delay would otherwise reopen it
+          instance.clearDelayTimeouts();
+          instance.hide();
+        };
+        const onKeyDown = (event) => {
+          if (event.key !== 'Escape') {
+            return;
+          }
+          // Keep Esc from also reaching page handlers (e.g. reveal.js overview),
+          // except an open reveal.js slide menu, which Esc should close too.
+          // The menu handles keys only when its keyboard option is on.
+          const menuHandlesEsc = window.Reveal?.getPlugin?.('menu')?.isOpen() &&
+            window.Reveal.getConfig().menu?.keyboard !== false;
+          if (!menuHandlesEsc) {
+            event.stopPropagation();
+          }
+          if (instance.popper.contains(window.document.activeElement)) {
+            // Disabled while refocusing so the focus trigger does not reopen it
+            instance.disable();
+            instance.reference.focus();
+            instance.enable();
+          }
+          dismiss();
+        };
+        const onFocusOut = (event) => {
+          const target = event.relatedTarget;
+          if (target && !instance.reference.contains(target) &&
+              !instance.popper.contains(target)) {
+            dismiss();
+          }
+        };
+        // On the trigger too: a click trigger (code-annotations: select) has no
+        // blur handling. Attached for the instance's lifetime so leaving the
+        // trigger also cancels a show still pending on the trigger delay.
+        instance.reference.addEventListener('focusout', onFocusOut);
+        return {
+          onShow() {
+            window.document.addEventListener('keydown', onKeyDown, true);
+            instance.popper.addEventListener('focusout', onFocusOut);
+          },
+          onHide() {
+            window.document.removeEventListener('keydown', onKeyDown, true);
+            instance.popper.removeEventListener('focusout', onFocusOut);
+          },
+          onDestroy() {
+            instance.reference.removeEventListener('focusout', onFocusOut);
+          },
+        };
+      },
+    };
     function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
       const config = {
         allowHTML: true,
@@ -785,6 +986,7 @@ Spada, G., V. R. Barletta, V. Klemann, et al. 2011. <span>“A Benchmark Study f
         interactiveBorder: 10,
         theme: 'quarto',
         placement: 'bottom-start',
+        plugins: [hideOnEscAndFocusOut],
       };
       if (contentFn) {
         config.content = contentFn;
@@ -947,44 +1149,54 @@ Spada, G., V. R. Barletta, V. Klemann, et al. 2011. <span>“A Benchmark Study f
           const lineIds = lines.map((line) => {
             return targetCell + "-" + line;
           })
-          let top = null;
-          let height = null;
-          let parent = null;
+          // Each band is positioned against its own containing block, which is
+          // not the offsetParent of the lines, so place it from client rects.
+          const placeBand = (band, firstEl, lastEl, codeBlock) => {
+            const container = band.offsetParent;
+            if (container === null) {
+              return;
+            }
+            const containerRect = container.getBoundingClientRect();
+            // Reveal.js scales slides with a transform, so convert client
+            // pixels back to the CSS pixels of the container.
+            const scale = containerRect.height / container.offsetHeight || 1;
+            const firstRect = firstEl.getBoundingClientRect();
+            const lastRect = lastEl.getBoundingClientRect();
+            const top = (firstRect.top - containerRect.top) / scale - container.clientTop + container.scrollTop;
+            const height = (lastRect.bottom - firstRect.top) / scale;
+            band.style.top = top - 2 + "px";
+            band.style.height = height + 4 + "px";
+            if (codeBlock) {
+              // Without the copy button wrapper, the containing block is wider
+              // than the code block, so span the code block explicitly.
+              const blockRect = codeBlock.getBoundingClientRect();
+              band.style.left = (blockRect.left - containerRect.left) / scale - container.clientLeft + container.scrollLeft + "px";
+              band.style.width = blockRect.width / scale + "px";
+            }
+          };
           if (lineIds.length > 0) {
-              //compute the position of the single el (top and bottom and make a div)
-              const el = window.document.getElementById(lineIds[0]);
-              top = el.offsetTop;
-              height = el.offsetHeight;
-              parent = el.parentElement.parentElement;
-            if (lineIds.length > 1) {
-              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
-              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
-              height = bottom - top;
+            const el = window.document.getElementById(lineIds[0]);
+            const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+            const parent = el.parentElement.parentElement;
+            // cook up a div (if necessary) and position it
+            let div = window.document.getElementById("code-annotation-line-highlight");
+            if (div === null) {
+              div = window.document.createElement("div");
+              div.setAttribute("id", "code-annotation-line-highlight");
+              div.style.position = 'absolute';
+              parent.appendChild(div);
             }
-            if (top !== null && height !== null && parent !== null) {
-              // cook up a div (if necessary) and position it 
-              let div = window.document.getElementById("code-annotation-line-highlight");
-              if (div === null) {
-                div = window.document.createElement("div");
-                div.setAttribute("id", "code-annotation-line-highlight");
-                div.style.position = 'absolute';
-                parent.appendChild(div);
-              }
-              div.style.top = top - 2 + "px";
-              div.style.height = height + 4 + "px";
-              div.style.left = 0;
-              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
-              if (gutterDiv === null) {
-                gutterDiv = window.document.createElement("div");
-                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
-                gutterDiv.style.position = 'absolute';
-                const codeCell = window.document.getElementById(targetCell);
-                const gutter = codeCell.querySelector('.code-annotation-gutter');
-                gutter.appendChild(gutterDiv);
-              }
-              gutterDiv.style.top = top - 2 + "px";
-              gutterDiv.style.height = height + 4 + "px";
+            placeBand(div, el, lastEl, parent.closest("div.sourceCode") || parent);
+            let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+            if (gutterDiv === null) {
+              gutterDiv = window.document.createElement("div");
+              gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+              gutterDiv.style.position = 'absolute';
+              const codeCell = window.document.getElementById(targetCell);
+              const gutter = codeCell.querySelector('.code-annotation-gutter');
+              gutter.appendChild(gutterDiv);
             }
+            placeBand(gutterDiv, el, lastEl);
             selectedAnnoteEl = annoteEl;
           }
         };
@@ -1083,7 +1295,10 @@ Spada, G., V. R. Barletta, V. Klemann, et al. 2011. <span>“A Benchmark Study f
     }
   });
   </script>
-<nav class="page-navigation">
+  <script type="application/javascript">
+  window.quartoScrollableRegionsLabels = {"code":"Scrollable code","output":"Scrollable output"};
+  </script>
+<nav class="page-navigation" aria-label="Page">
   <div class="nav-page nav-page-previous">
       <a href="../benchmarks/index.html" class="pagination-link" aria-label="Benchmarks">
         <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text">Benchmarks</span>

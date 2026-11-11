@@ -2,7 +2,7 @@
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
 
 <meta charset="utf-8">
-<meta name="generator" content="quarto-1.10.20">
+<meta name="generator" content="quarto-1.11.9">
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
@@ -58,18 +58,19 @@ div.csl-indent {
 <link href="./getting-started.html" rel="next">
 <script src="site_libs/quarto-html/quarto.js" type="module"></script>
 <script src="site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="site_libs/quarto-html/scrollable-regions/scrollable-regions.js" type="module"></script>
 <script src="site_libs/quarto-html/popper.min.js"></script>
 <script src="site_libs/quarto-html/tippy.umd.min.js"></script>
 <script src="site_libs/quarto-html/anchor.min.js"></script>
 <link href="site_libs/quarto-html/tippy.css" rel="stylesheet">
-<link href="site_libs/quarto-html/quarto-syntax-highlighting-17888a1159294d3eb470f19f6f52f5a5.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-text-highlighting-styles">
-<link href="site_libs/quarto-html/quarto-syntax-highlighting-dark-0ae969d3293726db143f6e9eb89af930.css" rel="stylesheet" class="quarto-color-scheme quarto-color-alternate" id="quarto-text-highlighting-styles">
-<link href="site_libs/quarto-html/quarto-syntax-highlighting-17888a1159294d3eb470f19f6f52f5a5.css" rel="stylesheet" class="quarto-color-scheme-extra" id="quarto-text-highlighting-styles">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-63b5708e65d6cd79cd7618c58d0c21e7.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-text-highlighting-styles">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-dark-447e42e69aaa9833c0ba1b986f430b20.css" rel="stylesheet" class="quarto-color-scheme quarto-color-alternate" id="quarto-text-highlighting-styles">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-63b5708e65d6cd79cd7618c58d0c21e7.css" rel="stylesheet" class="quarto-color-scheme-extra" id="quarto-text-highlighting-styles">
 <script src="site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="site_libs/bootstrap/bootstrap-fe9ab94330ff2cdc5105c70272dca3f0.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
-<link href="site_libs/bootstrap/bootstrap-dark-bddab9ad0d549410cca6a651ad8ac0e7.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
-<link href="site_libs/bootstrap/bootstrap-fe9ab94330ff2cdc5105c70272dca3f0.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
+<link href="site_libs/bootstrap/bootstrap-3a1610f0a8f0b9b7bc4c1e6d49db0d8a.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
+<link href="site_libs/bootstrap/bootstrap-dark-f829436f7c543b6c5fa77b733bfa68fa.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
+<link href="site_libs/bootstrap/bootstrap-3a1610f0a8f0b9b7bc4c1e6d49db0d8a.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
 <script id="quarto-search-options" type="application/json">{
   "location": "navbar",
   "copy-button": false,
@@ -130,7 +131,7 @@ window.Quarto = {
 
 </head>
 
-<body class="nav-sidebar floating nav-fixed fullcontent quarto-light"><script id="quarto-html-before-body" type="application/javascript">
+<body class="nav-sidebar floating nav-fixed fullcontent quarto-light"><a id="quarto-skip-link" class="visually-hidden-focusable" href="#quarto-document-content">Skip to main content</a><script id="quarto-html-before-body" type="application/javascript">
     const toggleBodyColorMode = (bsSheetEl) => {
       const mode = bsSheetEl.getAttribute("data-mode");
       const bodyEl = window.document.querySelector("body");
@@ -153,6 +154,7 @@ window.Quarto = {
       for (let i=0; i < toggles.length; i++) {
         const toggle = toggles[i];
         if (toggle) {
+          toggle.setAttribute("aria-checked", alternate ? "true" : "false");
           if (alternate) {
             toggle.classList.add("alternate");
           } else {
@@ -182,13 +184,19 @@ window.Quarto = {
       manageTransitions('#quarto-margin-sidebar .nav-link', true);
       // Switch the toggles
       setColorSchemeToggle(alternate)
-      // Hack to workaround the fact that safari doesn't
-      // properly recolor the scrollbar when toggling (#1455)
+    }
+    // Hack to workaround the fact that safari doesn't
+    // properly recolor the scrollbar when toggling (#1455).
+    // Not run on load: stylesheets are set before first paint there, and
+    // scrolling would undo the scroll to a URL fragment (#14973).
+    // The one pixel nudge keeps the reader where they were.
+    const refreshSafariScrollbar = () => {
       if (navigator.userAgent.indexOf('Safari') > 0 && navigator.userAgent.indexOf('Chrome') == -1) {
         manageTransitions("body", false);
-        window.scrollTo(0, 1);
+        const scrollY = window.scrollY;
+        window.scrollTo(0, scrollY > 0 ? scrollY - 1 : 1);
         setTimeout(() => {
-          window.scrollTo(0, 0);
+          window.scrollTo(0, scrollY);
           manageTransitions("body", true);
         }, 40);
       }
@@ -282,6 +290,7 @@ window.Quarto = {
       // Read the current dark / light value
       let toAlternate = !hasAlternateSentinel();
       toggleColorMode(toAlternate);
+      refreshSafariScrollbar();
       setStyleSentinel(toAlternate);
       toggleGiscusIfUsed(toAlternate, darkModeDefault);
       window.dispatchEvent(new Event('resize'));
@@ -296,15 +305,14 @@ window.Quarto = {
 
 <div id="quarto-search-results"></div>
   <header id="quarto-header" class="headroom fixed-top">
-    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark" aria-label="Site">
       <div class="navbar-container container-fluid">
       <div class="navbar-brand-container mx-auto">
     <a class="navbar-brand" href="./index.html">
     <span class="navbar-title">VILMA2</span>
     </a>
   </div>
-            <div id="quarto-search" class="" title="Search"></div>
-          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" role="menu" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
   <span class="navbar-toggler-icon"></span>
 </button>
           <div class="collapse navbar-collapse" id="navbarCollapse">
@@ -389,17 +397,18 @@ window.Quarto = {
 </ul>
           </div> <!-- /navcollapse -->
             <div class="quarto-navbar-tools">
-  <a href="" class="quarto-color-scheme-toggle quarto-navigation-tool  px-1" onclick="window.quartoToggleColorScheme(); return false;" title="Toggle dark mode"><i class="bi"></i></a>
+  <button type="button" role="switch" aria-checked="false" class="quarto-color-scheme-toggle quarto-navigation-tool  px-1" onclick="window.quartoToggleColorScheme(); return false;" title="Toggle dark mode" aria-label="Toggle dark mode"><i class="bi"></i></button>
 </div>
+            <div id="quarto-search" class="" title="Search"></div>
       </div> <!-- /container-fluid -->
     </nav>
-  <nav class="quarto-secondary-nav">
+  <nav class="quarto-secondary-nav" aria-label="Toolbar">
     <div class="container-fluid d-flex">
       <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
         <i class="bi bi-layout-text-sidebar-reverse"></i>
       </button>
-        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="./index.html">Getting started</a></li><li class="breadcrumb-item"><a href="./index.html">VILMA2</a></li></ol></nav>
-        <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
+        <nav class="quarto-page-breadcrumbs" aria-label="Breadcrumbs"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="./index.html">Getting started</a></li><li class="breadcrumb-item"><a href="./index.html">VILMA2</a></li></ol></nav>
+        <a class="flex-grow-1" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
         </a>
     </div>
   </nav>
@@ -407,18 +416,15 @@ window.Quarto = {
 <!-- content -->
 <div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
 <!-- sidebar -->
-  <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal quarto-sidebar-collapse-item sidebar-navigation floating overflow-auto">
+  <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal quarto-sidebar-collapse-item sidebar-navigation floating overflow-auto" aria-label="Section">
     <div class="sidebar-menu-container"> 
     <ul class="list-unstyled mt-1">
         <li class="sidebar-item sidebar-item-section">
       <div class="sidebar-item-container"> 
-            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true">
- <span class="menu-text">Getting started</span></a>
-          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true" aria-label="Toggle section">
-            <i class="bi bi-chevron-right ms-2"></i>
-          </a> 
+            <button type="button" class="sidebar-item-text sidebar-item-toggle sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" aria-controls="quarto-sidebar-section-1" aria-expanded="true">
+ <span class="menu-text" id="quarto-sidebar-section-1-label">Getting started</span><i class="bi bi-chevron-right" aria-hidden="true"></i></button>
       </div>
-      <ul id="quarto-sidebar-section-1" class="collapse list-unstyled sidebar-section depth1 show">  
+      <ul id="quarto-sidebar-section-1" aria-labelledby="quarto-sidebar-section-1-label" class="collapse list-unstyled sidebar-section depth1 show">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="./index.html" class="sidebar-item-text sidebar-link active">
@@ -441,13 +447,10 @@ window.Quarto = {
   </li>
         <li class="sidebar-item sidebar-item-section">
       <div class="sidebar-item-container"> 
-            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="true">
- <span class="menu-text">Physics</span></a>
-          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="true" aria-label="Toggle section">
-            <i class="bi bi-chevron-right ms-2"></i>
-          </a> 
+            <button type="button" class="sidebar-item-text sidebar-item-toggle sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" aria-controls="quarto-sidebar-section-2" aria-expanded="true">
+ <span class="menu-text" id="quarto-sidebar-section-2-label">Physics</span><i class="bi bi-chevron-right" aria-hidden="true"></i></button>
       </div>
-      <ul id="quarto-sidebar-section-2" class="collapse list-unstyled sidebar-section depth1 show">  
+      <ul id="quarto-sidebar-section-2" aria-labelledby="quarto-sidebar-section-2-label" class="collapse list-unstyled sidebar-section depth1 show">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="./physics/governing-equations.html" class="sidebar-item-text sidebar-link">
@@ -482,13 +485,10 @@ window.Quarto = {
   </li>
         <li class="sidebar-item sidebar-item-section">
       <div class="sidebar-item-container"> 
-            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="true">
- <span class="menu-text">Discretization</span></a>
-          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="true" aria-label="Toggle section">
-            <i class="bi bi-chevron-right ms-2"></i>
-          </a> 
+            <button type="button" class="sidebar-item-text sidebar-item-toggle sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" aria-controls="quarto-sidebar-section-3" aria-expanded="true">
+ <span class="menu-text" id="quarto-sidebar-section-3-label">Discretization</span><i class="bi bi-chevron-right" aria-hidden="true"></i></button>
       </div>
-      <ul id="quarto-sidebar-section-3" class="collapse list-unstyled sidebar-section depth1 show">  
+      <ul id="quarto-sidebar-section-3" aria-labelledby="quarto-sidebar-section-3-label" class="collapse list-unstyled sidebar-section depth1 show">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="./discretization/spectral.html" class="sidebar-item-text sidebar-link">
@@ -517,13 +517,10 @@ window.Quarto = {
   </li>
         <li class="sidebar-item sidebar-item-section">
       <div class="sidebar-item-container"> 
-            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="true">
- <span class="menu-text">Benchmarks</span></a>
-          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="true" aria-label="Toggle section">
-            <i class="bi bi-chevron-right ms-2"></i>
-          </a> 
+            <button type="button" class="sidebar-item-text sidebar-item-toggle sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" aria-controls="quarto-sidebar-section-4" aria-expanded="true">
+ <span class="menu-text" id="quarto-sidebar-section-4-label">Benchmarks</span><i class="bi bi-chevron-right" aria-hidden="true"></i></button>
       </div>
-      <ul id="quarto-sidebar-section-4" class="collapse list-unstyled sidebar-section depth1 show">  
+      <ul id="quarto-sidebar-section-4" aria-labelledby="quarto-sidebar-section-4-label" class="collapse list-unstyled sidebar-section depth1 show">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="./benchmarks/index.html" class="sidebar-item-text sidebar-link">
@@ -548,6 +545,18 @@ window.Quarto = {
  <span class="menu-text">Benchmark: the sea-level equation</span></a>
   </div>
 </li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./benchmarks/rotation.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Benchmark: rotation (polar motion)</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./benchmarks/lvz.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Benchmark: low-viscosity zone (lateral viscosity)</span></a>
+  </div>
+</li>
       </ul>
   </li>
         <li class="sidebar-item">
@@ -563,10 +572,10 @@ window.Quarto = {
 <!-- margin-sidebar -->
     
 <!-- main -->
-<main class="content" id="quarto-document-content">
+<main class="content" id="quarto-document-content" tabindex="-1">
 
 
-<header id="title-block-header" class="quarto-title-block default"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="./index.html">Getting started</a></li><li class="breadcrumb-item"><a href="./index.html">VILMA2</a></li></ol></nav>
+<header id="title-block-header" class="quarto-title-block default"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="Breadcrumbs"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="./index.html">Getting started</a></li><li class="breadcrumb-item"><a href="./index.html">VILMA2</a></li></ol></nav>
 <div class="quarto-title">
 <h1 class="title">VILMA2</h1>
 <p class="subtitle lead">A fast, open-source, time-domain spectral–finite-element solid-Earth model</p>
@@ -586,24 +595,11 @@ window.Quarto = {
 </header>
 
 
-<div class="callout callout-style-default callout-warning callout-titled" title="Under heavy development">
-<div class="callout-header d-flex align-content-center">
-<div class="callout-icon-container">
-<i class="callout-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-<span class="screen-reader-only">Warning</span>Under heavy development
-</div>
-</div>
-<div class="callout-body-container callout-body">
-<p>VILMA2 is not yet ready for use in a scientific production capacity. If you want to use VILMA1 for now, please contact Volker Klemann at GFZ.</p>
-</div>
-</div>
 <p><strong>VILMA2</strong> is a fast, open-source 3D solid-Earth model: a self-gravitating, incompressible, Maxwell-viscoelastic sphere coupled to a self-consistent <strong>sea-level equation</strong> with migrating coastlines. It is designed as an open-source alternative to VILMA1 inside the <a href="https://doi.org/10.5194/gmd-15-5905-2022">CLIMBER-X</a> Earth system model <span class="citation" data-cites="Willeit2022">(<a href="#ref-Willeit2022" role="doc-biblioref">Willeit et al. 2022</a>)</span>, and more generally as a reusable glacial isostatic adjustment (GIA) engine for ice-sheet and sea-level work.</p>
-<p>The numerical method follows the <strong>spectral–finite-element, time-domain</strong> approach of <span class="citation" data-cites="Martinec2000">Martinec (<a href="#ref-Martinec2000" role="doc-biblioref">2000</a>)</span>: spherical harmonics horizontally, finite elements radially, and an explicit memory-stress integration of the Maxwell rheology in time. The solver is <strong>3D-ready from the start</strong> — laterally varying viscosity costs nothing extra — and is validated first in 1D against the published GIA community benchmarks <span class="citation" data-cites="Spada2011 Martinec2018">(<a href="#ref-Spada2011" role="doc-biblioref">Spada et al. 2011</a>; <a href="#ref-Martinec2018" role="doc-biblioref">Martinec et al. 2018</a>)</span>.</p>
+<p>The numerical method follows the <strong>spectral–finite-element, time-domain</strong> approach of <span class="citation" data-cites="Martinec2000">Martinec (<a href="#ref-Martinec2000" role="doc-biblioref">2000</a>)</span>: spherical harmonics horizontally, finite elements radially, and an explicit memory-stress integration of the Maxwell rheology in time. The solver is <strong>3D-ready from the start</strong>: laterally varying viscosity uses the same per-degree solve as the 1-D model. It is validated against the published GIA community benchmarks <span class="citation" data-cites="Spada2011 Martinec2018 Weerdesteijn2023">(<a href="#ref-Spada2011" role="doc-biblioref">Spada et al. 2011</a>; <a href="#ref-Martinec2018" role="doc-biblioref">Martinec et al. 2018</a>; <a href="#ref-Weerdesteijn2023" role="doc-biblioref">Weerdesteijn et al. 2023</a>)</span>. VILMA2 is free software under the GNU General Public License v3.0.</p>
 <section id="why-this-method" class="level2">
 <h2 class="anchored" data-anchor-id="why-this-method">Why this method</h2>
-<p>The structural advantage of this approach is that, with an <strong>explicit</strong> Maxwell time scheme, the stiffness solve has <strong>no angular coupling</strong>. Each spherical-harmonic degree <span class="math inline">\(\ell\)</span> decouples into an independent, small, banded radial system. This makes the solver embarrassingly parallel and cheap, and lateral (3D) viscosity is free: it never couples the harmonics in the solve, entering only through the explicitly-known memory stress. That memory stress is evaluated pointwise on the Gauss–Legendre grid and transformed back to spectral space each step, a pseudo-spectral treatment. The <strong>1D and 3D code paths are therefore the same solver</strong>.</p>
+<p>The structural advantage of this approach is that, with an <strong>explicit</strong> Maxwell time scheme, the stiffness solve has <strong>no angular coupling</strong>. Each spherical-harmonic degree <span class="math inline">\(\ell\)</span> decouples into an independent, small, banded radial system. This makes the solver embarrassingly parallel and cheap. Lateral (3D) viscosity never couples the harmonics in the solve. It enters only through the explicitly known memory stress, which is evaluated pointwise on the Gauss–Legendre grid and transformed back to spectral space each step (a pseudo-spectral treatment). Its cost lies in these transforms of the memory advance, which dominate the run time of a 3-D run. The <strong>1D and 3D code paths are therefore the same solver</strong>.</p>
 <table class="caption-top table">
 <colgroup>
 <col style="width: 15%">
@@ -652,14 +648,64 @@ window.Quarto = {
 <li><strong><a href="./getting-started.html">Install &amp; run</a></strong> — building with <code>configme</code>, the <code>&amp;vilma</code> namelist, the drivers, and staging runs with <code>runme</code>.</li>
 <li><strong><a href="./physics/governing-equations.html">Physics</a></strong> — the governing equations (momentum, Poisson, incompressibility), the Maxwell rheology and its memory stress, toroidal flow under lateral viscosity, the sea-level equation, and rotational feedback.</li>
 <li><strong><a href="./discretization/spectral.html">Discretization</a></strong> — the spectral reduction, the P1/P0 radial finite-element operator, the explicit time scheme, and the banded direct solver.</li>
-<li><strong><a href="./benchmarks/index.html">Benchmarks</a></strong> — a summary table of validation results, with one page per benchmark (Love numbers, the disc-load response, and the sea-level-equation intercomparison).</li>
+<li><strong><a href="./benchmarks/index.html">Benchmarks</a></strong> — the validation ladder, with one page per benchmark (Love numbers, disc load, sea-level equation, rotation, low-viscosity zone).</li>
 <li><strong><a href="./implementation.html">Implementation</a></strong> — the libraries the model builds on, and the codebases and datasets that informed the validation.</li>
 </ul>
 </section>
 <section id="status" class="level2">
 <h2 class="anchored" data-anchor-id="status">Status</h2>
-<p>VILMA2 is under heavy development and not yet ready for scientific production use. The core implemented so far includes the spectral–finite-element solver, the viscoelastic time stepping and response operator, the self-consistent migrating-coastline sea-level equation, rotational feedback (polar motion), and laterally varying (3D) viscosity, including the toroidal flow it drives (optional, off by default). It also supports restart and spin-up, online remapping of lon-lat forcing, and a host-coupling API.</p>
-<p>Validation against the <span class="citation" data-cites="Spada2011">Spada et al. (<a href="#ref-Spada2011" role="doc-biblioref">2011</a>)</span> and <span class="citation" data-cites="Martinec2018">Martinec et al. (<a href="#ref-Martinec2018" role="doc-biblioref">2018</a>)</span> community benchmarks covers the radial solver, the disc-load response, and the sea-level equation. Rotation is checked against the Spada test 3/2. Cross-code validation of the 3D viscosity path is ongoing (see the <a href="./benchmarks/index.html">validation ladder</a>).</p>
+<p>VILMA2 is validated against the published GIA benchmarks and is starting to be used for science. It is versioned 0.x, so the namelist and the host API may still change. The implemented model comprises the spectral–finite-element solver, the viscoelastic time stepping, the self-consistent sea-level equation with migrating coastlines, rotational feedback, laterally varying (3-D) viscosity, restart and spin-up, online remapping of lon-lat forcing, and a host-coupling API.</p>
+<p>Each benchmark is an executable test with a pass/fail exit. The table gives the tolerance each test asserts and the difference measured with the reference build (ifx <code>-Ofast</code> on the AWI cluster albedo).</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Benchmark</th>
+<th>Asserted</th>
+<th>Measured</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><a href="./benchmarks/love-numbers.html">Love numbers</a>, M3–L70–V01 <span class="citation" data-cites="Spada2011">(<a href="#ref-Spada2011" role="doc-biblioref">Spada et al. 2011</a>)</span></td>
+<td>1 % (elastic <span class="math inline">\(h\)</span>, <span class="math inline">\(k\)</span> at degrees 2–48; fluid at 2–8)</td>
+<td><span class="math inline">\(h\)</span> ≤ 0.08 % to degree 256; <span class="math inline">\(k\)</span>, <span class="math inline">\(\ell\)</span> exceed 1 % above degrees 96, 144</td>
+</tr>
+<tr class="even">
+<td><a href="./benchmarks/disc.html">Disc load</a> <span class="citation" data-cites="Spada2011">(<a href="#ref-Spada2011" role="doc-biblioref">Spada et al. 2011</a>)</span></td>
+<td>6 % / 4 % of peak (elastic <span class="math inline">\(u\)</span> / <span class="math inline">\(N\)</span>); 3 % (center uplift, 1–10 kyr)</td>
+<td>4.0 % / 2.8 %; ≤ 0.6 %</td>
+</tr>
+<tr class="odd">
+<td><a href="./benchmarks/sea-level.html">Cap load, case A</a> <span class="citation" data-cites="Martinec2018">(<a href="#ref-Martinec2018" role="doc-biblioref">Martinec et al. 2018</a>)</span></td>
+<td>1.5 % (<span class="math inline">\(u\)</span>, horizontal), 3 % (geoid)</td>
+<td>0.5 %, 0.7 %, 1.9 %</td>
+</tr>
+<tr class="even">
+<td><a href="./benchmarks/sea-level.html">Sea-level equation</a>, C2/D3/E2/F1 <span class="citation" data-cites="Martinec2018">(<a href="#ref-Martinec2018" role="doc-biblioref">Martinec et al. 2018</a>)</span></td>
+<td>8–35 % of peak, by field</td>
+<td>D3, E2, F1 ≤ 7.6 %, rsl ≤ 1.8 %; C2 up to 28 %</td>
+</tr>
+<tr class="odd">
+<td><a href="./benchmarks/rotation.html">Polar motion</a>, Spada test 3/2 <span class="citation" data-cites="Spada2011">(<a href="#ref-Spada2011" role="doc-biblioref">Spada et al. 2011</a>)</span></td>
+<td>3 %</td>
+<td>≤ 0.9 %</td>
+</tr>
+<tr class="even">
+<td><a href="./benchmarks/lvz.html">Low-viscosity zone</a> <span class="citation" data-cites="Weerdesteijn2023">(<a href="#ref-Weerdesteijn2023" role="doc-biblioref">Weerdesteijn et al. 2023</a>)</span></td>
+<td>8 %</td>
+<td>2.6 %, 1.0 %</td>
+</tr>
+</tbody>
+</table>
+<p>The model builds and passes its test suite with ifx on albedo and with gfortran on macOS and Ubuntu (GitHub CI). It builds with ifx on DKRZ levante.</p>
+<p>What is still open:</p>
+<ul>
+<li><strong>Sea-level case C2.</strong> A uniform 5.9 m offset in sea surface and a degree-1 pattern of about 7 m in uplift, not yet attributed. The other three cases agree to below 1 m.</li>
+<li><strong>The 3-D viscosity path</strong> is compared with other codes only in the axisymmetric low-viscosity-zone case (200 yr) and with VILMA1 on the last deglaciation. No multi-code benchmark of a realistic 3-D structure at glacial time scales exists yet.</li>
+<li><strong>Toroidal flow</strong> driven by lateral viscosity is <strong>on by default</strong> (<code>l_toroidal = .true.</code>). In the 3-D last deglaciation it changes relative sea level by 2–3 m rms and up to 92 m near the former ice sheets. <code>l_toroidal = .false.</code> makes 3-D runs 1.5–1.8 times faster, for quick runs that do not depend on local sea level (<a href="./physics/toroidal.html">Toroidal flow</a>).</li>
+<li><strong>Rotation coupled to the sea-level equation</strong> has no published benchmark and is checked for consistency only.</li>
+</ul>
+<p>See the <a href="./benchmarks/index.html">benchmarks</a> for the full validation ladder.</p>
 
 
 
@@ -675,6 +721,9 @@ Martinec, Z., V. Klemann, W. van der Wal, et al. 2018. <span>“A Benchmark Stud
 <div id="ref-Spada2011" class="csl-entry" role="listitem">
 Spada, G., V. R. Barletta, V. Klemann, et al. 2011. <span>“A Benchmark Study for Glacial Isostatic Adjustment Codes.”</span> <em>Geophysical Journal International</em> 185 (1): 106–32. <a href="https://doi.org/10.1111/j.1365-246X.2011.04952.x">https://doi.org/10.1111/j.1365-246X.2011.04952.x</a>.
 </div>
+<div id="ref-Weerdesteijn2023" class="csl-entry" role="listitem">
+Weerdesteijn, M. F. M., J. B. Naliboff, C. P. Conrad, et al. 2023. <span>“Modeling Viscoelastic Solid Earth Deformation Due to Ice Age and Contemporary Glacial Mass Changes in <span>ASPECT</span>.”</span> <em>Geochemistry, Geophysics, Geosystems</em> 24 (3): e2022GC010813. <a href="https://doi.org/10.1029/2022GC010813">https://doi.org/10.1029/2022GC010813</a>.
+</div>
 <div id="ref-Willeit2022" class="csl-entry" role="listitem">
 Willeit, M., A. Ganopolski, A. Robinson, and N. R. Edwards. 2022. <span>“The <span>Earth</span> System Model <span>CLIMBER-X</span> V1.0 – Part 1: Climate Model Description and Validation.”</span> <em>Geoscientific Model Development</em> 15 (14): 5905–48. <a href="https://doi.org/10.5194/gmd-15-5905-2022">https://doi.org/10.5194/gmd-15-5905-2022</a>.
 </div>
@@ -683,15 +732,50 @@ Willeit, M., A. Ganopolski, A. Robinson, and N. R. Edwards. 2022. <span>“The <
   window.document.addEventListener("DOMContentLoaded", function (event) {
     // Ensure there is a toggle, if there isn't float one in the top right
     if (window.document.querySelector('.quarto-color-scheme-toggle') === null) {
-      const a = window.document.createElement('a');
-      a.classList.add('top-right');
-      a.classList.add('quarto-color-scheme-toggle');
-      a.href = "";
-      a.onclick = function() { try { window.quartoToggleColorScheme(); } catch {} return false; };
+      const toggle = window.document.createElement('button');
+      toggle.type = "button";
+      toggle.setAttribute("role", "switch");
+      toggle.setAttribute("aria-checked", "false");
+      toggle.classList.add('top-right');
+      toggle.classList.add('quarto-color-scheme-toggle');
+      toggle.setAttribute("aria-label", "Toggle dark mode");
+      toggle.onclick = function() { try { window.quartoToggleColorScheme(); } catch {} return false; };
       const i = window.document.createElement("i");
       i.classList.add('bi');
-      a.appendChild(i);
-      window.document.body.appendChild(a);
+      toggle.appendChild(i);
+      // Put the toggle in a landmark of its own, so that landmark navigation
+      // can reach it.
+      //
+      // The container is always a fresh direct child of body, and the toggle is
+      // never moved into page furniture that the theme or the author controls.
+      // The toggle is positioned against the page, so any ancestor that
+      // establishes a containing block captures it: a positioned element or a
+      // grid for position: absolute, and transform, filter, will-change or
+      // contain for position: fixed. A direct child of body has none of these
+      // to inherit, and the shift when one appears is silent and visual.
+      //
+      // ARIA says a document should have at most one banner, and axe reports a
+      // duplicate whether or not the banners carry distinct labels. So use a
+      // header when the page has no banner yet, and a named region otherwise.
+      //
+      // A header is a banner wherever it sits, unless it is inside sectioning
+      // content, so this cannot just look at the children of body: a custom
+      // page layout wraps the title block header in a plain div. An explicit
+      // role="banner" always counts.
+      const sectioning = 'article, aside, main, nav, section, [role="article"], [role="complementary"], [role="main"], [role="navigation"], [role="region"]';
+      const hasBanner = Array.from(
+        window.document.querySelectorAll('header:not([role]), [role="banner"]')
+      ).some(function(el) {
+        return el.hasAttribute("role") || el.closest(sectioning) === null;
+      });
+      const container = window.document.createElement(hasBanner ? "div" : "header");
+      if (hasBanner) {
+        container.setAttribute("role", "region");
+        container.setAttribute("aria-label", "Toggle dark mode");
+      }
+      container.classList.add('quarto-color-scheme-toggle-container');
+      container.appendChild(toggle);
+      window.document.body.appendChild(container);
     }
     setColorSchemeToggle(hasAlternateSentinel())
     const icon = "";
@@ -770,7 +854,8 @@ Willeit, M., A. Ganopolski, A. Robinson, and N. R. Edwards. 2022. <span>“The <
           return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
       }
       // Inspect non-navigation links and adorn them if external
-     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      window.quartoDecorateExternalLinks = function (root) {
+     var links = (root || window.document).querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
       for (var i=0; i<links.length; i++) {
         const link = links[i];
         if (!isInternal(link.href)) {
@@ -779,8 +864,69 @@ Willeit, M., A. Ganopolski, A. Robinson, and N. R. Edwards. 2022. <span>“The <
           if (link.dataset.originalHref !== undefined) {
             link.href = link.dataset.originalHref;
           }
+          if (!link.classList.contains('no-external-icon')) {
+          }
         }
       }
+      };
+      window.quartoDecorateExternalLinks(window.document);
+    // Esc closes the popup (WCAG 1.4.13) and focus leaving both trigger and
+    // popup closes it (WCAG 2.4.11); tippy handles neither for interactive popups.
+    const hideOnEscAndFocusOut = {
+      name: 'hideOnEscAndFocusOut',
+      defaultValue: true,
+      fn(instance) {
+        const dismiss = () => {
+          // A show scheduled by the trigger delay would otherwise reopen it
+          instance.clearDelayTimeouts();
+          instance.hide();
+        };
+        const onKeyDown = (event) => {
+          if (event.key !== 'Escape') {
+            return;
+          }
+          // Keep Esc from also reaching page handlers (e.g. reveal.js overview),
+          // except an open reveal.js slide menu, which Esc should close too.
+          // The menu handles keys only when its keyboard option is on.
+          const menuHandlesEsc = window.Reveal?.getPlugin?.('menu')?.isOpen() &&
+            window.Reveal.getConfig().menu?.keyboard !== false;
+          if (!menuHandlesEsc) {
+            event.stopPropagation();
+          }
+          if (instance.popper.contains(window.document.activeElement)) {
+            // Disabled while refocusing so the focus trigger does not reopen it
+            instance.disable();
+            instance.reference.focus();
+            instance.enable();
+          }
+          dismiss();
+        };
+        const onFocusOut = (event) => {
+          const target = event.relatedTarget;
+          if (target && !instance.reference.contains(target) &&
+              !instance.popper.contains(target)) {
+            dismiss();
+          }
+        };
+        // On the trigger too: a click trigger (code-annotations: select) has no
+        // blur handling. Attached for the instance's lifetime so leaving the
+        // trigger also cancels a show still pending on the trigger delay.
+        instance.reference.addEventListener('focusout', onFocusOut);
+        return {
+          onShow() {
+            window.document.addEventListener('keydown', onKeyDown, true);
+            instance.popper.addEventListener('focusout', onFocusOut);
+          },
+          onHide() {
+            window.document.removeEventListener('keydown', onKeyDown, true);
+            instance.popper.removeEventListener('focusout', onFocusOut);
+          },
+          onDestroy() {
+            instance.reference.removeEventListener('focusout', onFocusOut);
+          },
+        };
+      },
+    };
     function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
       const config = {
         allowHTML: true,
@@ -794,6 +940,7 @@ Willeit, M., A. Ganopolski, A. Robinson, and N. R. Edwards. 2022. <span>“The <
         interactiveBorder: 10,
         theme: 'quarto',
         placement: 'bottom-start',
+        plugins: [hideOnEscAndFocusOut],
       };
       if (contentFn) {
         config.content = contentFn;
@@ -956,44 +1103,54 @@ Willeit, M., A. Ganopolski, A. Robinson, and N. R. Edwards. 2022. <span>“The <
           const lineIds = lines.map((line) => {
             return targetCell + "-" + line;
           })
-          let top = null;
-          let height = null;
-          let parent = null;
+          // Each band is positioned against its own containing block, which is
+          // not the offsetParent of the lines, so place it from client rects.
+          const placeBand = (band, firstEl, lastEl, codeBlock) => {
+            const container = band.offsetParent;
+            if (container === null) {
+              return;
+            }
+            const containerRect = container.getBoundingClientRect();
+            // Reveal.js scales slides with a transform, so convert client
+            // pixels back to the CSS pixels of the container.
+            const scale = containerRect.height / container.offsetHeight || 1;
+            const firstRect = firstEl.getBoundingClientRect();
+            const lastRect = lastEl.getBoundingClientRect();
+            const top = (firstRect.top - containerRect.top) / scale - container.clientTop + container.scrollTop;
+            const height = (lastRect.bottom - firstRect.top) / scale;
+            band.style.top = top - 2 + "px";
+            band.style.height = height + 4 + "px";
+            if (codeBlock) {
+              // Without the copy button wrapper, the containing block is wider
+              // than the code block, so span the code block explicitly.
+              const blockRect = codeBlock.getBoundingClientRect();
+              band.style.left = (blockRect.left - containerRect.left) / scale - container.clientLeft + container.scrollLeft + "px";
+              band.style.width = blockRect.width / scale + "px";
+            }
+          };
           if (lineIds.length > 0) {
-              //compute the position of the single el (top and bottom and make a div)
-              const el = window.document.getElementById(lineIds[0]);
-              top = el.offsetTop;
-              height = el.offsetHeight;
-              parent = el.parentElement.parentElement;
-            if (lineIds.length > 1) {
-              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
-              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
-              height = bottom - top;
+            const el = window.document.getElementById(lineIds[0]);
+            const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+            const parent = el.parentElement.parentElement;
+            // cook up a div (if necessary) and position it
+            let div = window.document.getElementById("code-annotation-line-highlight");
+            if (div === null) {
+              div = window.document.createElement("div");
+              div.setAttribute("id", "code-annotation-line-highlight");
+              div.style.position = 'absolute';
+              parent.appendChild(div);
             }
-            if (top !== null && height !== null && parent !== null) {
-              // cook up a div (if necessary) and position it 
-              let div = window.document.getElementById("code-annotation-line-highlight");
-              if (div === null) {
-                div = window.document.createElement("div");
-                div.setAttribute("id", "code-annotation-line-highlight");
-                div.style.position = 'absolute';
-                parent.appendChild(div);
-              }
-              div.style.top = top - 2 + "px";
-              div.style.height = height + 4 + "px";
-              div.style.left = 0;
-              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
-              if (gutterDiv === null) {
-                gutterDiv = window.document.createElement("div");
-                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
-                gutterDiv.style.position = 'absolute';
-                const codeCell = window.document.getElementById(targetCell);
-                const gutter = codeCell.querySelector('.code-annotation-gutter');
-                gutter.appendChild(gutterDiv);
-              }
-              gutterDiv.style.top = top - 2 + "px";
-              gutterDiv.style.height = height + 4 + "px";
+            placeBand(div, el, lastEl, parent.closest("div.sourceCode") || parent);
+            let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+            if (gutterDiv === null) {
+              gutterDiv = window.document.createElement("div");
+              gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+              gutterDiv.style.position = 'absolute';
+              const codeCell = window.document.getElementById(targetCell);
+              const gutter = codeCell.querySelector('.code-annotation-gutter');
+              gutter.appendChild(gutterDiv);
             }
+            placeBand(gutterDiv, el, lastEl);
             selectedAnnoteEl = annoteEl;
           }
         };
@@ -1092,7 +1249,10 @@ Willeit, M., A. Ganopolski, A. Robinson, and N. R. Edwards. 2022. <span>“The <
     }
   });
   </script>
-<nav class="page-navigation">
+  <script type="application/javascript">
+  window.quartoScrollableRegionsLabels = {"code":"Scrollable code","output":"Scrollable output"};
+  </script>
+<nav class="page-navigation" aria-label="Page">
   <div class="nav-page nav-page-previous">
   </div>
   <div class="nav-page nav-page-next">

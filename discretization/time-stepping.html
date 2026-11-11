@@ -2,7 +2,7 @@
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
 
 <meta charset="utf-8">
-<meta name="generator" content="quarto-1.10.20">
+<meta name="generator" content="quarto-1.11.9">
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
@@ -40,18 +40,19 @@ ul.task-list li input[type="checkbox"] {
 <link href="../discretization/radial-fe.html" rel="prev">
 <script src="../site_libs/quarto-html/quarto.js" type="module"></script>
 <script src="../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../site_libs/quarto-html/scrollable-regions/scrollable-regions.js" type="module"></script>
 <script src="../site_libs/quarto-html/popper.min.js"></script>
 <script src="../site_libs/quarto-html/tippy.umd.min.js"></script>
 <script src="../site_libs/quarto-html/anchor.min.js"></script>
 <link href="../site_libs/quarto-html/tippy.css" rel="stylesheet">
-<link href="../site_libs/quarto-html/quarto-syntax-highlighting-17888a1159294d3eb470f19f6f52f5a5.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-text-highlighting-styles">
-<link href="../site_libs/quarto-html/quarto-syntax-highlighting-dark-0ae969d3293726db143f6e9eb89af930.css" rel="stylesheet" class="quarto-color-scheme quarto-color-alternate" id="quarto-text-highlighting-styles">
-<link href="../site_libs/quarto-html/quarto-syntax-highlighting-17888a1159294d3eb470f19f6f52f5a5.css" rel="stylesheet" class="quarto-color-scheme-extra" id="quarto-text-highlighting-styles">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-63b5708e65d6cd79cd7618c58d0c21e7.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-text-highlighting-styles">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-dark-447e42e69aaa9833c0ba1b986f430b20.css" rel="stylesheet" class="quarto-color-scheme quarto-color-alternate" id="quarto-text-highlighting-styles">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-63b5708e65d6cd79cd7618c58d0c21e7.css" rel="stylesheet" class="quarto-color-scheme-extra" id="quarto-text-highlighting-styles">
 <script src="../site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="../site_libs/bootstrap/bootstrap-fe9ab94330ff2cdc5105c70272dca3f0.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
-<link href="../site_libs/bootstrap/bootstrap-dark-bddab9ad0d549410cca6a651ad8ac0e7.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
-<link href="../site_libs/bootstrap/bootstrap-fe9ab94330ff2cdc5105c70272dca3f0.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
+<link href="../site_libs/bootstrap/bootstrap-3a1610f0a8f0b9b7bc4c1e6d49db0d8a.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
+<link href="../site_libs/bootstrap/bootstrap-dark-f829436f7c543b6c5fa77b733bfa68fa.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
+<link href="../site_libs/bootstrap/bootstrap-3a1610f0a8f0b9b7bc4c1e6d49db0d8a.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
 <script id="quarto-search-options" type="application/json">{
   "location": "navbar",
   "copy-button": false,
@@ -112,7 +113,7 @@ window.Quarto = {
 
 </head>
 
-<body class="nav-sidebar floating nav-fixed quarto-light"><script id="quarto-html-before-body" type="application/javascript">
+<body class="nav-sidebar floating nav-fixed quarto-light"><a id="quarto-skip-link" class="visually-hidden-focusable" href="#quarto-document-content">Skip to main content</a><script id="quarto-html-before-body" type="application/javascript">
     const toggleBodyColorMode = (bsSheetEl) => {
       const mode = bsSheetEl.getAttribute("data-mode");
       const bodyEl = window.document.querySelector("body");
@@ -135,6 +136,7 @@ window.Quarto = {
       for (let i=0; i < toggles.length; i++) {
         const toggle = toggles[i];
         if (toggle) {
+          toggle.setAttribute("aria-checked", alternate ? "true" : "false");
           if (alternate) {
             toggle.classList.add("alternate");
           } else {
@@ -164,13 +166,19 @@ window.Quarto = {
       manageTransitions('#quarto-margin-sidebar .nav-link', true);
       // Switch the toggles
       setColorSchemeToggle(alternate)
-      // Hack to workaround the fact that safari doesn't
-      // properly recolor the scrollbar when toggling (#1455)
+    }
+    // Hack to workaround the fact that safari doesn't
+    // properly recolor the scrollbar when toggling (#1455).
+    // Not run on load: stylesheets are set before first paint there, and
+    // scrolling would undo the scroll to a URL fragment (#14973).
+    // The one pixel nudge keeps the reader where they were.
+    const refreshSafariScrollbar = () => {
       if (navigator.userAgent.indexOf('Safari') > 0 && navigator.userAgent.indexOf('Chrome') == -1) {
         manageTransitions("body", false);
-        window.scrollTo(0, 1);
+        const scrollY = window.scrollY;
+        window.scrollTo(0, scrollY > 0 ? scrollY - 1 : 1);
         setTimeout(() => {
-          window.scrollTo(0, 0);
+          window.scrollTo(0, scrollY);
           manageTransitions("body", true);
         }, 40);
       }
@@ -264,6 +272,7 @@ window.Quarto = {
       // Read the current dark / light value
       let toAlternate = !hasAlternateSentinel();
       toggleColorMode(toAlternate);
+      refreshSafariScrollbar();
       setStyleSentinel(toAlternate);
       toggleGiscusIfUsed(toAlternate, darkModeDefault);
       window.dispatchEvent(new Event('resize'));
@@ -278,15 +287,14 @@ window.Quarto = {
 
 <div id="quarto-search-results"></div>
   <header id="quarto-header" class="headroom fixed-top">
-    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark" aria-label="Site">
       <div class="navbar-container container-fluid">
       <div class="navbar-brand-container mx-auto">
     <a class="navbar-brand" href="../index.html">
     <span class="navbar-title">VILMA2</span>
     </a>
   </div>
-            <div id="quarto-search" class="" title="Search"></div>
-          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" role="menu" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
   <span class="navbar-toggler-icon"></span>
 </button>
           <div class="collapse navbar-collapse" id="navbarCollapse">
@@ -371,17 +379,18 @@ window.Quarto = {
 </ul>
           </div> <!-- /navcollapse -->
             <div class="quarto-navbar-tools">
-  <a href="" class="quarto-color-scheme-toggle quarto-navigation-tool  px-1" onclick="window.quartoToggleColorScheme(); return false;" title="Toggle dark mode"><i class="bi"></i></a>
+  <button type="button" role="switch" aria-checked="false" class="quarto-color-scheme-toggle quarto-navigation-tool  px-1" onclick="window.quartoToggleColorScheme(); return false;" title="Toggle dark mode" aria-label="Toggle dark mode"><i class="bi"></i></button>
 </div>
+            <div id="quarto-search" class="" title="Search"></div>
       </div> <!-- /container-fluid -->
     </nav>
-  <nav class="quarto-secondary-nav">
+  <nav class="quarto-secondary-nav" aria-label="Toolbar">
     <div class="container-fluid d-flex">
       <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
         <i class="bi bi-layout-text-sidebar-reverse"></i>
       </button>
-        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../discretization/spectral.html">Discretization</a></li><li class="breadcrumb-item"><a href="../discretization/time-stepping.html">Time stepping and the field driver</a></li></ol></nav>
-        <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
+        <nav class="quarto-page-breadcrumbs" aria-label="Breadcrumbs"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../discretization/spectral.html">Discretization</a></li><li class="breadcrumb-item"><a href="../discretization/time-stepping.html">Time stepping and the field driver</a></li></ol></nav>
+        <a class="flex-grow-1" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
         </a>
     </div>
   </nav>
@@ -389,18 +398,15 @@ window.Quarto = {
 <!-- content -->
 <div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
 <!-- sidebar -->
-  <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal quarto-sidebar-collapse-item sidebar-navigation floating overflow-auto">
+  <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal quarto-sidebar-collapse-item sidebar-navigation floating overflow-auto" aria-label="Section">
     <div class="sidebar-menu-container"> 
     <ul class="list-unstyled mt-1">
         <li class="sidebar-item sidebar-item-section">
       <div class="sidebar-item-container"> 
-            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true">
- <span class="menu-text">Getting started</span></a>
-          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true" aria-label="Toggle section">
-            <i class="bi bi-chevron-right ms-2"></i>
-          </a> 
+            <button type="button" class="sidebar-item-text sidebar-item-toggle sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" aria-controls="quarto-sidebar-section-1" aria-expanded="true">
+ <span class="menu-text" id="quarto-sidebar-section-1-label">Getting started</span><i class="bi bi-chevron-right" aria-hidden="true"></i></button>
       </div>
-      <ul id="quarto-sidebar-section-1" class="collapse list-unstyled sidebar-section depth1 show">  
+      <ul id="quarto-sidebar-section-1" aria-labelledby="quarto-sidebar-section-1-label" class="collapse list-unstyled sidebar-section depth1 show">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="../index.html" class="sidebar-item-text sidebar-link">
@@ -423,13 +429,10 @@ window.Quarto = {
   </li>
         <li class="sidebar-item sidebar-item-section">
       <div class="sidebar-item-container"> 
-            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="true">
- <span class="menu-text">Physics</span></a>
-          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="true" aria-label="Toggle section">
-            <i class="bi bi-chevron-right ms-2"></i>
-          </a> 
+            <button type="button" class="sidebar-item-text sidebar-item-toggle sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" aria-controls="quarto-sidebar-section-2" aria-expanded="true">
+ <span class="menu-text" id="quarto-sidebar-section-2-label">Physics</span><i class="bi bi-chevron-right" aria-hidden="true"></i></button>
       </div>
-      <ul id="quarto-sidebar-section-2" class="collapse list-unstyled sidebar-section depth1 show">  
+      <ul id="quarto-sidebar-section-2" aria-labelledby="quarto-sidebar-section-2-label" class="collapse list-unstyled sidebar-section depth1 show">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="../physics/governing-equations.html" class="sidebar-item-text sidebar-link">
@@ -464,13 +467,10 @@ window.Quarto = {
   </li>
         <li class="sidebar-item sidebar-item-section">
       <div class="sidebar-item-container"> 
-            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="true">
- <span class="menu-text">Discretization</span></a>
-          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="true" aria-label="Toggle section">
-            <i class="bi bi-chevron-right ms-2"></i>
-          </a> 
+            <button type="button" class="sidebar-item-text sidebar-item-toggle sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" aria-controls="quarto-sidebar-section-3" aria-expanded="true">
+ <span class="menu-text" id="quarto-sidebar-section-3-label">Discretization</span><i class="bi bi-chevron-right" aria-hidden="true"></i></button>
       </div>
-      <ul id="quarto-sidebar-section-3" class="collapse list-unstyled sidebar-section depth1 show">  
+      <ul id="quarto-sidebar-section-3" aria-labelledby="quarto-sidebar-section-3-label" class="collapse list-unstyled sidebar-section depth1 show">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="../discretization/spectral.html" class="sidebar-item-text sidebar-link">
@@ -499,13 +499,10 @@ window.Quarto = {
   </li>
         <li class="sidebar-item sidebar-item-section">
       <div class="sidebar-item-container"> 
-            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="true">
- <span class="menu-text">Benchmarks</span></a>
-          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="true" aria-label="Toggle section">
-            <i class="bi bi-chevron-right ms-2"></i>
-          </a> 
+            <button type="button" class="sidebar-item-text sidebar-item-toggle sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" aria-controls="quarto-sidebar-section-4" aria-expanded="true">
+ <span class="menu-text" id="quarto-sidebar-section-4-label">Benchmarks</span><i class="bi bi-chevron-right" aria-hidden="true"></i></button>
       </div>
-      <ul id="quarto-sidebar-section-4" class="collapse list-unstyled sidebar-section depth1 show">  
+      <ul id="quarto-sidebar-section-4" aria-labelledby="quarto-sidebar-section-4-label" class="collapse list-unstyled sidebar-section depth1 show">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="../benchmarks/index.html" class="sidebar-item-text sidebar-link">
@@ -530,6 +527,18 @@ window.Quarto = {
  <span class="menu-text">Benchmark: the sea-level equation</span></a>
   </div>
 </li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../benchmarks/rotation.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Benchmark: rotation (polar motion)</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../benchmarks/lvz.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Benchmark: low-viscosity zone (lateral viscosity)</span></a>
+  </div>
+</li>
       </ul>
   </li>
         <li class="sidebar-item">
@@ -544,22 +553,25 @@ window.Quarto = {
 <div id="quarto-sidebar-glass" class="quarto-sidebar-collapse-item" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item"></div>
 <!-- margin-sidebar -->
     <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
-        <nav id="TOC" role="doc-toc" class="toc-active">
+        <nav id="TOC" role="doc-toc" aria-labelledby="toc-title" class="toc-active">
     <h2 id="toc-title">On this page</h2>
    
   <ul>
   <li><a href="#one-step" id="toc-one-step" class="nav-link active" data-scroll-target="#one-step">One step</a></li>
   <li><a href="#the-viscoelastic-field-driver" id="toc-the-viscoelastic-field-driver" class="nav-link" data-scroll-target="#the-viscoelastic-field-driver">The viscoelastic field driver</a></li>
   <li><a href="#memory-storage-and-restart" id="toc-memory-storage-and-restart" class="nav-link" data-scroll-target="#memory-storage-and-restart">Memory storage and restart</a></li>
-  <li><a href="#coupling-cadence" id="toc-coupling-cadence" class="nav-link" data-scroll-target="#coupling-cadence">Coupling cadence</a></li>
+  <li><a href="#coupling-cadence" id="toc-coupling-cadence" class="nav-link" data-scroll-target="#coupling-cadence">Coupling cadence</a>
+  <ul class="collapse">
+  <li><a href="#spin-up" id="toc-spin-up" class="nav-link" data-scroll-target="#spin-up">Spin-up</a></li>
+  </ul></li>
   </ul>
 <div class="toc-actions"><ul><li><a href="https://github.com/fesmc/vilma2/blob/main/discretization/time-stepping.qmd" class="toc-action"><i class="bi bi-github"></i>View source</a></li><li><a href="https://github.com/fesmc/vilma2/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></nav>
     </div>
 <!-- main -->
-<main class="content" id="quarto-document-content">
+<main class="content" id="quarto-document-content" tabindex="-1">
 
 
-<header id="title-block-header" class="quarto-title-block default"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../discretization/spectral.html">Discretization</a></li><li class="breadcrumb-item"><a href="../discretization/time-stepping.html">Time stepping and the field driver</a></li></ol></nav>
+<header id="title-block-header" class="quarto-title-block default"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="Breadcrumbs"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../discretization/spectral.html">Discretization</a></li><li class="breadcrumb-item"><a href="../discretization/time-stepping.html">Time stepping and the field driver</a></li></ol></nav>
 <div class="quarto-title">
 <h1 class="title">Time stepping and the field driver</h1>
 </div>
@@ -591,10 +603,10 @@ window.Quarto = {
 <p>Elastic layers (<span class="math inline">\(M\to 0\)</span>) freeze; fluid layers (<span class="math inline">\(\mu=0\)</span>) carry no memory. The 1D validation <code>test_relax</code> shows a held load relaxing monotonically from the elastic Love number to the fluid limit <span class="math inline">\(-(2j+1)/3\)</span>, with <span class="math inline">\(t_{\text{relax}}\propto\eta\)</span> and convergence under step refinement.</p>
 <p>This explicit update is <strong>conditionally stable</strong>: the step is capped by the shortest Maxwell time, so a short dynamical <span class="math inline">\(\Delta t\)</span> is sub-cycled within the coupling interval. The <code>vilma_timestep</code> controller sizes the sub-steps according to the memory scheme (see <a href="../physics/rheology.html#memory-time-schemes">Rheology</a>):</p>
 <ul>
-<li><strong><code>"fe"</code></strong> (default): the 1st-order update has no embedded error signal, so <span class="math inline">\(\Delta t\)</span> is set <em>a priori</em> by the stability ceiling <span class="math inline">\(M = \mu\Delta t/\eta \le\)</span> <code>cfl</code>, and the interval is split into equal sub-steps.</li>
-<li><strong><code>"trap"</code></strong>: each candidate step is taken once at <span class="math inline">\(\Delta t\)</span> and once as two <span class="math inline">\(\Delta t/2\)</span> halves; their difference estimates the local error of the memory (<code>rtol</code>, <code>atol</code>). A rejected step is rolled back and retried smaller; an accepted one keeps the fine result and lets <span class="math inline">\(\Delta t\)</span> grow (<code>grow_max</code>, bounded by <code>dt_min</code>/<code>dt_max</code>).</li>
+<li><strong><code>"fe"</code></strong> (default): the 1st-order update has no embedded error signal, so <span class="math inline">\(\Delta t\)</span> is set <em>a priori</em> by the stability ceiling <span class="math inline">\(M = \mu\Delta t/\eta \le\)</span> <code>cfl</code> (default 1; it must lie in (0, 2), the update’s stability range), taken over the fastest Maxwell rate present. The interval is split into equal sub-steps of at most that length. <code>dt_max</code> lowers the sub-step further. <code>dt_min</code> raises it, also above the stability ceiling, so it should stay at its default of 0 (none) for this scheme. A guard rolls a sub-step back and halves it if the memory norm becomes non-finite or grows more than <span class="math inline">\(10^{3}\)</span>-fold. It is a safety net and normally never fires.</li>
+<li><strong><code>"trap"</code></strong>: each candidate step is taken once at <span class="math inline">\(\Delta t\)</span> and once as two <span class="math inline">\(\Delta t/2\)</span> halves. Their difference estimates the local error of the memory, which is compared with <code>atol</code> <span class="math inline">\(+\)</span> <code>rtol</code> <span class="math inline">\(\times\)</span> the memory norm (defaults <span class="math inline">\(10^{-3}\)</span> and <span class="math inline">\(10^{-4}\)</span>). A rejected step is rolled back and retried smaller. An accepted one keeps the fine result. The next step size follows from the error estimate with the factor <code>safety</code> (0.9). Its change is limited to between <code>shrink_min</code> (0.2) and <code>grow_max</code> (5), and its value to the range <code>dt_min</code>–<code>dt_max</code>. A step at <code>dt_min</code> is accepted even above tolerance. The first trial step is <code>dt_init</code> (default 0: the whole interval). The step size then carries over from one interval to the next.</li>
 </ul>
-<p>The ice load is interpolated linearly between the interval endpoints.</p>
+<p>The <code>dt_*</code> parameters are given in years. The coupling interval itself is not a parameter: the host, or the forcing time axis of the standalone driver, passes it with each update. The ice load is interpolated linearly between the interval endpoints. <code>scheme</code> is <code>"fe"</code> or <code>"trap"</code> (see <a href="../physics/rheology.html#memory-time-schemes">Rheology</a>).</p>
 </section>
 <section id="the-viscoelastic-field-driver" class="level2">
 <h2 class="anchored" data-anchor-id="the-viscoelastic-field-driver">The viscoelastic field driver</h2>
@@ -606,19 +618,112 @@ u_{\ell m} \;=\; g_u(\ell)\,\sigma_{\ell m} \;+\; \text{drift}_{\ell m},
 <ul>
 <li><strong><code>begin_step</code></strong> freezes the drift — one memory-forcing solve per coefficient, done once at the start of the step;</li>
 <li><code>apply()</code> is then a cheap affine evaluation the SLE fixed point may call repeatedly;</li>
-<li><strong><code>commit_step</code></strong> advances the Maxwell memory once, with the converged load.</li>
+<li>the <strong>memory advance</strong> then moves the Maxwell memory forward once, with the converged load.</li>
 </ul>
-<p>With <code>scheme = "trap"</code>, <code>commit_step</code> iterates the step endpoint (re-solving the drift against the trial <span class="math inline">\(\boldsymbol{\tau}^{V,i}\)</span>) until the surface drift stops changing, since the trapezoidal update needs the end-of-step strain.</p>
+<p>The memory advance has two entry points. <code>commit_step</code> takes a given load and is used by the response-level tests. The sea-level solve instead uses <code>prepare_endpoint</code>, <code>advance_endpoint</code> and <code>finalize_step</code>, which let the load and the memory converge together. With <code>scheme = "fe"</code> both do one explicit update. With <code>scheme = "trap"</code> the update needs the end-of-step strain, so the step endpoint is iterated: the drift is re-solved against the trial <span class="math inline">\(\boldsymbol{\tau}^{V,i}\)</span> until the surface drift stops changing (relative change below <span class="math inline">\(10^{-6}\)</span>). In the sea-level solve the water load is re-converged in each of these passes, up to <code>sle_max_mem_iter</code> passes (default 20).</p>
 <p>Each complex <span class="math inline">\((\ell,m)\)</span> history is stored as two real histories (real/imaginary), since the operator and <span class="math inline">\(M=\mu\Delta t/\eta\)</span> are real. The per-element Maxwell kernel is shared verbatim with the 1D stepper — <code>test_ve_response</code> confirms the field driver’s first step equals <code>elastic_response</code> exactly, and that a held degree-2 field reproduces the 1D <code>ve_degree</code> history to <span class="math inline">\(\sim 10^{-13}\)</span>.</p>
 </section>
 <section id="memory-storage-and-restart" class="level2">
 <h2 class="anchored" data-anchor-id="memory-storage-and-restart">Memory storage and restart</h2>
-<p>The per-<span class="math inline">\((\ell,m)\)</span> memory and drift are stored in <strong>degree-grouped slot order</strong> (an <span class="math inline">\(\ell m \leftrightarrow k\)</span> map), so the inner loop is contiguous <em>and</em> per-degree, allowing operator reuse without scattering the (large) memory arrays. The <strong>only prognostic state</strong> carried across a restart is the viscoelastic memory (the Maxwell stress <span class="math inline">\(\boldsymbol{\tau}\)</span>, four spheroidal channels or six with the <a href="../physics/toroidal.html">toroidal field</a>) plus the integrator state and the model time. Reference fields (equilibrium bedrock, reference ice/topo) are static and validated on read. <code>test_restart</code> confirms a checkpoint-restart reproduces an uninterrupted run <strong>bit-for-bit</strong>. A lower-resolution restart is interpolated up to the model grid (degree-grouped spectral block copy), so a run can be spun up cheaply at coarse resolution and continued at fine resolution.</p>
+<p>The per-<span class="math inline">\((\ell,m)\)</span> memory and drift are stored in <strong>degree-grouped slot order</strong> (an <span class="math inline">\(\ell m \leftrightarrow k\)</span> map), so the inner loop is contiguous <em>and</em> per-degree, allowing operator reuse without scattering the (large) memory arrays.</p>
+<p>A restart file is written without rounding. It carries the following state:</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>State</th>
+<th>Variables</th>
+<th>Carried when</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Maxwell memory stress, four spheroidal channels or six with the <a href="../physics/toroidal.html">toroidal field</a></td>
+<td><code>tau_*</code></td>
+<td>viscoelastic response</td>
+</tr>
+<tr class="even">
+<td>start-of-step load of the trapezoidal scheme, and its flag</td>
+<td><code>sigma_n_*</code>, <code>sigma_primed</code></td>
+<td>viscoelastic response</td>
+</tr>
+<tr class="odd">
+<td>model time</td>
+<td><code>time</code></td>
+<td>always</td>
+</tr>
+<tr class="even">
+<td>next trial step of the step controller</td>
+<td><code>dt_try_s</code></td>
+<td>always</td>
+</tr>
+<tr class="odd">
+<td>polar motion and the memory of both degree-2 channels</td>
+<td><code>rot_m_*</code>, <code>rot_load_mem</code>, <code>rot_tidal_mem</code></td>
+<td><a href="../physics/rotation.html">rotation</a> on</td>
+</tr>
+<tr class="even">
+<td>host-resolved terms of the last update (the start of the next ramp)</td>
+<td><code>w_prev</code>, <code>I_g_prev</code>, <code>C_prev</code>, <code>F_prev</code></td>
+<td>host-resolved terms</td>
+</tr>
+<tr class="odd">
+<td>surface fields of the last update: ice, relative sea level and its two parts, bed, ocean function, barystatic scalars</td>
+<td><code>h_ice</code>, <code>rsl</code>, <code>dz_bed</code>, <code>dz_ss</code>, <code>z_bed</code>, <code>C_ocean</code>, <code>bsl</code>, …</td>
+<td>always</td>
+</tr>
+</tbody>
+</table>
+<p>The memory stress is by far the largest part. The surface fields follow from the memory and the load, but they are restored as well: the ice is the start of the next load ramp, and the relative sea level seeds the next sea-level solve. The elastic and the null response carry no memory, so their restart holds the other rows only. The full variable table is <code>input/vilma-variables.md</code>.</p>
+<p>The reference fields are static: the equilibrium bed and ice and, with host-resolved terms, the host reference. They are written once and compared with the initialized model on read. A mismatch stops the run. A file with host-resolved terms cannot be read into a run without them, nor the reverse.</p>
+<p>A restart also records the Earth its memory belongs to: checksums of the radial mesh (<code>mesh_checksum</code>), of the radial viscosity (<code>visc_radial_checksum</code>) and of the 3-D field (<code>visc_3d_checksum</code>). A restart from another mesh is refused. A restart from another viscosity is refused too, unless <code>restart_other_visc = .true.</code> (<code>&amp;ctl</code>): its memory then seeds the run (e.g.&nbsp;a 1-D spin-up for a 3-D run) rather than continuing it. Other parameters (the time scheme, the sea-level settings) are not checked.</p>
+<p>A run resumes at the restart’s time. The driver starts the forcing window at that time, and a <code>time_init</code> that selects another start stops the run, so a restart cannot replay the forcing by mistake. <code>restart_time_reset = .true.</code> (<code>&amp;ctl</code>) instead takes the restart’s state as the state at the start of the window, whatever time the file carries.</p>
+<p><code>test_restart</code> asserts that a restarted run reproduces an uninterrupted one <strong>bit for bit</strong>, with rotation on, for a radially symmetric Earth and for a 3-D field with toroidal channels. <code>test_restart_3d</code> asserts the same after the 1-D pre-spin-up, and <code>test_restart_host</code> covers host-resolved terms.</p>
+<p>A lower-resolution restart can be read into a higher-resolution run. The memory of the shared low degrees is copied (a contiguous block in the degree-grouped order) and the higher degrees start at zero. The surface fields, the trapezoidal load and the host-resolved terms live on the file’s grid and are not transferred. The caller re-derives the surface fields with a zero-length update. A run can thus be spun up at coarse resolution and continued at fine resolution, but that continuation is not bit for bit. A higher-resolution file cannot be read into a lower-resolution run.</p>
 </section>
 <section id="coupling-cadence" class="level2">
 <h2 class="anchored" data-anchor-id="coupling-cadence">Coupling cadence</h2>
-<p>For host coupling (CLIMBER-X), the model sub-cycles its short dynamical step <span class="math inline">\(\Delta t\)</span> within a longer coupling interval: ice thickness is held across the interval, the SLE is solved each <span class="math inline">\(\Delta t\)</span>, and the bedrock <span class="math inline">\(z_{\text{bed}} = z_{\text{bed,eq}} - \text{rsl}\)</span> is returned at the coupling cadence. The reference state and its datum are chosen by <code>i_eq</code> (e.g.&nbsp;a present-day RTopo reference, or an equilibrium configuration); a non-equilibrium start (a held LGM load) is brought into balance by a <strong>spin-up</strong> (<code>solid_earth_spinup</code>) that relaxes the held load to bed-stationary equilibrium (rate below <code>equil_rate_tol</code>) — capped by <code>equil_time_max</code> — with an optional cheap 1-D pre-equilibration (<code>pre_spinup_1d</code>) before switching the transient to the 3-D path.</p>
-<div class="callout callout-style-default callout-tip callout-titled" title="Where this lives in the code">
+<p>For host coupling (CLIMBER-X), the model sub-cycles its short dynamical step <span class="math inline">\(\Delta t\)</span> within a longer coupling interval. The ice thickness ramps linearly from the previous update’s value to the new one across the interval. The SLE is solved each <span class="math inline">\(\Delta t\)</span>, and the bedrock <span class="math inline">\(z_{\text{bed}} = z_{\text{bed,eq}} - \text{rsl}\)</span> is returned at the coupling cadence.</p>
+<p>The reference state is the relaxed state. The memory is zero there, and relative sea level is measured against it. A host passes the reference at initialization. The standalone driver chooses it with <code>i_eq</code> (<code>&amp;ctl</code>):</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 50%">
+<col style="width: 50%">
+</colgroup>
+<thead>
+<tr class="header">
+<th><code>i_eq</code></th>
+<th>Reference bed and ice</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>0</td>
+<td>the start slice of the forcing</td>
+</tr>
+<tr class="even">
+<td>1 (default)</td>
+<td>a present-day reference (<code>z_bed_ref_file</code>, <code>h_ice_ref_file</code>), so that rsl is close to zero at the present day</td>
+</tr>
+<tr class="odd">
+<td>2</td>
+<td>an equilibrium state read from <code>z_bed_eq_file</code> and <code>h_ice_eq_file</code></td>
+</tr>
+<tr class="even">
+<td>3</td>
+<td>the present-day reference bed plus an rsl field from <code>rsl_restart_file</code></td>
+</tr>
+</tbody>
+</table>
+<section id="spin-up" class="level3">
+<h3 class="anchored" data-anchor-id="spin-up">Spin-up</h3>
+<p>A run that starts away from the reference (a held LGM load, say) starts with zero memory, as if the load had just been applied. The optional <strong>spin-up</strong> (<code>solid_earth_spinup</code>) removes this. It holds the start-slice ice and relaxes the model toward isostatic equilibrium, with the reference kept as the datum. The transient then starts with viscous memory. The spin-up has two phases, both off by default:</p>
+<ul>
+<li><strong>Full-model phase</strong> (<code>equil_time_max</code> <span class="math inline">\(&gt; 0\)</span>, in years). The held load is relaxed in passes of growing length: 200 yr first, then 1.6 times longer each pass, at most 60 passes. After each pass the mean bed velocity is the global mean of the absolute bed change over the pass, divided by the pass length. The phase ends when this falls below <code>equil_rate_tol</code> (default <span class="math inline">\(10^{-3}\)</span> m/yr). <code>equil_time_max</code> caps the total relaxation time. If the cap is reached first, the run continues and prints a warning with the remaining rate.</li>
+<li><strong>1-D pre-phase</strong> (<code>pre_spinup_1d = .true.</code>). The same relaxation first runs on a laterally uniform field, the lateral mean of <span class="math inline">\(\log_{10}\eta\)</span> of the 3-D field at each radius. It uses the same convergence test and has no time cap. The 3-D field is then restored and the memory is kept. This phase is cheap, because no element is on the 3-D path. It is independent of <code>equil_time_max</code>.</li>
+</ul>
+<p>The rate of each pass is measured over exactly that pass’s memory advance. The criterion is a global mean. It bounds the mean bed velocity, not the velocity at every point, and it is not a measure of how far the relaxation has gone. The default <code>equil_rate_tol</code> stops the spin-up when the bed moves slower than <span class="math inline">\(10^{-3}\)</span> m/yr. In a test with a held polar cap relaxed over 500 kyr, this is reached at about 83 % of the full relaxation. Full relaxation over such spans is not affordable in realistic cases, so the spin-up gives a practical reference, not a fully relaxed one. For a reproducible reference, fix the length of the spin-up with <code>equil_time_max</code> and set <code>equil_rate_tol = 0</code>, as the reference of the <a href="../benchmarks/deglaciation.html">VILMA1 versus VILMA2 deglaciation</a> does. Elements with very high viscosity do not equilibrate within any practical cap, which is what the <a href="../physics/rheology.html#visc3d-input">lid rule</a> addresses. <code>test_spinup</code> asserts that the spin-up relaxes the held load well beyond a single cold step, and that the state after it is near-stationary. The spin-up is not available with <code>solver = "v1"</code>.</p>
+<p>A zero-length update (<code>dt = 0</code>) advances neither time nor memory. It solves the sea-level equation under the ice it is handed, against the current memory, and refreshes the surface fields, so relative sea level, the ocean function and <code>h_ice</code> describe the same ice. It is idempotent: a second call with the same ice changes nothing. The spin-up begins with one, and a run without spin-up (a restarted run included) begins with one, to seed the start-slice ice. A negative <code>dt</code> stops the run.</p>
+<div class="callout callout-style-default callout-tip callout-titled">
 <div class="callout-header d-flex align-content-center">
 <div class="callout-icon-container">
 <i class="callout-icon"></i>
@@ -628,11 +733,12 @@ u_{\ell m} \;=\; g_u(\ell)\,\sigma_{\ell m} \;+\; \text{drift}_{\ell m},
 </div>
 </div>
 <div class="callout-body-container callout-body">
-<p><code>vilma_viscoelastic</code> (1D stepper + shared kernel), <code>vilma_response</code> (<code>ve_response</code> field driver, <code>begin_step</code>/<code>commit_step</code>), <code>vilma_io</code> (netCDF restart), and <code>vilma_coupling</code> (host init/update contract). The cost of <code>begin_step</code> is the main performance driver and is addressed in <a href="../discretization/solver.html">Solver</a>.</p>
+<p><code>vilma_viscoelastic</code> (1D stepper + shared kernel), <code>vilma_response</code> (<code>ve_response</code> field driver, <code>begin_step</code>/<code>commit_step</code>), <code>vilma_io</code> (netCDF restart), and <code>vilma_coupling</code> (host init/update contract, spin-up), <code>vilma_timestep</code> (the sub-step controller) and <code>vilma_sle</code> (the load–memory iteration). The cost of the drift solve in <code>begin_step</code> is addressed in <a href="../discretization/solver.html">Solver</a>.</p>
 </div>
 </div>
 
 
+</section>
 </section>
 
 <a onclick="window.scrollTo(0, 0); return false;" role="button" id="quarto-back-to-top"><i class="bi bi-arrow-up"></i> Back to top</a></main> <!-- /main -->
@@ -640,15 +746,50 @@ u_{\ell m} \;=\; g_u(\ell)\,\sigma_{\ell m} \;+\; \text{drift}_{\ell m},
   window.document.addEventListener("DOMContentLoaded", function (event) {
     // Ensure there is a toggle, if there isn't float one in the top right
     if (window.document.querySelector('.quarto-color-scheme-toggle') === null) {
-      const a = window.document.createElement('a');
-      a.classList.add('top-right');
-      a.classList.add('quarto-color-scheme-toggle');
-      a.href = "";
-      a.onclick = function() { try { window.quartoToggleColorScheme(); } catch {} return false; };
+      const toggle = window.document.createElement('button');
+      toggle.type = "button";
+      toggle.setAttribute("role", "switch");
+      toggle.setAttribute("aria-checked", "false");
+      toggle.classList.add('top-right');
+      toggle.classList.add('quarto-color-scheme-toggle');
+      toggle.setAttribute("aria-label", "Toggle dark mode");
+      toggle.onclick = function() { try { window.quartoToggleColorScheme(); } catch {} return false; };
       const i = window.document.createElement("i");
       i.classList.add('bi');
-      a.appendChild(i);
-      window.document.body.appendChild(a);
+      toggle.appendChild(i);
+      // Put the toggle in a landmark of its own, so that landmark navigation
+      // can reach it.
+      //
+      // The container is always a fresh direct child of body, and the toggle is
+      // never moved into page furniture that the theme or the author controls.
+      // The toggle is positioned against the page, so any ancestor that
+      // establishes a containing block captures it: a positioned element or a
+      // grid for position: absolute, and transform, filter, will-change or
+      // contain for position: fixed. A direct child of body has none of these
+      // to inherit, and the shift when one appears is silent and visual.
+      //
+      // ARIA says a document should have at most one banner, and axe reports a
+      // duplicate whether or not the banners carry distinct labels. So use a
+      // header when the page has no banner yet, and a named region otherwise.
+      //
+      // A header is a banner wherever it sits, unless it is inside sectioning
+      // content, so this cannot just look at the children of body: a custom
+      // page layout wraps the title block header in a plain div. An explicit
+      // role="banner" always counts.
+      const sectioning = 'article, aside, main, nav, section, [role="article"], [role="complementary"], [role="main"], [role="navigation"], [role="region"]';
+      const hasBanner = Array.from(
+        window.document.querySelectorAll('header:not([role]), [role="banner"]')
+      ).some(function(el) {
+        return el.hasAttribute("role") || el.closest(sectioning) === null;
+      });
+      const container = window.document.createElement(hasBanner ? "div" : "header");
+      if (hasBanner) {
+        container.setAttribute("role", "region");
+        container.setAttribute("aria-label", "Toggle dark mode");
+      }
+      container.classList.add('quarto-color-scheme-toggle-container');
+      container.appendChild(toggle);
+      window.document.body.appendChild(container);
     }
     setColorSchemeToggle(hasAlternateSentinel())
     const icon = "";
@@ -727,7 +868,8 @@ u_{\ell m} \;=\; g_u(\ell)\,\sigma_{\ell m} \;+\; \text{drift}_{\ell m},
           return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
       }
       // Inspect non-navigation links and adorn them if external
-     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      window.quartoDecorateExternalLinks = function (root) {
+     var links = (root || window.document).querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
       for (var i=0; i<links.length; i++) {
         const link = links[i];
         if (!isInternal(link.href)) {
@@ -736,8 +878,69 @@ u_{\ell m} \;=\; g_u(\ell)\,\sigma_{\ell m} \;+\; \text{drift}_{\ell m},
           if (link.dataset.originalHref !== undefined) {
             link.href = link.dataset.originalHref;
           }
+          if (!link.classList.contains('no-external-icon')) {
+          }
         }
       }
+      };
+      window.quartoDecorateExternalLinks(window.document);
+    // Esc closes the popup (WCAG 1.4.13) and focus leaving both trigger and
+    // popup closes it (WCAG 2.4.11); tippy handles neither for interactive popups.
+    const hideOnEscAndFocusOut = {
+      name: 'hideOnEscAndFocusOut',
+      defaultValue: true,
+      fn(instance) {
+        const dismiss = () => {
+          // A show scheduled by the trigger delay would otherwise reopen it
+          instance.clearDelayTimeouts();
+          instance.hide();
+        };
+        const onKeyDown = (event) => {
+          if (event.key !== 'Escape') {
+            return;
+          }
+          // Keep Esc from also reaching page handlers (e.g. reveal.js overview),
+          // except an open reveal.js slide menu, which Esc should close too.
+          // The menu handles keys only when its keyboard option is on.
+          const menuHandlesEsc = window.Reveal?.getPlugin?.('menu')?.isOpen() &&
+            window.Reveal.getConfig().menu?.keyboard !== false;
+          if (!menuHandlesEsc) {
+            event.stopPropagation();
+          }
+          if (instance.popper.contains(window.document.activeElement)) {
+            // Disabled while refocusing so the focus trigger does not reopen it
+            instance.disable();
+            instance.reference.focus();
+            instance.enable();
+          }
+          dismiss();
+        };
+        const onFocusOut = (event) => {
+          const target = event.relatedTarget;
+          if (target && !instance.reference.contains(target) &&
+              !instance.popper.contains(target)) {
+            dismiss();
+          }
+        };
+        // On the trigger too: a click trigger (code-annotations: select) has no
+        // blur handling. Attached for the instance's lifetime so leaving the
+        // trigger also cancels a show still pending on the trigger delay.
+        instance.reference.addEventListener('focusout', onFocusOut);
+        return {
+          onShow() {
+            window.document.addEventListener('keydown', onKeyDown, true);
+            instance.popper.addEventListener('focusout', onFocusOut);
+          },
+          onHide() {
+            window.document.removeEventListener('keydown', onKeyDown, true);
+            instance.popper.removeEventListener('focusout', onFocusOut);
+          },
+          onDestroy() {
+            instance.reference.removeEventListener('focusout', onFocusOut);
+          },
+        };
+      },
+    };
     function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
       const config = {
         allowHTML: true,
@@ -751,6 +954,7 @@ u_{\ell m} \;=\; g_u(\ell)\,\sigma_{\ell m} \;+\; \text{drift}_{\ell m},
         interactiveBorder: 10,
         theme: 'quarto',
         placement: 'bottom-start',
+        plugins: [hideOnEscAndFocusOut],
       };
       if (contentFn) {
         config.content = contentFn;
@@ -913,44 +1117,54 @@ u_{\ell m} \;=\; g_u(\ell)\,\sigma_{\ell m} \;+\; \text{drift}_{\ell m},
           const lineIds = lines.map((line) => {
             return targetCell + "-" + line;
           })
-          let top = null;
-          let height = null;
-          let parent = null;
+          // Each band is positioned against its own containing block, which is
+          // not the offsetParent of the lines, so place it from client rects.
+          const placeBand = (band, firstEl, lastEl, codeBlock) => {
+            const container = band.offsetParent;
+            if (container === null) {
+              return;
+            }
+            const containerRect = container.getBoundingClientRect();
+            // Reveal.js scales slides with a transform, so convert client
+            // pixels back to the CSS pixels of the container.
+            const scale = containerRect.height / container.offsetHeight || 1;
+            const firstRect = firstEl.getBoundingClientRect();
+            const lastRect = lastEl.getBoundingClientRect();
+            const top = (firstRect.top - containerRect.top) / scale - container.clientTop + container.scrollTop;
+            const height = (lastRect.bottom - firstRect.top) / scale;
+            band.style.top = top - 2 + "px";
+            band.style.height = height + 4 + "px";
+            if (codeBlock) {
+              // Without the copy button wrapper, the containing block is wider
+              // than the code block, so span the code block explicitly.
+              const blockRect = codeBlock.getBoundingClientRect();
+              band.style.left = (blockRect.left - containerRect.left) / scale - container.clientLeft + container.scrollLeft + "px";
+              band.style.width = blockRect.width / scale + "px";
+            }
+          };
           if (lineIds.length > 0) {
-              //compute the position of the single el (top and bottom and make a div)
-              const el = window.document.getElementById(lineIds[0]);
-              top = el.offsetTop;
-              height = el.offsetHeight;
-              parent = el.parentElement.parentElement;
-            if (lineIds.length > 1) {
-              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
-              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
-              height = bottom - top;
+            const el = window.document.getElementById(lineIds[0]);
+            const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+            const parent = el.parentElement.parentElement;
+            // cook up a div (if necessary) and position it
+            let div = window.document.getElementById("code-annotation-line-highlight");
+            if (div === null) {
+              div = window.document.createElement("div");
+              div.setAttribute("id", "code-annotation-line-highlight");
+              div.style.position = 'absolute';
+              parent.appendChild(div);
             }
-            if (top !== null && height !== null && parent !== null) {
-              // cook up a div (if necessary) and position it 
-              let div = window.document.getElementById("code-annotation-line-highlight");
-              if (div === null) {
-                div = window.document.createElement("div");
-                div.setAttribute("id", "code-annotation-line-highlight");
-                div.style.position = 'absolute';
-                parent.appendChild(div);
-              }
-              div.style.top = top - 2 + "px";
-              div.style.height = height + 4 + "px";
-              div.style.left = 0;
-              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
-              if (gutterDiv === null) {
-                gutterDiv = window.document.createElement("div");
-                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
-                gutterDiv.style.position = 'absolute';
-                const codeCell = window.document.getElementById(targetCell);
-                const gutter = codeCell.querySelector('.code-annotation-gutter');
-                gutter.appendChild(gutterDiv);
-              }
-              gutterDiv.style.top = top - 2 + "px";
-              gutterDiv.style.height = height + 4 + "px";
+            placeBand(div, el, lastEl, parent.closest("div.sourceCode") || parent);
+            let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+            if (gutterDiv === null) {
+              gutterDiv = window.document.createElement("div");
+              gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+              gutterDiv.style.position = 'absolute';
+              const codeCell = window.document.getElementById(targetCell);
+              const gutter = codeCell.querySelector('.code-annotation-gutter');
+              gutter.appendChild(gutterDiv);
             }
+            placeBand(gutterDiv, el, lastEl);
             selectedAnnoteEl = annoteEl;
           }
         };
@@ -1049,7 +1263,10 @@ u_{\ell m} \;=\; g_u(\ell)\,\sigma_{\ell m} \;+\; \text{drift}_{\ell m},
     }
   });
   </script>
-<nav class="page-navigation">
+  <script type="application/javascript">
+  window.quartoScrollableRegionsLabels = {"code":"Scrollable code","output":"Scrollable output"};
+  </script>
+<nav class="page-navigation" aria-label="Page">
   <div class="nav-page nav-page-previous">
       <a href="../discretization/radial-fe.html" class="pagination-link" aria-label="Radial finite elements and the per-degree operator">
         <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text">Radial finite elements and the per-degree operator</span>

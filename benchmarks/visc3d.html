@@ -2,7 +2,7 @@
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
 
 <meta charset="utf-8">
-<meta name="generator" content="quarto-1.10.20">
+<meta name="generator" content="quarto-1.11.9">
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
@@ -92,18 +92,19 @@ div.csl-indent {
 <meta name="quarto:offset" content="../">
 <script src="../site_libs/quarto-html/quarto.js" type="module"></script>
 <script src="../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../site_libs/quarto-html/scrollable-regions/scrollable-regions.js" type="module"></script>
 <script src="../site_libs/quarto-html/popper.min.js"></script>
 <script src="../site_libs/quarto-html/tippy.umd.min.js"></script>
 <script src="../site_libs/quarto-html/anchor.min.js"></script>
 <link href="../site_libs/quarto-html/tippy.css" rel="stylesheet">
-<link href="../site_libs/quarto-html/quarto-syntax-highlighting-17888a1159294d3eb470f19f6f52f5a5.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-text-highlighting-styles">
-<link href="../site_libs/quarto-html/quarto-syntax-highlighting-dark-0ae969d3293726db143f6e9eb89af930.css" rel="stylesheet" class="quarto-color-scheme quarto-color-alternate" id="quarto-text-highlighting-styles">
-<link href="../site_libs/quarto-html/quarto-syntax-highlighting-17888a1159294d3eb470f19f6f52f5a5.css" rel="stylesheet" class="quarto-color-scheme-extra" id="quarto-text-highlighting-styles">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-63b5708e65d6cd79cd7618c58d0c21e7.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-text-highlighting-styles">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-dark-447e42e69aaa9833c0ba1b986f430b20.css" rel="stylesheet" class="quarto-color-scheme quarto-color-alternate" id="quarto-text-highlighting-styles">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-63b5708e65d6cd79cd7618c58d0c21e7.css" rel="stylesheet" class="quarto-color-scheme-extra" id="quarto-text-highlighting-styles">
 <script src="../site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="../site_libs/bootstrap/bootstrap-fe9ab94330ff2cdc5105c70272dca3f0.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
-<link href="../site_libs/bootstrap/bootstrap-dark-bddab9ad0d549410cca6a651ad8ac0e7.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
-<link href="../site_libs/bootstrap/bootstrap-fe9ab94330ff2cdc5105c70272dca3f0.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
+<link href="../site_libs/bootstrap/bootstrap-3a1610f0a8f0b9b7bc4c1e6d49db0d8a.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
+<link href="../site_libs/bootstrap/bootstrap-dark-f829436f7c543b6c5fa77b733bfa68fa.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
+<link href="../site_libs/bootstrap/bootstrap-3a1610f0a8f0b9b7bc4c1e6d49db0d8a.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
 <script id="quarto-search-options" type="application/json">{
   "location": "navbar",
   "copy-button": false,
@@ -164,7 +165,7 @@ window.Quarto = {
 
 </head>
 
-<body class="nav-sidebar floating nav-fixed quarto-light"><script id="quarto-html-before-body" type="application/javascript">
+<body class="nav-sidebar floating nav-fixed quarto-light"><a id="quarto-skip-link" class="visually-hidden-focusable" href="#quarto-document-content">Skip to main content</a><script id="quarto-html-before-body" type="application/javascript">
     const toggleBodyColorMode = (bsSheetEl) => {
       const mode = bsSheetEl.getAttribute("data-mode");
       const bodyEl = window.document.querySelector("body");
@@ -187,6 +188,7 @@ window.Quarto = {
       for (let i=0; i < toggles.length; i++) {
         const toggle = toggles[i];
         if (toggle) {
+          toggle.setAttribute("aria-checked", alternate ? "true" : "false");
           if (alternate) {
             toggle.classList.add("alternate");
           } else {
@@ -216,13 +218,19 @@ window.Quarto = {
       manageTransitions('#quarto-margin-sidebar .nav-link', true);
       // Switch the toggles
       setColorSchemeToggle(alternate)
-      // Hack to workaround the fact that safari doesn't
-      // properly recolor the scrollbar when toggling (#1455)
+    }
+    // Hack to workaround the fact that safari doesn't
+    // properly recolor the scrollbar when toggling (#1455).
+    // Not run on load: stylesheets are set before first paint there, and
+    // scrolling would undo the scroll to a URL fragment (#14973).
+    // The one pixel nudge keeps the reader where they were.
+    const refreshSafariScrollbar = () => {
       if (navigator.userAgent.indexOf('Safari') > 0 && navigator.userAgent.indexOf('Chrome') == -1) {
         manageTransitions("body", false);
-        window.scrollTo(0, 1);
+        const scrollY = window.scrollY;
+        window.scrollTo(0, scrollY > 0 ? scrollY - 1 : 1);
         setTimeout(() => {
-          window.scrollTo(0, 0);
+          window.scrollTo(0, scrollY);
           manageTransitions("body", true);
         }, 40);
       }
@@ -316,6 +324,7 @@ window.Quarto = {
       // Read the current dark / light value
       let toAlternate = !hasAlternateSentinel();
       toggleColorMode(toAlternate);
+      refreshSafariScrollbar();
       setStyleSentinel(toAlternate);
       toggleGiscusIfUsed(toAlternate, darkModeDefault);
       window.dispatchEvent(new Event('resize'));
@@ -330,15 +339,14 @@ window.Quarto = {
 
 <div id="quarto-search-results"></div>
   <header id="quarto-header" class="headroom fixed-top">
-    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark" aria-label="Site">
       <div class="navbar-container container-fluid">
       <div class="navbar-brand-container mx-auto">
     <a class="navbar-brand" href="../index.html">
     <span class="navbar-title">VILMA2</span>
     </a>
   </div>
-            <div id="quarto-search" class="" title="Search"></div>
-          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" role="menu" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
   <span class="navbar-toggler-icon"></span>
 </button>
           <div class="collapse navbar-collapse" id="navbarCollapse">
@@ -423,17 +431,18 @@ window.Quarto = {
 </ul>
           </div> <!-- /navcollapse -->
             <div class="quarto-navbar-tools">
-  <a href="" class="quarto-color-scheme-toggle quarto-navigation-tool  px-1" onclick="window.quartoToggleColorScheme(); return false;" title="Toggle dark mode"><i class="bi"></i></a>
+  <button type="button" role="switch" aria-checked="false" class="quarto-color-scheme-toggle quarto-navigation-tool  px-1" onclick="window.quartoToggleColorScheme(); return false;" title="Toggle dark mode" aria-label="Toggle dark mode"><i class="bi"></i></button>
 </div>
+            <div id="quarto-search" class="" title="Search"></div>
       </div> <!-- /container-fluid -->
     </nav>
-  <nav class="quarto-secondary-nav">
+  <nav class="quarto-secondary-nav" aria-label="Toolbar">
     <div class="container-fluid d-flex">
       <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
         <i class="bi bi-layout-text-sidebar-reverse"></i>
       </button>
-        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item">Benchmark: lateral viscosity</li></ol></nav>
-        <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
+        <nav class="quarto-page-breadcrumbs" aria-label="Breadcrumbs"><ol class="breadcrumb"><li class="breadcrumb-item">Benchmark: lateral viscosity</li></ol></nav>
+        <a class="flex-grow-1" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
         </a>
     </div>
   </nav>
@@ -441,18 +450,15 @@ window.Quarto = {
 <!-- content -->
 <div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
 <!-- sidebar -->
-  <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal quarto-sidebar-collapse-item sidebar-navigation floating overflow-auto">
+  <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal quarto-sidebar-collapse-item sidebar-navigation floating overflow-auto" aria-label="Section">
     <div class="sidebar-menu-container"> 
     <ul class="list-unstyled mt-1">
         <li class="sidebar-item sidebar-item-section">
       <div class="sidebar-item-container"> 
-            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true">
- <span class="menu-text">Getting started</span></a>
-          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true" aria-label="Toggle section">
-            <i class="bi bi-chevron-right ms-2"></i>
-          </a> 
+            <button type="button" class="sidebar-item-text sidebar-item-toggle sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" aria-controls="quarto-sidebar-section-1" aria-expanded="true">
+ <span class="menu-text" id="quarto-sidebar-section-1-label">Getting started</span><i class="bi bi-chevron-right" aria-hidden="true"></i></button>
       </div>
-      <ul id="quarto-sidebar-section-1" class="collapse list-unstyled sidebar-section depth1 show">  
+      <ul id="quarto-sidebar-section-1" aria-labelledby="quarto-sidebar-section-1-label" class="collapse list-unstyled sidebar-section depth1 show">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="../index.html" class="sidebar-item-text sidebar-link">
@@ -475,13 +481,10 @@ window.Quarto = {
   </li>
         <li class="sidebar-item sidebar-item-section">
       <div class="sidebar-item-container"> 
-            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="true">
- <span class="menu-text">Physics</span></a>
-          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="true" aria-label="Toggle section">
-            <i class="bi bi-chevron-right ms-2"></i>
-          </a> 
+            <button type="button" class="sidebar-item-text sidebar-item-toggle sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" aria-controls="quarto-sidebar-section-2" aria-expanded="true">
+ <span class="menu-text" id="quarto-sidebar-section-2-label">Physics</span><i class="bi bi-chevron-right" aria-hidden="true"></i></button>
       </div>
-      <ul id="quarto-sidebar-section-2" class="collapse list-unstyled sidebar-section depth1 show">  
+      <ul id="quarto-sidebar-section-2" aria-labelledby="quarto-sidebar-section-2-label" class="collapse list-unstyled sidebar-section depth1 show">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="../physics/governing-equations.html" class="sidebar-item-text sidebar-link">
@@ -516,13 +519,10 @@ window.Quarto = {
   </li>
         <li class="sidebar-item sidebar-item-section">
       <div class="sidebar-item-container"> 
-            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="true">
- <span class="menu-text">Discretization</span></a>
-          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="true" aria-label="Toggle section">
-            <i class="bi bi-chevron-right ms-2"></i>
-          </a> 
+            <button type="button" class="sidebar-item-text sidebar-item-toggle sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" aria-controls="quarto-sidebar-section-3" aria-expanded="true">
+ <span class="menu-text" id="quarto-sidebar-section-3-label">Discretization</span><i class="bi bi-chevron-right" aria-hidden="true"></i></button>
       </div>
-      <ul id="quarto-sidebar-section-3" class="collapse list-unstyled sidebar-section depth1 show">  
+      <ul id="quarto-sidebar-section-3" aria-labelledby="quarto-sidebar-section-3-label" class="collapse list-unstyled sidebar-section depth1 show">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="../discretization/spectral.html" class="sidebar-item-text sidebar-link">
@@ -551,13 +551,10 @@ window.Quarto = {
   </li>
         <li class="sidebar-item sidebar-item-section">
       <div class="sidebar-item-container"> 
-            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="true">
- <span class="menu-text">Benchmarks</span></a>
-          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="true" aria-label="Toggle section">
-            <i class="bi bi-chevron-right ms-2"></i>
-          </a> 
+            <button type="button" class="sidebar-item-text sidebar-item-toggle sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" aria-controls="quarto-sidebar-section-4" aria-expanded="true">
+ <span class="menu-text" id="quarto-sidebar-section-4-label">Benchmarks</span><i class="bi bi-chevron-right" aria-hidden="true"></i></button>
       </div>
-      <ul id="quarto-sidebar-section-4" class="collapse list-unstyled sidebar-section depth1 show">  
+      <ul id="quarto-sidebar-section-4" aria-labelledby="quarto-sidebar-section-4-label" class="collapse list-unstyled sidebar-section depth1 show">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="../benchmarks/index.html" class="sidebar-item-text sidebar-link">
@@ -582,6 +579,18 @@ window.Quarto = {
  <span class="menu-text">Benchmark: the sea-level equation</span></a>
   </div>
 </li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../benchmarks/rotation.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Benchmark: rotation (polar motion)</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../benchmarks/lvz.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Benchmark: low-viscosity zone (lateral viscosity)</span></a>
+  </div>
+</li>
       </ul>
   </li>
         <li class="sidebar-item">
@@ -596,7 +605,7 @@ window.Quarto = {
 <div id="quarto-sidebar-glass" class="quarto-sidebar-collapse-item" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item"></div>
 <!-- margin-sidebar -->
     <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
-        <nav id="TOC" role="doc-toc" class="toc-active">
+        <nav id="TOC" role="doc-toc" aria-labelledby="toc-title" class="toc-active">
     <h2 id="toc-title">On this page</h2>
    
   <ul>
@@ -612,7 +621,7 @@ window.Quarto = {
 <div class="toc-actions"><ul><li><a href="https://github.com/fesmc/vilma2/blob/main/benchmarks/visc3d.qmd" class="toc-action"><i class="bi bi-github"></i>View source</a></li><li><a href="https://github.com/fesmc/vilma2/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></nav>
     </div>
 <!-- main -->
-<main class="content" id="quarto-document-content">
+<main class="content" id="quarto-document-content" tabindex="-1">
 
 
 <header id="title-block-header" class="quarto-title-block default">
@@ -634,14 +643,37 @@ window.Quarto = {
 </header>
 
 
+<div class="callout callout-style-simple callout-warning no-icon">
+<div class="callout-body d-flex">
+<div class="callout-icon-container">
+<i class="callout-icon no-icon"></i>
+</div>
+<div class="callout-body-container">
+<p><strong>Pre-publication page.</strong> This page is not linked from the navigation and is excluded from the site search. It is reachable by direct link only.</p>
+</div>
+</div>
+</div>
 <div class="callout callout-style-simple callout-note no-icon">
 <div class="callout-body d-flex">
 <div class="callout-icon-container">
 <i class="callout-icon no-icon"></i>
 </div>
 <div class="callout-body-container">
-<p><strong>Reference:</strong> community benchmark of GIA codes with laterally heterogeneous earth structure, setup note by Klemann et al. <span class="citation" data-cites="Klemann2022setup">(<a href="#ref-Klemann2022setup" role="doc-biblioref">Klemann et al. 2022</a>)</span> (<code>doc/refs/klemann-visc3d-benchmarks-setup.pdf</code>). <strong>Driver:</strong> <code>bench_visc3d</code> (not in <code>make check</code>). <strong>Status:</strong> 🔧 set up and run at low resolution; no reference solutions published yet.</p>
+<p><strong>Reference:</strong> community benchmark of GIA codes with laterally heterogeneous earth structure, setup note by Klemann et al. <span class="citation" data-cites="Klemann2022setup">(<a href="#ref-Klemann2022setup" role="doc-biblioref">Klemann et al. 2022</a>)</span> (<code>doc/refs/klemann-visc3d-benchmarks-setup.pdf</code>). <strong>Driver:</strong> <code>bench_visc3d</code> (not in <code>make check</code>). <strong>Status:</strong> 🔧 A-i and B-i run to 100 kyr at <span class="math inline">\(\ell_\max\)</span> = 64, 128 and 256 (model f0c4678, albedo); C-i to be rerun with the current model. No reference solutions are published yet, so the driver has no pass/fail; A-i is checked against its exact normal-mode solution.</p>
 </div>
+</div>
+</div>
+<div class="callout callout-style-default callout-important callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Important
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p><strong>What validates the 3-D path today.</strong> The 3-D viscosity path is cross-checked against two things only: VILMA1, on the last deglaciation (<a href="../benchmarks/deglaciation.html">deglaciation page</a>), and the low-viscosity-zone case of Weerdesteijn et al.&nbsp;(2023) <span class="citation" data-cites="Weerdesteijn2023">(<a href="#ref-Weerdesteijn2023" role="doc-biblioref">Weerdesteijn et al. 2023</a>)</span> (<a href="../benchmarks/lvz.html">LVZ page</a>). No multi-code 3-D benchmark has been run yet. This page describes the setup that VILMA2 contributes to such a benchmark. It produces the protocol files and compares them with nothing.</p>
 </div>
 </div>
 <p>The benchmark follows <span class="citation" data-cites="Spada2011">Spada et al. (<a href="#ref-Spada2011" role="doc-biblioref">2011</a>)</span> and <span class="citation" data-cites="Martinec2018">Martinec et al. (<a href="#ref-Martinec2018" role="doc-biblioref">2018</a>)</span> but adds a <strong>low-viscosity column</strong> under or near an ice load. It isolates the effect of lateral viscosity on vertical and horizontal displacement, on the gravitational potential, and on geocentre motion. The note defines compressible and incompressible variants; VILMA2 is incompressible, so only <strong>A-i, B-i and C-i</strong> are run.</p>
@@ -656,6 +688,7 @@ window.Quarto = {
 H(\vartheta) = \left[1 + e^{2(\vartheta-\vartheta_w)/d}\right]^{-1},
 \]</span></p>
 <p>with half-width <span class="math inline">\(\vartheta_w = 12°\)</span>, edge width <span class="math inline">\(d = 1°\)</span> and centre viscosity <span class="math inline">\(\eta_c = 10^{18}\)</span> Pa s. That is a drop of 3 orders of magnitude in the mantle and 12 in the 60–70 km lithosphere, which the note asks to reach the same centre value.</p>
+<p><strong>Grid.</strong> The Gauss grid has <span class="math inline">\(2\ell_\max + 2\)</span> latitudes. It has <span class="math inline">\(4\ell_\max\)</span> longitudes for C and 2 for the axisymmetric A and B.</p>
 <p><strong>Load.</strong> A cap of radius <span class="math inline">\(\alpha = 10°\)</span> with a square-root profile,</p>
 <p><span class="math display">\[
 \sigma(\vartheta) = \rho_\text{ice}\, h_L
@@ -720,6 +753,7 @@ H(\vartheta) = \left[1 + e^{2(\vartheta-\vartheta_w)/d}\right]^{-1},
 <li><code>disp_VILMA2_&lt;T&gt;-i_&lt;forcing&gt;.txt</code>: longitude, latitude, distance along the section [deg], time [kyr], <span class="math inline">\(u_r\)</span>, <span class="math inline">\(u_\vartheta\)</span>, <span class="math inline">\(u_\varphi\)</span> [m] and <span class="math inline">\(\delta\phi\)</span> [m² s⁻²].</li>
 <li><code>gcm_VILMA2_&lt;T&gt;-i_&lt;forcing&gt;.txt</code>: time [kyr] and the geocentre offset <span class="math inline">\(u_\text{gcm} = u_\text{CF} - u_\text{CM}\)</span> (<span class="math inline">\(x, y, z\)</span> [m]).</li>
 </ul>
+<p>The driver does not compare these files with a reference, and it returns no pass or fail. The only check it prints is the load mass, from the degree-0 coefficient, next to its closed form. It also prints <span class="math inline">\(u_r\)</span> at the structure centre at each output epoch.</p>
 <p>Conventions:</p>
 <ul>
 <li><strong>Frame.</strong> Displacements are in the CM frame (<code>deg1_frame = "cm"</code>). Then <span class="math inline">\(u_\text{gcm} = u_\text{CF}\)</span>, the surface mean of the displacement vector, <span class="math inline">\((U_1 + 2V_1)/3\)</span> in Cartesian components <span class="citation" data-cites="Blewitt2003">(<a href="#ref-Blewitt2003" role="doc-biblioref">Blewitt 2003</a>)</span>.</li>
@@ -729,29 +763,169 @@ H(\vartheta) = \left[1 + e^{2(\vartheta-\vartheta_w)/d}\right]^{-1},
 </section>
 <section id="running" class="level2">
 <h2 class="anchored" data-anchor-id="running">Running</h2>
-<p>The run config is <code>examples/bench_visc3d.nml</code>. Its <code>&amp;benchv3d</code> group sets <code>test</code> (<code>A</code>/<code>B</code>/<code>C</code>), <code>forcing</code> (<code>heav</code>/<code>ramp</code>) and <code>time_end</code> [years]. From <code>&amp;vilma</code> only <code>lmax</code> (default 128), <code>l_toroidal</code> (on) and <code>visc3d_tol</code> are read. The earth model, memory scheme, degree-1 frame and grid are fixed by the benchmark. The protocol files are written to the working directory.</p>
+<p>The run config is <code>examples/bench_visc3d.nml</code>. Its <code>&amp;benchv3d</code> group sets <code>test</code> (<code>A</code>/<code>B</code>/<code>C</code>), <code>forcing</code> (<code>heav</code>/<code>ramp</code>) and <code>time_end</code> [years]. From <code>&amp;vilma</code> only <code>lmax</code>, <code>l_toroidal</code> and <code>visc3d_tol</code> are read. The example config sets <code>lmax = 128</code> and <code>l_toroidal = .true.</code>, and <code>visc3d_tol</code> keeps its default. The earth model, memory scheme, degree-1 frame and grid are fixed by the benchmark. The protocol files are written to the working directory.</p>
 <p>Build, then submit all six cases as one runme ensemble (runme alias <code>visc3d</code>):</p>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> bench_visc3d openmp=1</span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="ex">runme</span> <span class="at">-o</span> runs/bench_visc3d <span class="at">-e</span> visc3d <span class="at">-n</span> examples/bench_visc3d.nml <span class="at">--omp</span> 64 <span class="dt">\</span></span>
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>      <span class="at">-p</span> benchv3d.test=A,B,C benchv3d.forcing=heav,ramp <span class="at">-s</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>Use <code>-r</code> instead of <code>-s</code> to run locally, and add e.g.&nbsp;<code>vilma.lmax=64 benchv3d.time_end=2000</code> for a short test. At <span class="math inline">\(\ell_\max \ge 128\)</span> the 3-D path needs a large stack: the SLURM template sets it, but a local run needs <code>ulimit -s unlimited</code> and <code>OMP_STACKSIZE=256M</code> in the calling shell. Then plot the cross-sections and the geocentre motion from the ensemble directory:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="ex">julia</span> <span class="at">--project</span><span class="op">=</span>analysis analysis/plot_bench_visc3d.jl runs/bench_visc3d heav</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p><strong>Restart.</strong> A run longer than one job is split into segments. <code>restart_out</code> saves the memory state at <code>time_end</code>, and <code>restart_in</code> resumes from it. Time is counted in global steps, so a chain of segments reproduces one uninterrupted run byte for byte; each segment appends to the protocol files. For 20-kyr segments:</p>
+<p>Use <code>-r</code> instead of <code>-s</code> to run locally, and add e.g.&nbsp;<code>vilma.lmax=64 benchv3d.time_end=2000</code> for a short test. The validation suite runs the benchmark as its stage <code>B</code> and draws the figures and tables on this page (<code>validation/README.md</code>):</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> validation</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="ex">./run.sh</span> B                          <span class="co"># A-i, B-i, C-i, both forcings, l_max 128</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="va">LMAX</span><span class="op">=</span>64 <span class="va">CASES</span><span class="op">=</span><span class="st">"A B"</span> <span class="ex">./run.sh</span> B      <span class="co"># truncation series; also LMAX=256</span></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="ex">./run.sh</span> submit reduce analyse      <span class="co"># tables/blockB.md and the figures</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><strong>Restart.</strong> A run longer than one job is split into segments. <code>restart_out</code> saves the memory state at <code>time_end</code>, and <code>restart_in</code> resumes from it. Time is counted in global steps, so a chain of segments reproduces one uninterrupted run byte for byte. Each segment appends to the protocol files and skips the epochs already written. A restart from another test, forcing, <span class="math inline">\(\ell_\max\)</span> or <span class="math inline">\(\Delta t\)</span> is refused. For 20-kyr segments:</p>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode fortran code-with-copy"><code class="sourceCode fortranfixed"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="kw">&amp;</span>benchv3d  test <span class="kw">=</span> <span class="st">"C"</span>  forcing <span class="kw">=</span> <span class="st">"heav"</span>  time_<span class="kw">end</span> <span class="kw">=</span> <span class="fl">40.0e3</span></span>
 <span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>           restart_in <span class="kw">=</span> <span class="st">"restart_20kyr.nc"</span>  restart_out <span class="kw">=</span> <span class="st">"restart_40kyr.nc"</span> <span class="kw">/</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>The step count is set by <span class="math inline">\(\eta_c\)</span>: 223 000 steps to 100 kyr. At <span class="math inline">\(\ell_\max = 64\)</span> with 8 threads (laptop), a C run costs about 53 ms per step, or about 3.3 h. A and B, with <span class="math inline">\(m_\max = 0\)</span>, take minutes. The target resolution is <span class="math inline">\(\ell_\max = 128\)</span>.</p>
+<p>The step count is set by <span class="math inline">\(\eta_c\)</span>: 223 000 steps to 100 kyr. At <span class="math inline">\(\ell_\max = 64\)</span> with 8 threads (laptop), a C run costs about 53 ms per step, or about 3.3 h. A and B, with <span class="math inline">\(m_\max = 0\)</span>, take minutes. The target resolution is <span class="math inline">\(\ell_\max = 128\)</span>, where the driver’s header estimates 10 to 19 h for C. That is why C runs in restart segments.</p>
 </section>
 <section id="result" class="level2">
 <h2 class="anchored" data-anchor-id="result">Result</h2>
-<p>Only a short test so far (<span class="math inline">\(\ell_\max = 64\)</span>, to 2 kyr). The load mass matches the closed form exactly. The geocentre offset is about <span class="math inline">\(-4\)</span> m along the load axis, which is the expected size for <span class="math inline">\(3.6\times10^{18}\)</span> kg of ice, and for C it points towards the load’s longitude. At <span class="math inline">\(\ell_\max = 64\)</span>, B shows Gibbs ringing with a ~3° period and a bulge at the structure edge: the 1° edge width is not resolved. The full runs at <span class="math inline">\(\ell_\max = 128\)</span> are to follow.</p>
+<p>All six cases (A-i, B-i, C-i, each with heav and ramp forcing) have been run to 100 kyr at <span class="math inline">\(\ell_\max = 128\)</span> with the toroidal field on, as five 20-kyr restart segments each. A and B were also run at <span class="math inline">\(\ell_\max = 64\)</span> and 256. The load mass matches the closed form exactly. The A-i and B-i numbers are from <code>validation/tables/blockB.md</code> (model f0c4678, albedo) and equal those of the earlier model 907bc74 to the printed digits. The C-i rows are from 907bc74 (levante) and are being rerun.</p>
+<div id="tbl-visc3d" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-tbl figure">
+<figcaption class="quarto-float-caption-top quarto-float-caption quarto-float-tbl" id="tbl-visc3d-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Table&nbsp;1: Vertical displacement at the load center, the peripheral bulge and the geocentre offset. C-i: model 907bc74, rerun pending.
+</figcaption>
+<div aria-describedby="tbl-visc3d-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 14%">
+<col style="width: 14%">
+<col style="width: 14%">
+<col style="width: 14%">
+<col style="width: 14%">
+<col style="width: 14%">
+<col style="width: 14%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>test</th>
+<th>forcing</th>
+<th style="text-align: center;"><span class="math inline">\(u_r\)</span> at load, 0.1 kyr</th>
+<th style="text-align: center;">10 kyr</th>
+<th style="text-align: center;">100 kyr</th>
+<th style="text-align: center;">max <span class="math inline">\(u_r\)</span> at 100 kyr</th>
+<th style="text-align: center;"><span class="math inline">\(\lvert u_\text{gcm}\rvert\)</span> at 100 kyr</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>A-i</td>
+<td>heav</td>
+<td style="text-align: center;"><span class="math inline">\(-39.35\)</span> m</td>
+<td style="text-align: center;"><span class="math inline">\(-307.76\)</span> m</td>
+<td style="text-align: center;"><span class="math inline">\(-366.67\)</span> m</td>
+<td style="text-align: center;">17.90 m</td>
+<td style="text-align: center;">8.709 m</td>
+</tr>
+<tr class="even">
+<td>B-i</td>
+<td>heav</td>
+<td style="text-align: center;"><span class="math inline">\(-67.91\)</span> m</td>
+<td style="text-align: center;"><span class="math inline">\(-357.80\)</span> m</td>
+<td style="text-align: center;"><span class="math inline">\(-386.07\)</span> m</td>
+<td style="text-align: center;">20.76 m</td>
+<td style="text-align: center;">8.769 m</td>
+</tr>
+<tr class="odd">
+<td>C-i</td>
+<td>heav</td>
+<td style="text-align: center;"><span class="math inline">\(-67.11\)</span> m</td>
+<td style="text-align: center;"><span class="math inline">\(-360.55\)</span> m</td>
+<td style="text-align: center;"><span class="math inline">\(-386.46\)</span> m</td>
+<td style="text-align: center;">15.40 m</td>
+<td style="text-align: center;">8.829 m</td>
+</tr>
+<tr class="even">
+<td>A-i</td>
+<td>ramp</td>
+<td style="text-align: center;"><span class="math inline">\(-0.36\)</span> m</td>
+<td style="text-align: center;"><span class="math inline">\(-219.71\)</span> m</td>
+<td style="text-align: center;"><span class="math inline">\(-365.64\)</span> m</td>
+<td style="text-align: center;">18.02 m</td>
+<td style="text-align: center;">8.676 m</td>
+</tr>
+<tr class="odd">
+<td>B-i</td>
+<td>ramp</td>
+<td style="text-align: center;"><span class="math inline">\(-0.55\)</span> m</td>
+<td style="text-align: center;"><span class="math inline">\(-309.13\)</span> m</td>
+<td style="text-align: center;"><span class="math inline">\(-385.60\)</span> m</td>
+<td style="text-align: center;">21.02 m</td>
+<td style="text-align: center;">8.739 m</td>
+</tr>
+<tr class="even">
+<td>C-i</td>
+<td>ramp</td>
+<td style="text-align: center;"><span class="math inline">\(-0.53\)</span> m</td>
+<td style="text-align: center;"><span class="math inline">\(-308.11\)</span> m</td>
+<td style="text-align: center;"><span class="math inline">\(-386.02\)</span> m</td>
+<td style="text-align: center;">15.49 m</td>
+<td style="text-align: center;">8.797 m</td>
+</tr>
+</tbody>
+</table>
+</div>
+</figure>
+</div>
+<p>The low-viscosity column under the load (B-i) deepens the depression at 0.1 kyr by about 70 % and at 100 kyr by about 5 %. These numbers have no reference yet.</p>
+<p><strong>Test A-i against an exact solution.</strong> A-i has no lateral structure, so its exact solution is the normal-mode response of M3–L70–V01 at the same truncation. VILMA2 matches it to within 0.05 m in <span class="math inline">\(u_r\)</span> (of 39–367 m at the load center), 0.016 m in <span class="math inline">\(u_\vartheta\)</span> and 1.6 mm in the geocentre offset, at 0.1, 1, 10 and 100 kyr and for both forcings.</p>
+<p><strong>Truncation.</strong> The rms difference of <span class="math inline">\(u_r\)</span> along the section between A-i and the normal-mode solution to degree 256 is 1.3 m at <span class="math inline">\(\ell_\max = 64\)</span>, 0.05 m at 128 and 0.01 m at 256 (100 kyr, heav). For B-i against its own <span class="math inline">\(\ell_\max = 256\)</span> run it is 1.9 m at 64 and 0.1 m at 128. At <span class="math inline">\(\ell_\max = 64\)</span> the 1° edge of the structure is not resolved and B-i shows Gibbs ringing with a period of about 3°.</p>
+<p><strong>Cost of the toroidal field.</strong> C-i at <span class="math inline">\(\ell_\max = 128\)</span> took 10.5 h to 100 kyr with the toroidal field off and 18.6 h with it on (64 threads, model 907bc74, levante), a factor of 1.8.</p>
 </section>
 <section id="figures" class="level2">
 <h2 class="anchored" data-anchor-id="figures">Figures</h2>
-<p><em>Figures to be added: <span class="math inline">\(u_r\)</span>, <span class="math inline">\(u_\vartheta\)</span>, <span class="math inline">\(u_\varphi\)</span>, <span class="math inline">\(\delta\phi\)</span> along the section for A/B/C; geocentre motion; comparison with the other codes once available.</em></p>
-<!--
-![Cross-sections, heav](figures/visc3d_sections_heav.png)
-![Geocentre motion](figures/visc3d_gcm.png)
--->
+<p>The figures show VILMA2 only. A comparison with other codes follows once their results are available.</p>
+<div id="fig-visc3d-sections-heav" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-visc3d-sections-heav-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="figures/visc3d-sections-heav.png" class="img-fluid figure-img">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-visc3d-sections-heav-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;1: Cross-sections for the Heaviside load: <span class="math inline">\(u_r\)</span>, <span class="math inline">\(u_\vartheta\)</span>, <span class="math inline">\(u_\varphi\)</span> and <span class="math inline">\(\delta\phi\)</span> along the section from the structure center through the load center to the antipode, for tests A-i, B-i and C-i at the output epochs. VILMA2 only, with no reference solution.
+</figcaption>
+</figure>
+</div>
+<div id="fig-visc3d-sections-ramp" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-visc3d-sections-ramp-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="figures/visc3d-sections-ramp.png" class="img-fluid figure-img">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-visc3d-sections-ramp-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;2: As the previous figure, for the load ramped over 0–10 kyr.
+</figcaption>
+</figure>
+</div>
+<div id="fig-visc3d-geocentre" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-visc3d-geocentre-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="figures/visc3d-geocentre.png" class="img-fluid figure-img">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-visc3d-geocentre-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;3: Geocentre motion <span class="math inline">\(u_\text{gcm} = u_\text{CF} - u_\text{CM}\)</span> (<span class="math inline">\(x\)</span>, <span class="math inline">\(y\)</span>, <span class="math inline">\(z\)</span> components [m]) against time for tests A-i, B-i and C-i. VILMA2 only, with no reference solution.
+</figcaption>
+</figure>
+</div>
+<div id="fig-visc3d-A-normal-mode" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-visc3d-A-normal-mode-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="figures/visc3d-A-normal-mode.png" class="img-fluid figure-img">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-visc3d-A-normal-mode-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;4: Test A-i against its exact normal-mode solution at the same truncation (<span class="math inline">\(\ell_\max = 128\)</span>): displacement and potential along the section, and their differences.
+</figcaption>
+</figure>
+</div>
+<div id="fig-visc3d-lmax" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-visc3d-lmax-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="figures/visc3d-lmax.png" class="img-fluid figure-img">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-visc3d-lmax-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;5: Truncation: rms difference of <span class="math inline">\(u_r\)</span> along the section, test A-i against the normal-mode solution to degree 256 and test B-i against its own <span class="math inline">\(\ell_\max = 256\)</span> run, at <span class="math inline">\(\ell_\max\)</span> = 64, 128 and 256.
+</figcaption>
+</figure>
+</div>
 
 
 
@@ -770,20 +944,58 @@ Martinec, Z., V. Klemann, W. van der Wal, et al. 2018. <span>“A Benchmark Stud
 <div id="ref-Spada2011" class="csl-entry" role="listitem">
 Spada, G., V. R. Barletta, V. Klemann, et al. 2011. <span>“A Benchmark Study for Glacial Isostatic Adjustment Codes.”</span> <em>Geophysical Journal International</em> 185 (1): 106–32. <a href="https://doi.org/10.1111/j.1365-246X.2011.04952.x">https://doi.org/10.1111/j.1365-246X.2011.04952.x</a>.
 </div>
+<div id="ref-Weerdesteijn2023" class="csl-entry" role="listitem">
+Weerdesteijn, M. F. M., J. B. Naliboff, C. P. Conrad, et al. 2023. <span>“Modeling Viscoelastic Solid Earth Deformation Due to Ice Age and Contemporary Glacial Mass Changes in <span>ASPECT</span>.”</span> <em>Geochemistry, Geophysics, Geosystems</em> 24 (3): e2022GC010813. <a href="https://doi.org/10.1029/2022GC010813">https://doi.org/10.1029/2022GC010813</a>.
+</div>
 </div></section></div></main> <!-- /main -->
 <script id="quarto-html-after-body" type="application/javascript">
   window.document.addEventListener("DOMContentLoaded", function (event) {
     // Ensure there is a toggle, if there isn't float one in the top right
     if (window.document.querySelector('.quarto-color-scheme-toggle') === null) {
-      const a = window.document.createElement('a');
-      a.classList.add('top-right');
-      a.classList.add('quarto-color-scheme-toggle');
-      a.href = "";
-      a.onclick = function() { try { window.quartoToggleColorScheme(); } catch {} return false; };
+      const toggle = window.document.createElement('button');
+      toggle.type = "button";
+      toggle.setAttribute("role", "switch");
+      toggle.setAttribute("aria-checked", "false");
+      toggle.classList.add('top-right');
+      toggle.classList.add('quarto-color-scheme-toggle');
+      toggle.setAttribute("aria-label", "Toggle dark mode");
+      toggle.onclick = function() { try { window.quartoToggleColorScheme(); } catch {} return false; };
       const i = window.document.createElement("i");
       i.classList.add('bi');
-      a.appendChild(i);
-      window.document.body.appendChild(a);
+      toggle.appendChild(i);
+      // Put the toggle in a landmark of its own, so that landmark navigation
+      // can reach it.
+      //
+      // The container is always a fresh direct child of body, and the toggle is
+      // never moved into page furniture that the theme or the author controls.
+      // The toggle is positioned against the page, so any ancestor that
+      // establishes a containing block captures it: a positioned element or a
+      // grid for position: absolute, and transform, filter, will-change or
+      // contain for position: fixed. A direct child of body has none of these
+      // to inherit, and the shift when one appears is silent and visual.
+      //
+      // ARIA says a document should have at most one banner, and axe reports a
+      // duplicate whether or not the banners carry distinct labels. So use a
+      // header when the page has no banner yet, and a named region otherwise.
+      //
+      // A header is a banner wherever it sits, unless it is inside sectioning
+      // content, so this cannot just look at the children of body: a custom
+      // page layout wraps the title block header in a plain div. An explicit
+      // role="banner" always counts.
+      const sectioning = 'article, aside, main, nav, section, [role="article"], [role="complementary"], [role="main"], [role="navigation"], [role="region"]';
+      const hasBanner = Array.from(
+        window.document.querySelectorAll('header:not([role]), [role="banner"]')
+      ).some(function(el) {
+        return el.hasAttribute("role") || el.closest(sectioning) === null;
+      });
+      const container = window.document.createElement(hasBanner ? "div" : "header");
+      if (hasBanner) {
+        container.setAttribute("role", "region");
+        container.setAttribute("aria-label", "Toggle dark mode");
+      }
+      container.classList.add('quarto-color-scheme-toggle-container');
+      container.appendChild(toggle);
+      window.document.body.appendChild(container);
     }
     setColorSchemeToggle(hasAlternateSentinel())
     const icon = "";
@@ -862,7 +1074,8 @@ Spada, G., V. R. Barletta, V. Klemann, et al. 2011. <span>“A Benchmark Study f
           return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
       }
       // Inspect non-navigation links and adorn them if external
-     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      window.quartoDecorateExternalLinks = function (root) {
+     var links = (root || window.document).querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
       for (var i=0; i<links.length; i++) {
         const link = links[i];
         if (!isInternal(link.href)) {
@@ -871,8 +1084,69 @@ Spada, G., V. R. Barletta, V. Klemann, et al. 2011. <span>“A Benchmark Study f
           if (link.dataset.originalHref !== undefined) {
             link.href = link.dataset.originalHref;
           }
+          if (!link.classList.contains('no-external-icon')) {
+          }
         }
       }
+      };
+      window.quartoDecorateExternalLinks(window.document);
+    // Esc closes the popup (WCAG 1.4.13) and focus leaving both trigger and
+    // popup closes it (WCAG 2.4.11); tippy handles neither for interactive popups.
+    const hideOnEscAndFocusOut = {
+      name: 'hideOnEscAndFocusOut',
+      defaultValue: true,
+      fn(instance) {
+        const dismiss = () => {
+          // A show scheduled by the trigger delay would otherwise reopen it
+          instance.clearDelayTimeouts();
+          instance.hide();
+        };
+        const onKeyDown = (event) => {
+          if (event.key !== 'Escape') {
+            return;
+          }
+          // Keep Esc from also reaching page handlers (e.g. reveal.js overview),
+          // except an open reveal.js slide menu, which Esc should close too.
+          // The menu handles keys only when its keyboard option is on.
+          const menuHandlesEsc = window.Reveal?.getPlugin?.('menu')?.isOpen() &&
+            window.Reveal.getConfig().menu?.keyboard !== false;
+          if (!menuHandlesEsc) {
+            event.stopPropagation();
+          }
+          if (instance.popper.contains(window.document.activeElement)) {
+            // Disabled while refocusing so the focus trigger does not reopen it
+            instance.disable();
+            instance.reference.focus();
+            instance.enable();
+          }
+          dismiss();
+        };
+        const onFocusOut = (event) => {
+          const target = event.relatedTarget;
+          if (target && !instance.reference.contains(target) &&
+              !instance.popper.contains(target)) {
+            dismiss();
+          }
+        };
+        // On the trigger too: a click trigger (code-annotations: select) has no
+        // blur handling. Attached for the instance's lifetime so leaving the
+        // trigger also cancels a show still pending on the trigger delay.
+        instance.reference.addEventListener('focusout', onFocusOut);
+        return {
+          onShow() {
+            window.document.addEventListener('keydown', onKeyDown, true);
+            instance.popper.addEventListener('focusout', onFocusOut);
+          },
+          onHide() {
+            window.document.removeEventListener('keydown', onKeyDown, true);
+            instance.popper.removeEventListener('focusout', onFocusOut);
+          },
+          onDestroy() {
+            instance.reference.removeEventListener('focusout', onFocusOut);
+          },
+        };
+      },
+    };
     function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
       const config = {
         allowHTML: true,
@@ -886,6 +1160,7 @@ Spada, G., V. R. Barletta, V. Klemann, et al. 2011. <span>“A Benchmark Study f
         interactiveBorder: 10,
         theme: 'quarto',
         placement: 'bottom-start',
+        plugins: [hideOnEscAndFocusOut],
       };
       if (contentFn) {
         config.content = contentFn;
@@ -1048,44 +1323,54 @@ Spada, G., V. R. Barletta, V. Klemann, et al. 2011. <span>“A Benchmark Study f
           const lineIds = lines.map((line) => {
             return targetCell + "-" + line;
           })
-          let top = null;
-          let height = null;
-          let parent = null;
+          // Each band is positioned against its own containing block, which is
+          // not the offsetParent of the lines, so place it from client rects.
+          const placeBand = (band, firstEl, lastEl, codeBlock) => {
+            const container = band.offsetParent;
+            if (container === null) {
+              return;
+            }
+            const containerRect = container.getBoundingClientRect();
+            // Reveal.js scales slides with a transform, so convert client
+            // pixels back to the CSS pixels of the container.
+            const scale = containerRect.height / container.offsetHeight || 1;
+            const firstRect = firstEl.getBoundingClientRect();
+            const lastRect = lastEl.getBoundingClientRect();
+            const top = (firstRect.top - containerRect.top) / scale - container.clientTop + container.scrollTop;
+            const height = (lastRect.bottom - firstRect.top) / scale;
+            band.style.top = top - 2 + "px";
+            band.style.height = height + 4 + "px";
+            if (codeBlock) {
+              // Without the copy button wrapper, the containing block is wider
+              // than the code block, so span the code block explicitly.
+              const blockRect = codeBlock.getBoundingClientRect();
+              band.style.left = (blockRect.left - containerRect.left) / scale - container.clientLeft + container.scrollLeft + "px";
+              band.style.width = blockRect.width / scale + "px";
+            }
+          };
           if (lineIds.length > 0) {
-              //compute the position of the single el (top and bottom and make a div)
-              const el = window.document.getElementById(lineIds[0]);
-              top = el.offsetTop;
-              height = el.offsetHeight;
-              parent = el.parentElement.parentElement;
-            if (lineIds.length > 1) {
-              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
-              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
-              height = bottom - top;
+            const el = window.document.getElementById(lineIds[0]);
+            const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+            const parent = el.parentElement.parentElement;
+            // cook up a div (if necessary) and position it
+            let div = window.document.getElementById("code-annotation-line-highlight");
+            if (div === null) {
+              div = window.document.createElement("div");
+              div.setAttribute("id", "code-annotation-line-highlight");
+              div.style.position = 'absolute';
+              parent.appendChild(div);
             }
-            if (top !== null && height !== null && parent !== null) {
-              // cook up a div (if necessary) and position it 
-              let div = window.document.getElementById("code-annotation-line-highlight");
-              if (div === null) {
-                div = window.document.createElement("div");
-                div.setAttribute("id", "code-annotation-line-highlight");
-                div.style.position = 'absolute';
-                parent.appendChild(div);
-              }
-              div.style.top = top - 2 + "px";
-              div.style.height = height + 4 + "px";
-              div.style.left = 0;
-              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
-              if (gutterDiv === null) {
-                gutterDiv = window.document.createElement("div");
-                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
-                gutterDiv.style.position = 'absolute';
-                const codeCell = window.document.getElementById(targetCell);
-                const gutter = codeCell.querySelector('.code-annotation-gutter');
-                gutter.appendChild(gutterDiv);
-              }
-              gutterDiv.style.top = top - 2 + "px";
-              gutterDiv.style.height = height + 4 + "px";
+            placeBand(div, el, lastEl, parent.closest("div.sourceCode") || parent);
+            let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+            if (gutterDiv === null) {
+              gutterDiv = window.document.createElement("div");
+              gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+              gutterDiv.style.position = 'absolute';
+              const codeCell = window.document.getElementById(targetCell);
+              const gutter = codeCell.querySelector('.code-annotation-gutter');
+              gutter.appendChild(gutterDiv);
             }
+            placeBand(gutterDiv, el, lastEl);
             selectedAnnoteEl = annoteEl;
           }
         };
@@ -1183,6 +1468,9 @@ Spada, G., V. R. Barletta, V. Klemann, et al. 2011. <span>“A Benchmark Study f
       }
     }
   });
+  </script>
+  <script type="application/javascript">
+  window.quartoScrollableRegionsLabels = {"code":"Scrollable code","output":"Scrollable output"};
   </script>
 </div> <!-- /content -->
 

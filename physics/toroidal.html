@@ -2,7 +2,7 @@
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
 
 <meta charset="utf-8">
-<meta name="generator" content="quarto-1.10.20">
+<meta name="generator" content="quarto-1.11.9">
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
@@ -59,18 +59,19 @@ div.csl-indent {
 <link href="../physics/rheology.html" rel="prev">
 <script src="../site_libs/quarto-html/quarto.js" type="module"></script>
 <script src="../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../site_libs/quarto-html/scrollable-regions/scrollable-regions.js" type="module"></script>
 <script src="../site_libs/quarto-html/popper.min.js"></script>
 <script src="../site_libs/quarto-html/tippy.umd.min.js"></script>
 <script src="../site_libs/quarto-html/anchor.min.js"></script>
 <link href="../site_libs/quarto-html/tippy.css" rel="stylesheet">
-<link href="../site_libs/quarto-html/quarto-syntax-highlighting-17888a1159294d3eb470f19f6f52f5a5.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-text-highlighting-styles">
-<link href="../site_libs/quarto-html/quarto-syntax-highlighting-dark-0ae969d3293726db143f6e9eb89af930.css" rel="stylesheet" class="quarto-color-scheme quarto-color-alternate" id="quarto-text-highlighting-styles">
-<link href="../site_libs/quarto-html/quarto-syntax-highlighting-17888a1159294d3eb470f19f6f52f5a5.css" rel="stylesheet" class="quarto-color-scheme-extra" id="quarto-text-highlighting-styles">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-63b5708e65d6cd79cd7618c58d0c21e7.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-text-highlighting-styles">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-dark-447e42e69aaa9833c0ba1b986f430b20.css" rel="stylesheet" class="quarto-color-scheme quarto-color-alternate" id="quarto-text-highlighting-styles">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-63b5708e65d6cd79cd7618c58d0c21e7.css" rel="stylesheet" class="quarto-color-scheme-extra" id="quarto-text-highlighting-styles">
 <script src="../site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="../site_libs/bootstrap/bootstrap-fe9ab94330ff2cdc5105c70272dca3f0.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
-<link href="../site_libs/bootstrap/bootstrap-dark-bddab9ad0d549410cca6a651ad8ac0e7.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
-<link href="../site_libs/bootstrap/bootstrap-fe9ab94330ff2cdc5105c70272dca3f0.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
+<link href="../site_libs/bootstrap/bootstrap-3a1610f0a8f0b9b7bc4c1e6d49db0d8a.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
+<link href="../site_libs/bootstrap/bootstrap-dark-f829436f7c543b6c5fa77b733bfa68fa.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
+<link href="../site_libs/bootstrap/bootstrap-3a1610f0a8f0b9b7bc4c1e6d49db0d8a.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
 <script id="quarto-search-options" type="application/json">{
   "location": "navbar",
   "copy-button": false,
@@ -131,7 +132,7 @@ window.Quarto = {
 
 </head>
 
-<body class="nav-sidebar floating nav-fixed quarto-light"><script id="quarto-html-before-body" type="application/javascript">
+<body class="nav-sidebar floating nav-fixed quarto-light"><a id="quarto-skip-link" class="visually-hidden-focusable" href="#quarto-document-content">Skip to main content</a><script id="quarto-html-before-body" type="application/javascript">
     const toggleBodyColorMode = (bsSheetEl) => {
       const mode = bsSheetEl.getAttribute("data-mode");
       const bodyEl = window.document.querySelector("body");
@@ -154,6 +155,7 @@ window.Quarto = {
       for (let i=0; i < toggles.length; i++) {
         const toggle = toggles[i];
         if (toggle) {
+          toggle.setAttribute("aria-checked", alternate ? "true" : "false");
           if (alternate) {
             toggle.classList.add("alternate");
           } else {
@@ -183,13 +185,19 @@ window.Quarto = {
       manageTransitions('#quarto-margin-sidebar .nav-link', true);
       // Switch the toggles
       setColorSchemeToggle(alternate)
-      // Hack to workaround the fact that safari doesn't
-      // properly recolor the scrollbar when toggling (#1455)
+    }
+    // Hack to workaround the fact that safari doesn't
+    // properly recolor the scrollbar when toggling (#1455).
+    // Not run on load: stylesheets are set before first paint there, and
+    // scrolling would undo the scroll to a URL fragment (#14973).
+    // The one pixel nudge keeps the reader where they were.
+    const refreshSafariScrollbar = () => {
       if (navigator.userAgent.indexOf('Safari') > 0 && navigator.userAgent.indexOf('Chrome') == -1) {
         manageTransitions("body", false);
-        window.scrollTo(0, 1);
+        const scrollY = window.scrollY;
+        window.scrollTo(0, scrollY > 0 ? scrollY - 1 : 1);
         setTimeout(() => {
-          window.scrollTo(0, 0);
+          window.scrollTo(0, scrollY);
           manageTransitions("body", true);
         }, 40);
       }
@@ -283,6 +291,7 @@ window.Quarto = {
       // Read the current dark / light value
       let toAlternate = !hasAlternateSentinel();
       toggleColorMode(toAlternate);
+      refreshSafariScrollbar();
       setStyleSentinel(toAlternate);
       toggleGiscusIfUsed(toAlternate, darkModeDefault);
       window.dispatchEvent(new Event('resize'));
@@ -297,15 +306,14 @@ window.Quarto = {
 
 <div id="quarto-search-results"></div>
   <header id="quarto-header" class="headroom fixed-top">
-    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark" aria-label="Site">
       <div class="navbar-container container-fluid">
       <div class="navbar-brand-container mx-auto">
     <a class="navbar-brand" href="../index.html">
     <span class="navbar-title">VILMA2</span>
     </a>
   </div>
-            <div id="quarto-search" class="" title="Search"></div>
-          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" role="menu" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
   <span class="navbar-toggler-icon"></span>
 </button>
           <div class="collapse navbar-collapse" id="navbarCollapse">
@@ -390,17 +398,18 @@ window.Quarto = {
 </ul>
           </div> <!-- /navcollapse -->
             <div class="quarto-navbar-tools">
-  <a href="" class="quarto-color-scheme-toggle quarto-navigation-tool  px-1" onclick="window.quartoToggleColorScheme(); return false;" title="Toggle dark mode"><i class="bi"></i></a>
+  <button type="button" role="switch" aria-checked="false" class="quarto-color-scheme-toggle quarto-navigation-tool  px-1" onclick="window.quartoToggleColorScheme(); return false;" title="Toggle dark mode" aria-label="Toggle dark mode"><i class="bi"></i></button>
 </div>
+            <div id="quarto-search" class="" title="Search"></div>
       </div> <!-- /container-fluid -->
     </nav>
-  <nav class="quarto-secondary-nav">
+  <nav class="quarto-secondary-nav" aria-label="Toolbar">
     <div class="container-fluid d-flex">
       <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
         <i class="bi bi-layout-text-sidebar-reverse"></i>
       </button>
-        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../physics/governing-equations.html">Physics</a></li><li class="breadcrumb-item"><a href="../physics/toroidal.html">Toroidal flow under lateral viscosity</a></li></ol></nav>
-        <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
+        <nav class="quarto-page-breadcrumbs" aria-label="Breadcrumbs"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../physics/governing-equations.html">Physics</a></li><li class="breadcrumb-item"><a href="../physics/toroidal.html">Toroidal flow under lateral viscosity</a></li></ol></nav>
+        <a class="flex-grow-1" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
         </a>
     </div>
   </nav>
@@ -408,18 +417,15 @@ window.Quarto = {
 <!-- content -->
 <div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
 <!-- sidebar -->
-  <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal quarto-sidebar-collapse-item sidebar-navigation floating overflow-auto">
+  <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal quarto-sidebar-collapse-item sidebar-navigation floating overflow-auto" aria-label="Section">
     <div class="sidebar-menu-container"> 
     <ul class="list-unstyled mt-1">
         <li class="sidebar-item sidebar-item-section">
       <div class="sidebar-item-container"> 
-            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true">
- <span class="menu-text">Getting started</span></a>
-          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true" aria-label="Toggle section">
-            <i class="bi bi-chevron-right ms-2"></i>
-          </a> 
+            <button type="button" class="sidebar-item-text sidebar-item-toggle sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" aria-controls="quarto-sidebar-section-1" aria-expanded="true">
+ <span class="menu-text" id="quarto-sidebar-section-1-label">Getting started</span><i class="bi bi-chevron-right" aria-hidden="true"></i></button>
       </div>
-      <ul id="quarto-sidebar-section-1" class="collapse list-unstyled sidebar-section depth1 show">  
+      <ul id="quarto-sidebar-section-1" aria-labelledby="quarto-sidebar-section-1-label" class="collapse list-unstyled sidebar-section depth1 show">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="../index.html" class="sidebar-item-text sidebar-link">
@@ -442,13 +448,10 @@ window.Quarto = {
   </li>
         <li class="sidebar-item sidebar-item-section">
       <div class="sidebar-item-container"> 
-            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="true">
- <span class="menu-text">Physics</span></a>
-          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="true" aria-label="Toggle section">
-            <i class="bi bi-chevron-right ms-2"></i>
-          </a> 
+            <button type="button" class="sidebar-item-text sidebar-item-toggle sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" aria-controls="quarto-sidebar-section-2" aria-expanded="true">
+ <span class="menu-text" id="quarto-sidebar-section-2-label">Physics</span><i class="bi bi-chevron-right" aria-hidden="true"></i></button>
       </div>
-      <ul id="quarto-sidebar-section-2" class="collapse list-unstyled sidebar-section depth1 show">  
+      <ul id="quarto-sidebar-section-2" aria-labelledby="quarto-sidebar-section-2-label" class="collapse list-unstyled sidebar-section depth1 show">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="../physics/governing-equations.html" class="sidebar-item-text sidebar-link">
@@ -483,13 +486,10 @@ window.Quarto = {
   </li>
         <li class="sidebar-item sidebar-item-section">
       <div class="sidebar-item-container"> 
-            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="true">
- <span class="menu-text">Discretization</span></a>
-          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="true" aria-label="Toggle section">
-            <i class="bi bi-chevron-right ms-2"></i>
-          </a> 
+            <button type="button" class="sidebar-item-text sidebar-item-toggle sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" aria-controls="quarto-sidebar-section-3" aria-expanded="true">
+ <span class="menu-text" id="quarto-sidebar-section-3-label">Discretization</span><i class="bi bi-chevron-right" aria-hidden="true"></i></button>
       </div>
-      <ul id="quarto-sidebar-section-3" class="collapse list-unstyled sidebar-section depth1 show">  
+      <ul id="quarto-sidebar-section-3" aria-labelledby="quarto-sidebar-section-3-label" class="collapse list-unstyled sidebar-section depth1 show">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="../discretization/spectral.html" class="sidebar-item-text sidebar-link">
@@ -518,13 +518,10 @@ window.Quarto = {
   </li>
         <li class="sidebar-item sidebar-item-section">
       <div class="sidebar-item-container"> 
-            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="true">
- <span class="menu-text">Benchmarks</span></a>
-          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="true" aria-label="Toggle section">
-            <i class="bi bi-chevron-right ms-2"></i>
-          </a> 
+            <button type="button" class="sidebar-item-text sidebar-item-toggle sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" aria-controls="quarto-sidebar-section-4" aria-expanded="true">
+ <span class="menu-text" id="quarto-sidebar-section-4-label">Benchmarks</span><i class="bi bi-chevron-right" aria-hidden="true"></i></button>
       </div>
-      <ul id="quarto-sidebar-section-4" class="collapse list-unstyled sidebar-section depth1 show">  
+      <ul id="quarto-sidebar-section-4" aria-labelledby="quarto-sidebar-section-4-label" class="collapse list-unstyled sidebar-section depth1 show">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="../benchmarks/index.html" class="sidebar-item-text sidebar-link">
@@ -549,6 +546,18 @@ window.Quarto = {
  <span class="menu-text">Benchmark: the sea-level equation</span></a>
   </div>
 </li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../benchmarks/rotation.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Benchmark: rotation (polar motion)</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../benchmarks/lvz.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Benchmark: low-viscosity zone (lateral viscosity)</span></a>
+  </div>
+</li>
       </ul>
   </li>
         <li class="sidebar-item">
@@ -563,7 +572,7 @@ window.Quarto = {
 <div id="quarto-sidebar-glass" class="quarto-sidebar-collapse-item" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item"></div>
 <!-- margin-sidebar -->
     <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
-        <nav id="TOC" role="doc-toc" class="toc-active">
+        <nav id="TOC" role="doc-toc" aria-labelledby="toc-title" class="toc-active">
     <h2 id="toc-title">On this page</h2>
    
   <ul>
@@ -577,10 +586,10 @@ window.Quarto = {
 <div class="toc-actions"><ul><li><a href="https://github.com/fesmc/vilma2/blob/main/physics/toroidal.qmd" class="toc-action"><i class="bi bi-github"></i>View source</a></li><li><a href="https://github.com/fesmc/vilma2/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></nav>
     </div>
 <!-- main -->
-<main class="content" id="quarto-document-content">
+<main class="content" id="quarto-document-content" tabindex="-1">
 
 
-<header id="title-block-header" class="quarto-title-block default"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../physics/governing-equations.html">Physics</a></li><li class="breadcrumb-item"><a href="../physics/toroidal.html">Toroidal flow under lateral viscosity</a></li></ol></nav>
+<header id="title-block-header" class="quarto-title-block default"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="Breadcrumbs"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../physics/governing-equations.html">Physics</a></li><li class="breadcrumb-item"><a href="../physics/toroidal.html">Toroidal flow under lateral viscosity</a></li></ol></nav>
 <div class="quarto-title">
 <h1 class="title">Toroidal flow under lateral viscosity</h1>
 </div>
@@ -600,17 +609,18 @@ window.Quarto = {
 
 
 <p>A surface load on a radially symmetric Earth drives only <strong>spheroidal</strong> deformation: radial and consoidal displacement, <span class="math inline">\(U\)</span> and <span class="math inline">\(V\)</span>. Once viscosity varies laterally this is no longer true. The Maxwell relaxation then also drives <strong>toroidal</strong> flow <span class="math inline">\(W\)</span>: horizontal, divergence-free motion with no radial component. That flow feeds back into the spheroidal field. VILMA2 carries this toroidal degree of freedom in its 3D path, as VILMA1 does.</p>
-<div class="callout callout-style-default callout-note callout-titled" title="Status: implemented, off by default">
+<div class="callout callout-style-default callout-note callout-titled">
 <div class="callout-header d-flex align-content-center">
 <div class="callout-icon-container">
 <i class="callout-icon"></i>
 </div>
 <div class="callout-title-container flex-fill">
-<span class="screen-reader-only">Note</span>Status: implemented, off by default
+<span class="screen-reader-only">Note</span>Status: implemented, on by default
 </div>
 </div>
 <div class="callout-body-container callout-body">
-<p>The toroidal treatment is implemented and unit-tested (see <a href="#validation">Validation</a>). It is switched <strong>off by default</strong> (<code>l_toroidal = .false.</code>): it makes the 3D memory advance more expensive, and its effect on a realistic deglaciation has not yet been quantified against VILMA1. With <code>l_toroidal = .false.</code> the model is the spheroidal-only 3D model. Radially symmetric and laterally uniform runs are unaffected either way.</p>
+<p>The toroidal treatment is implemented, unit-tested (see <a href="#validation">Validation</a>) and <strong>on by default</strong> (<code>l_toroidal = .true.</code>), because it changes local relative sea level substantially (below). <code>l_toroidal = .false.</code> is the faster option for quick runs that do not depend on local sea level near the ice sheets. With the toroidal field on, every 3-D element synthesizes, advances and analyses six tensor channels instead of four, a second per-degree drift solve is added for <span class="math inline">\(W\)</span>, and the memory state grows by about 50 %. In the lateral-viscosity benchmark (test C-i, <span class="math inline">\(\ell_{\max} = 128\)</span>, 64 threads) a run takes 1.8 times as long with the toroidal field on (18.6 h against 10.5 h to 100 kyr; see <a href="../benchmarks/visc3d.html">lateral viscosity</a>). A deglaciation at <span class="math inline">\(\ell_{\max} = 170\)</span> with 3-D viscosity takes 1.47 times as long (2.67 against 1.82 min per kyr, 64 threads, model f0c4678). With <code>l_toroidal = .false.</code> the model is the spheroidal-only 3D model. Radially symmetric and laterally uniform runs are unaffected either way.</p>
+<p><strong>Effect on a realistic deglaciation.</strong> In the last deglaciation (GLAC-1D, Bagge et al.&nbsp;2021 viscosity, <span class="math inline">\(\ell_\max = 170\)</span>, model f0c4678) the toroidal field changes relative sea level, measured against the LGM reference, by 0.6 m rms over the globe at 21 ka, 2.1 m at 10 ka and 3.0 m at present day, and by up to 92 m locally (10 ka, around the margins of the Cordilleran, Laurentide and Fennoscandian ice sheets). The present-day uplift rate changes by 0.10 mm/yr rms and up to 2.6 mm/yr; the ocean-mean sea level by 0.06 m. For comparison, the whole lateral-viscosity signal (3-D minus radial mean) is 17 m rms at 21 ka. With the toroidal field on, VILMA2 also agrees about twice as well with VILMA1, which carries it: the rms difference at 21 ka falls from 4.1 to 2.2 m. Global quantities are insensitive to it; local sea level near the former ice sheets is not. The numbers are in <code>validation/tables/toroidal.md</code>.</p>
 </div>
 </div>
 <section id="why-lateral-viscosity-drives-toroidal-flow" class="level2">
@@ -638,7 +648,7 @@ window.Quarto = {
 <li>The toroidal strain of <span class="math inline">\(W\)</span>, multiplied again by <span class="math inline">\(M(\theta,\varphi)\)</span>, feeds back into <span class="math inline">\(\lambda \in \{1,2,5,6\}\)</span> and hence into uplift and geoid.</li>
 </ol>
 <p>Perturbation reasoning predicts <span class="math inline">\(W\)</span> at first order in the lateral viscosity contrast and its feedback on uplift at second order, which the tests confirm.</p>
-<div class="callout callout-style-default callout-tip callout-titled" title="When is W exactly zero?">
+<div class="callout callout-style-default callout-tip callout-titled">
 <div class="callout-header d-flex align-content-center">
 <div class="callout-icon-container">
 <i class="callout-icon"></i>
@@ -724,7 +734,7 @@ Z^{(4)} = G\,\mathbf{e}_{\theta\varphi} - H\,(\mathbf{e}_{\theta\theta} - \mathb
 <ol type="1">
 <li><strong><code>begin_step</code></strong> solves, for every <span class="math inline">\((j,m)\)</span>, the spheroidal drift and the toroidal drift <span class="math inline">\(W\)</span> from the dissipative forcing of the current memory, the latter with the toroidal operator.</li>
 <li>The SLE fixed point calls <code>apply()</code> as usual. <span class="math inline">\(W\)</span> does not enter uplift or geoid directly, so the affine structure is unchanged.</li>
-<li><strong><code>commit_step</code></strong> advances the memory. In each genuinely 3-D element all six dyadic components of memory and strain, spheroidal and toroidal, are synthesized on the Gauss grid and multiplied pointwise by <span class="math inline">\(M(\theta,\varphi)\)</span>. The increment is analysed back into all six channels. This is where the two families exchange stress. Laterally uniform elements advance their toroidal channels on the per-degree spectral path, where they simply relax.</li>
+<li>The <strong>memory advance</strong> follows. In each genuinely 3-D element all six dyadic components of memory and strain, spheroidal and toroidal, are synthesized on the Gauss grid and multiplied pointwise by <span class="math inline">\(M(\theta,\varphi)\)</span>. The increment is analysed back into all six channels. This is where the two families exchange stress. Laterally uniform elements advance their toroidal channels on the per-degree spectral path, where they simply relax.</li>
 </ol>
 <p>The toroidal channels are switched on only when some element is genuinely 3-D (its lateral <span class="math inline">\(\log_{10}\eta\)</span> spread exceeds <code>visc3d_tol</code>) and <code>l_toroidal = .true.</code>. The memory arrays then widen from four to six channels (about 50 % more memory state). A radially symmetric or laterally uniform run keeps four channels and pays nothing. Once on, the channels stay on for the rest of the run: a later laterally uniform field no longer drives <span class="math inline">\(W\)</span>, but existing toroidal memory must still relax.</p>
 <p>Restart files record the channel count. A spheroidal (four-channel) restart can be read into a toroidal run, with the toroidal memory starting at zero. Reading a toroidal restart into a spheroidal run is an error, since it would discard memory.</p>
@@ -750,7 +760,7 @@ Z^{(4)} = G\,\mathbf{e}_{\theta\varphi} - H\,(\mathbf{e}_{\theta\theta} - \mathb
 <tr class="odd">
 <td><code>l_toroidal</code></td>
 <td><code>&amp;vilma</code></td>
-<td><code>.false.</code></td>
+<td><code>.true.</code></td>
 <td>carry <span class="math inline">\(W\)</span> and <span class="math inline">\(\lambda = 3,4\)</span> once a 3-D element exists</td>
 </tr>
 <tr class="even">
@@ -810,32 +820,39 @@ Z^{(4)} = G\,\mathbf{e}_{\theta\varphi} - H\,(\mathbf{e}_{\theta\theta} - \mathb
 <tr class="even">
 <td><code>test_toroidal</code></td>
 <td><span class="math inline">\(W = 0\)</span> for an axisymmetric configuration</td>
-<td>round-off</td>
+<td>asserted: <span class="math inline">\(\lvert W\rvert/\lvert U\rvert \le 10^{-12}\)</span></td>
 </tr>
 <tr class="odd">
 <td><code>test_toroidal</code></td>
 <td><span class="math inline">\(W\)</span> driven by a <span class="math inline">\(\cos 2\varphi\)</span> viscosity pattern; reflection selection rule</td>
-<td>rule holds to <span class="math inline">\(4\times10^{-16}\)</span></td>
+<td>asserted: <span class="math inline">\(\lvert W\rvert &gt; 10^{-6}\lvert U\rvert\)</span>; rule to <span class="math inline">\(10^{-10}\)</span> (measured <span class="math inline">\(4\times10^{-16}\)</span>)</td>
 </tr>
 <tr class="even">
 <td><code>test_toroidal</code></td>
 <td>scaling with contrast <span class="math inline">\(\delta\)</span>: <span class="math inline">\(W \propto \delta\)</span>, uplift feedback <span class="math inline">\(\propto \delta^2\)</span></td>
-<td>slopes 0.987 and 1.986</td>
+<td>asserted: slopes within 0.1 of 1 and 0.2 of 2 (measured 0.987 and 1.986)</td>
 </tr>
 <tr class="odd">
+<td><code>test_toroidal</code></td>
+<td>with the toroidal field off, no <span class="math inline">\(W\)</span> is reported</td>
+<td>exactly zero</td>
+</tr>
+<tr class="even">
 <td><code>test_rotinv</code></td>
 <td>coaxial cap and low-viscosity zone: <span class="math inline">\(W = 0\)</span> on the pole; off the pole <span class="math inline">\(W/U\)</span> at discretization level, falling with resolution</td>
 <td><span class="math inline">\(2.6\times10^{-4}\to1.5\times10^{-6}\)</span> (<span class="math inline">\(\ell_{\max}\)</span> 16 <span class="math inline">\(\to\)</span> 32)</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>test_restart</code></td>
 <td>restart with toroidal channels; four-channel file into a toroidal run</td>
 <td>bit-for-bit continuation; spheroidal memory exact, toroidal zero</td>
 </tr>
 </tbody>
 </table>
-<p>Every existing 1D and benchmark result is unchanged (bit-identical). The remaining steps are a cross-check of a toroidal-carrying configuration against VILMA1 through <code>solver = "v1"</code>, and a measurement of what the toroidal coupling changes in a 3D deglaciation. Until then it stays off by default.</p>
-<div class="callout callout-style-default callout-tip callout-titled" title="Where this lives in the code">
+<p><code>test_toroidal</code> is an idealized case. It holds a degree-2, order-0 load on the M3-L70-V01 Earth at <span class="math inline">\(\ell_{\max} = 12\)</span> for 40 forward-Euler steps of 40 yr, with a viscosity contrast of 0.2 dex, and drives the response operator alone. It shows that the toroidal field is driven, has the right symmetry, scales as perturbation theory predicts and vanishes where it must. The measured values in the table are those recorded in <code>doc/design-toroidal.md</code>.</p>
+<p>The full model with the toroidal field on is checked against VILMA1, which carries it, in the last deglaciation (<code>validation/</code>, run V7): with it on, the rms difference in relative sea level between the two codes at 21 ka falls from 4.1 to 2.2 m (area-weighted), and the present-day uplift-rate difference from 0.13 to 0.08 mm/yr. The restart tests run it through the sea-level equation and assert reproducibility. No community benchmark exercises it, and its effect on horizontal displacement has not been compared with another code.</p>
+<p>Radially symmetric and laterally uniform runs carry no toroidal field, so their results do not depend on <code>l_toroidal</code>.</p>
+<div class="callout callout-style-default callout-tip callout-titled">
 <div class="callout-header d-flex align-content-center">
 <div class="callout-icon-container">
 <i class="callout-icon"></i>
@@ -862,15 +879,50 @@ Martinec, Z. 2000. <span>“Spectral–Finite Element Approach to Three-Dimensio
   window.document.addEventListener("DOMContentLoaded", function (event) {
     // Ensure there is a toggle, if there isn't float one in the top right
     if (window.document.querySelector('.quarto-color-scheme-toggle') === null) {
-      const a = window.document.createElement('a');
-      a.classList.add('top-right');
-      a.classList.add('quarto-color-scheme-toggle');
-      a.href = "";
-      a.onclick = function() { try { window.quartoToggleColorScheme(); } catch {} return false; };
+      const toggle = window.document.createElement('button');
+      toggle.type = "button";
+      toggle.setAttribute("role", "switch");
+      toggle.setAttribute("aria-checked", "false");
+      toggle.classList.add('top-right');
+      toggle.classList.add('quarto-color-scheme-toggle');
+      toggle.setAttribute("aria-label", "Toggle dark mode");
+      toggle.onclick = function() { try { window.quartoToggleColorScheme(); } catch {} return false; };
       const i = window.document.createElement("i");
       i.classList.add('bi');
-      a.appendChild(i);
-      window.document.body.appendChild(a);
+      toggle.appendChild(i);
+      // Put the toggle in a landmark of its own, so that landmark navigation
+      // can reach it.
+      //
+      // The container is always a fresh direct child of body, and the toggle is
+      // never moved into page furniture that the theme or the author controls.
+      // The toggle is positioned against the page, so any ancestor that
+      // establishes a containing block captures it: a positioned element or a
+      // grid for position: absolute, and transform, filter, will-change or
+      // contain for position: fixed. A direct child of body has none of these
+      // to inherit, and the shift when one appears is silent and visual.
+      //
+      // ARIA says a document should have at most one banner, and axe reports a
+      // duplicate whether or not the banners carry distinct labels. So use a
+      // header when the page has no banner yet, and a named region otherwise.
+      //
+      // A header is a banner wherever it sits, unless it is inside sectioning
+      // content, so this cannot just look at the children of body: a custom
+      // page layout wraps the title block header in a plain div. An explicit
+      // role="banner" always counts.
+      const sectioning = 'article, aside, main, nav, section, [role="article"], [role="complementary"], [role="main"], [role="navigation"], [role="region"]';
+      const hasBanner = Array.from(
+        window.document.querySelectorAll('header:not([role]), [role="banner"]')
+      ).some(function(el) {
+        return el.hasAttribute("role") || el.closest(sectioning) === null;
+      });
+      const container = window.document.createElement(hasBanner ? "div" : "header");
+      if (hasBanner) {
+        container.setAttribute("role", "region");
+        container.setAttribute("aria-label", "Toggle dark mode");
+      }
+      container.classList.add('quarto-color-scheme-toggle-container');
+      container.appendChild(toggle);
+      window.document.body.appendChild(container);
     }
     setColorSchemeToggle(hasAlternateSentinel())
     const icon = "";
@@ -949,7 +1001,8 @@ Martinec, Z. 2000. <span>“Spectral–Finite Element Approach to Three-Dimensio
           return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
       }
       // Inspect non-navigation links and adorn them if external
-     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      window.quartoDecorateExternalLinks = function (root) {
+     var links = (root || window.document).querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
       for (var i=0; i<links.length; i++) {
         const link = links[i];
         if (!isInternal(link.href)) {
@@ -958,8 +1011,69 @@ Martinec, Z. 2000. <span>“Spectral–Finite Element Approach to Three-Dimensio
           if (link.dataset.originalHref !== undefined) {
             link.href = link.dataset.originalHref;
           }
+          if (!link.classList.contains('no-external-icon')) {
+          }
         }
       }
+      };
+      window.quartoDecorateExternalLinks(window.document);
+    // Esc closes the popup (WCAG 1.4.13) and focus leaving both trigger and
+    // popup closes it (WCAG 2.4.11); tippy handles neither for interactive popups.
+    const hideOnEscAndFocusOut = {
+      name: 'hideOnEscAndFocusOut',
+      defaultValue: true,
+      fn(instance) {
+        const dismiss = () => {
+          // A show scheduled by the trigger delay would otherwise reopen it
+          instance.clearDelayTimeouts();
+          instance.hide();
+        };
+        const onKeyDown = (event) => {
+          if (event.key !== 'Escape') {
+            return;
+          }
+          // Keep Esc from also reaching page handlers (e.g. reveal.js overview),
+          // except an open reveal.js slide menu, which Esc should close too.
+          // The menu handles keys only when its keyboard option is on.
+          const menuHandlesEsc = window.Reveal?.getPlugin?.('menu')?.isOpen() &&
+            window.Reveal.getConfig().menu?.keyboard !== false;
+          if (!menuHandlesEsc) {
+            event.stopPropagation();
+          }
+          if (instance.popper.contains(window.document.activeElement)) {
+            // Disabled while refocusing so the focus trigger does not reopen it
+            instance.disable();
+            instance.reference.focus();
+            instance.enable();
+          }
+          dismiss();
+        };
+        const onFocusOut = (event) => {
+          const target = event.relatedTarget;
+          if (target && !instance.reference.contains(target) &&
+              !instance.popper.contains(target)) {
+            dismiss();
+          }
+        };
+        // On the trigger too: a click trigger (code-annotations: select) has no
+        // blur handling. Attached for the instance's lifetime so leaving the
+        // trigger also cancels a show still pending on the trigger delay.
+        instance.reference.addEventListener('focusout', onFocusOut);
+        return {
+          onShow() {
+            window.document.addEventListener('keydown', onKeyDown, true);
+            instance.popper.addEventListener('focusout', onFocusOut);
+          },
+          onHide() {
+            window.document.removeEventListener('keydown', onKeyDown, true);
+            instance.popper.removeEventListener('focusout', onFocusOut);
+          },
+          onDestroy() {
+            instance.reference.removeEventListener('focusout', onFocusOut);
+          },
+        };
+      },
+    };
     function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
       const config = {
         allowHTML: true,
@@ -973,6 +1087,7 @@ Martinec, Z. 2000. <span>“Spectral–Finite Element Approach to Three-Dimensio
         interactiveBorder: 10,
         theme: 'quarto',
         placement: 'bottom-start',
+        plugins: [hideOnEscAndFocusOut],
       };
       if (contentFn) {
         config.content = contentFn;
@@ -1135,44 +1250,54 @@ Martinec, Z. 2000. <span>“Spectral–Finite Element Approach to Three-Dimensio
           const lineIds = lines.map((line) => {
             return targetCell + "-" + line;
           })
-          let top = null;
-          let height = null;
-          let parent = null;
+          // Each band is positioned against its own containing block, which is
+          // not the offsetParent of the lines, so place it from client rects.
+          const placeBand = (band, firstEl, lastEl, codeBlock) => {
+            const container = band.offsetParent;
+            if (container === null) {
+              return;
+            }
+            const containerRect = container.getBoundingClientRect();
+            // Reveal.js scales slides with a transform, so convert client
+            // pixels back to the CSS pixels of the container.
+            const scale = containerRect.height / container.offsetHeight || 1;
+            const firstRect = firstEl.getBoundingClientRect();
+            const lastRect = lastEl.getBoundingClientRect();
+            const top = (firstRect.top - containerRect.top) / scale - container.clientTop + container.scrollTop;
+            const height = (lastRect.bottom - firstRect.top) / scale;
+            band.style.top = top - 2 + "px";
+            band.style.height = height + 4 + "px";
+            if (codeBlock) {
+              // Without the copy button wrapper, the containing block is wider
+              // than the code block, so span the code block explicitly.
+              const blockRect = codeBlock.getBoundingClientRect();
+              band.style.left = (blockRect.left - containerRect.left) / scale - container.clientLeft + container.scrollLeft + "px";
+              band.style.width = blockRect.width / scale + "px";
+            }
+          };
           if (lineIds.length > 0) {
-              //compute the position of the single el (top and bottom and make a div)
-              const el = window.document.getElementById(lineIds[0]);
-              top = el.offsetTop;
-              height = el.offsetHeight;
-              parent = el.parentElement.parentElement;
-            if (lineIds.length > 1) {
-              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
-              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
-              height = bottom - top;
+            const el = window.document.getElementById(lineIds[0]);
+            const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+            const parent = el.parentElement.parentElement;
+            // cook up a div (if necessary) and position it
+            let div = window.document.getElementById("code-annotation-line-highlight");
+            if (div === null) {
+              div = window.document.createElement("div");
+              div.setAttribute("id", "code-annotation-line-highlight");
+              div.style.position = 'absolute';
+              parent.appendChild(div);
             }
-            if (top !== null && height !== null && parent !== null) {
-              // cook up a div (if necessary) and position it 
-              let div = window.document.getElementById("code-annotation-line-highlight");
-              if (div === null) {
-                div = window.document.createElement("div");
-                div.setAttribute("id", "code-annotation-line-highlight");
-                div.style.position = 'absolute';
-                parent.appendChild(div);
-              }
-              div.style.top = top - 2 + "px";
-              div.style.height = height + 4 + "px";
-              div.style.left = 0;
-              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
-              if (gutterDiv === null) {
-                gutterDiv = window.document.createElement("div");
-                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
-                gutterDiv.style.position = 'absolute';
-                const codeCell = window.document.getElementById(targetCell);
-                const gutter = codeCell.querySelector('.code-annotation-gutter');
-                gutter.appendChild(gutterDiv);
-              }
-              gutterDiv.style.top = top - 2 + "px";
-              gutterDiv.style.height = height + 4 + "px";
+            placeBand(div, el, lastEl, parent.closest("div.sourceCode") || parent);
+            let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+            if (gutterDiv === null) {
+              gutterDiv = window.document.createElement("div");
+              gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+              gutterDiv.style.position = 'absolute';
+              const codeCell = window.document.getElementById(targetCell);
+              const gutter = codeCell.querySelector('.code-annotation-gutter');
+              gutter.appendChild(gutterDiv);
             }
+            placeBand(gutterDiv, el, lastEl);
             selectedAnnoteEl = annoteEl;
           }
         };
@@ -1271,7 +1396,10 @@ Martinec, Z. 2000. <span>“Spectral–Finite Element Approach to Three-Dimensio
     }
   });
   </script>
-<nav class="page-navigation">
+  <script type="application/javascript">
+  window.quartoScrollableRegionsLabels = {"code":"Scrollable code","output":"Scrollable output"};
+  </script>
+<nav class="page-navigation" aria-label="Page">
   <div class="nav-page nav-page-previous">
       <a href="../physics/rheology.html" class="pagination-link" aria-label="Maxwell rheology and the memory stress">
         <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text">Maxwell rheology and the memory stress</span>

@@ -2,7 +2,7 @@
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
 
 <meta charset="utf-8">
-<meta name="generator" content="quarto-1.10.20">
+<meta name="generator" content="quarto-1.11.9">
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
@@ -55,22 +55,23 @@ div.csl-indent {
 <script src="../site_libs/quarto-search/fuse.min.js"></script>
 <script src="../site_libs/quarto-search/quarto-search.js"></script>
 <meta name="quarto:offset" content="../">
-<link href="../references.html" rel="next">
+<link href="../benchmarks/rotation.html" rel="next">
 <link href="../benchmarks/disc.html" rel="prev">
 <script src="../site_libs/quarto-html/quarto.js" type="module"></script>
 <script src="../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../site_libs/quarto-html/scrollable-regions/scrollable-regions.js" type="module"></script>
 <script src="../site_libs/quarto-html/popper.min.js"></script>
 <script src="../site_libs/quarto-html/tippy.umd.min.js"></script>
 <script src="../site_libs/quarto-html/anchor.min.js"></script>
 <link href="../site_libs/quarto-html/tippy.css" rel="stylesheet">
-<link href="../site_libs/quarto-html/quarto-syntax-highlighting-17888a1159294d3eb470f19f6f52f5a5.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-text-highlighting-styles">
-<link href="../site_libs/quarto-html/quarto-syntax-highlighting-dark-0ae969d3293726db143f6e9eb89af930.css" rel="stylesheet" class="quarto-color-scheme quarto-color-alternate" id="quarto-text-highlighting-styles">
-<link href="../site_libs/quarto-html/quarto-syntax-highlighting-17888a1159294d3eb470f19f6f52f5a5.css" rel="stylesheet" class="quarto-color-scheme-extra" id="quarto-text-highlighting-styles">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-63b5708e65d6cd79cd7618c58d0c21e7.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-text-highlighting-styles">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-dark-447e42e69aaa9833c0ba1b986f430b20.css" rel="stylesheet" class="quarto-color-scheme quarto-color-alternate" id="quarto-text-highlighting-styles">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-63b5708e65d6cd79cd7618c58d0c21e7.css" rel="stylesheet" class="quarto-color-scheme-extra" id="quarto-text-highlighting-styles">
 <script src="../site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="../site_libs/bootstrap/bootstrap-fe9ab94330ff2cdc5105c70272dca3f0.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
-<link href="../site_libs/bootstrap/bootstrap-dark-bddab9ad0d549410cca6a651ad8ac0e7.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
-<link href="../site_libs/bootstrap/bootstrap-fe9ab94330ff2cdc5105c70272dca3f0.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
+<link href="../site_libs/bootstrap/bootstrap-3a1610f0a8f0b9b7bc4c1e6d49db0d8a.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
+<link href="../site_libs/bootstrap/bootstrap-dark-f829436f7c543b6c5fa77b733bfa68fa.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
+<link href="../site_libs/bootstrap/bootstrap-3a1610f0a8f0b9b7bc4c1e6d49db0d8a.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
 <script id="quarto-search-options" type="application/json">{
   "location": "navbar",
   "copy-button": false,
@@ -131,7 +132,7 @@ window.Quarto = {
 
 </head>
 
-<body class="nav-sidebar floating nav-fixed quarto-light"><script id="quarto-html-before-body" type="application/javascript">
+<body class="nav-sidebar floating nav-fixed quarto-light"><a id="quarto-skip-link" class="visually-hidden-focusable" href="#quarto-document-content">Skip to main content</a><script id="quarto-html-before-body" type="application/javascript">
     const toggleBodyColorMode = (bsSheetEl) => {
       const mode = bsSheetEl.getAttribute("data-mode");
       const bodyEl = window.document.querySelector("body");
@@ -154,6 +155,7 @@ window.Quarto = {
       for (let i=0; i < toggles.length; i++) {
         const toggle = toggles[i];
         if (toggle) {
+          toggle.setAttribute("aria-checked", alternate ? "true" : "false");
           if (alternate) {
             toggle.classList.add("alternate");
           } else {
@@ -183,13 +185,19 @@ window.Quarto = {
       manageTransitions('#quarto-margin-sidebar .nav-link', true);
       // Switch the toggles
       setColorSchemeToggle(alternate)
-      // Hack to workaround the fact that safari doesn't
-      // properly recolor the scrollbar when toggling (#1455)
+    }
+    // Hack to workaround the fact that safari doesn't
+    // properly recolor the scrollbar when toggling (#1455).
+    // Not run on load: stylesheets are set before first paint there, and
+    // scrolling would undo the scroll to a URL fragment (#14973).
+    // The one pixel nudge keeps the reader where they were.
+    const refreshSafariScrollbar = () => {
       if (navigator.userAgent.indexOf('Safari') > 0 && navigator.userAgent.indexOf('Chrome') == -1) {
         manageTransitions("body", false);
-        window.scrollTo(0, 1);
+        const scrollY = window.scrollY;
+        window.scrollTo(0, scrollY > 0 ? scrollY - 1 : 1);
         setTimeout(() => {
-          window.scrollTo(0, 0);
+          window.scrollTo(0, scrollY);
           manageTransitions("body", true);
         }, 40);
       }
@@ -283,6 +291,7 @@ window.Quarto = {
       // Read the current dark / light value
       let toAlternate = !hasAlternateSentinel();
       toggleColorMode(toAlternate);
+      refreshSafariScrollbar();
       setStyleSentinel(toAlternate);
       toggleGiscusIfUsed(toAlternate, darkModeDefault);
       window.dispatchEvent(new Event('resize'));
@@ -297,15 +306,14 @@ window.Quarto = {
 
 <div id="quarto-search-results"></div>
   <header id="quarto-header" class="headroom fixed-top">
-    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark" aria-label="Site">
       <div class="navbar-container container-fluid">
       <div class="navbar-brand-container mx-auto">
     <a class="navbar-brand" href="../index.html">
     <span class="navbar-title">VILMA2</span>
     </a>
   </div>
-            <div id="quarto-search" class="" title="Search"></div>
-          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" role="menu" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
   <span class="navbar-toggler-icon"></span>
 </button>
           <div class="collapse navbar-collapse" id="navbarCollapse">
@@ -390,17 +398,18 @@ window.Quarto = {
 </ul>
           </div> <!-- /navcollapse -->
             <div class="quarto-navbar-tools">
-  <a href="" class="quarto-color-scheme-toggle quarto-navigation-tool  px-1" onclick="window.quartoToggleColorScheme(); return false;" title="Toggle dark mode"><i class="bi"></i></a>
+  <button type="button" role="switch" aria-checked="false" class="quarto-color-scheme-toggle quarto-navigation-tool  px-1" onclick="window.quartoToggleColorScheme(); return false;" title="Toggle dark mode" aria-label="Toggle dark mode"><i class="bi"></i></button>
 </div>
+            <div id="quarto-search" class="" title="Search"></div>
       </div> <!-- /container-fluid -->
     </nav>
-  <nav class="quarto-secondary-nav">
+  <nav class="quarto-secondary-nav" aria-label="Toolbar">
     <div class="container-fluid d-flex">
       <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
         <i class="bi bi-layout-text-sidebar-reverse"></i>
       </button>
-        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../benchmarks/index.html">Benchmarks</a></li><li class="breadcrumb-item"><a href="../benchmarks/sea-level.html">Benchmark: the sea-level equation</a></li></ol></nav>
-        <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
+        <nav class="quarto-page-breadcrumbs" aria-label="Breadcrumbs"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../benchmarks/index.html">Benchmarks</a></li><li class="breadcrumb-item"><a href="../benchmarks/sea-level.html">Benchmark: the sea-level equation</a></li></ol></nav>
+        <a class="flex-grow-1" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
         </a>
     </div>
   </nav>
@@ -408,18 +417,15 @@ window.Quarto = {
 <!-- content -->
 <div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
 <!-- sidebar -->
-  <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal quarto-sidebar-collapse-item sidebar-navigation floating overflow-auto">
+  <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal quarto-sidebar-collapse-item sidebar-navigation floating overflow-auto" aria-label="Section">
     <div class="sidebar-menu-container"> 
     <ul class="list-unstyled mt-1">
         <li class="sidebar-item sidebar-item-section">
       <div class="sidebar-item-container"> 
-            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true">
- <span class="menu-text">Getting started</span></a>
-          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true" aria-label="Toggle section">
-            <i class="bi bi-chevron-right ms-2"></i>
-          </a> 
+            <button type="button" class="sidebar-item-text sidebar-item-toggle sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" aria-controls="quarto-sidebar-section-1" aria-expanded="true">
+ <span class="menu-text" id="quarto-sidebar-section-1-label">Getting started</span><i class="bi bi-chevron-right" aria-hidden="true"></i></button>
       </div>
-      <ul id="quarto-sidebar-section-1" class="collapse list-unstyled sidebar-section depth1 show">  
+      <ul id="quarto-sidebar-section-1" aria-labelledby="quarto-sidebar-section-1-label" class="collapse list-unstyled sidebar-section depth1 show">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="../index.html" class="sidebar-item-text sidebar-link">
@@ -442,13 +448,10 @@ window.Quarto = {
   </li>
         <li class="sidebar-item sidebar-item-section">
       <div class="sidebar-item-container"> 
-            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="true">
- <span class="menu-text">Physics</span></a>
-          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="true" aria-label="Toggle section">
-            <i class="bi bi-chevron-right ms-2"></i>
-          </a> 
+            <button type="button" class="sidebar-item-text sidebar-item-toggle sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" aria-controls="quarto-sidebar-section-2" aria-expanded="true">
+ <span class="menu-text" id="quarto-sidebar-section-2-label">Physics</span><i class="bi bi-chevron-right" aria-hidden="true"></i></button>
       </div>
-      <ul id="quarto-sidebar-section-2" class="collapse list-unstyled sidebar-section depth1 show">  
+      <ul id="quarto-sidebar-section-2" aria-labelledby="quarto-sidebar-section-2-label" class="collapse list-unstyled sidebar-section depth1 show">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="../physics/governing-equations.html" class="sidebar-item-text sidebar-link">
@@ -483,13 +486,10 @@ window.Quarto = {
   </li>
         <li class="sidebar-item sidebar-item-section">
       <div class="sidebar-item-container"> 
-            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="true">
- <span class="menu-text">Discretization</span></a>
-          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="true" aria-label="Toggle section">
-            <i class="bi bi-chevron-right ms-2"></i>
-          </a> 
+            <button type="button" class="sidebar-item-text sidebar-item-toggle sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" aria-controls="quarto-sidebar-section-3" aria-expanded="true">
+ <span class="menu-text" id="quarto-sidebar-section-3-label">Discretization</span><i class="bi bi-chevron-right" aria-hidden="true"></i></button>
       </div>
-      <ul id="quarto-sidebar-section-3" class="collapse list-unstyled sidebar-section depth1 show">  
+      <ul id="quarto-sidebar-section-3" aria-labelledby="quarto-sidebar-section-3-label" class="collapse list-unstyled sidebar-section depth1 show">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="../discretization/spectral.html" class="sidebar-item-text sidebar-link">
@@ -518,13 +518,10 @@ window.Quarto = {
   </li>
         <li class="sidebar-item sidebar-item-section">
       <div class="sidebar-item-container"> 
-            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="true">
- <span class="menu-text">Benchmarks</span></a>
-          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="true" aria-label="Toggle section">
-            <i class="bi bi-chevron-right ms-2"></i>
-          </a> 
+            <button type="button" class="sidebar-item-text sidebar-item-toggle sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" aria-controls="quarto-sidebar-section-4" aria-expanded="true">
+ <span class="menu-text" id="quarto-sidebar-section-4-label">Benchmarks</span><i class="bi bi-chevron-right" aria-hidden="true"></i></button>
       </div>
-      <ul id="quarto-sidebar-section-4" class="collapse list-unstyled sidebar-section depth1 show">  
+      <ul id="quarto-sidebar-section-4" aria-labelledby="quarto-sidebar-section-4-label" class="collapse list-unstyled sidebar-section depth1 show">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="../benchmarks/index.html" class="sidebar-item-text sidebar-link">
@@ -549,6 +546,18 @@ window.Quarto = {
  <span class="menu-text">Benchmark: the sea-level equation</span></a>
   </div>
 </li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../benchmarks/rotation.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Benchmark: rotation (polar motion)</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../benchmarks/lvz.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Benchmark: low-viscosity zone (lateral viscosity)</span></a>
+  </div>
+</li>
       </ul>
   </li>
         <li class="sidebar-item">
@@ -563,15 +572,17 @@ window.Quarto = {
 <div id="quarto-sidebar-glass" class="quarto-sidebar-collapse-item" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item"></div>
 <!-- margin-sidebar -->
     <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
-        <nav id="TOC" role="doc-toc" class="toc-active">
+        <nav id="TOC" role="doc-toc" aria-labelledby="toc-title" class="toc-active">
     <h2 id="toc-title">On this page</h2>
    
   <ul>
   <li><a href="#benchmark-structure" id="toc-benchmark-structure" class="nav-link active" data-scroll-target="#benchmark-structure">Benchmark structure</a></li>
+  <li><a href="#error-measure" id="toc-error-measure" class="nav-link" data-scroll-target="#error-measure">Error measure</a></li>
   <li><a href="#case-a-pure-viscoelastic-loading" id="toc-case-a-pure-viscoelastic-loading" class="nav-link" data-scroll-target="#case-a-pure-viscoelastic-loading">Case A — pure viscoelastic loading</a></li>
   <li><a href="#sle-cases-c2-d3-e2-f1" id="toc-sle-cases-c2-d3-e2-f1" class="nav-link" data-scroll-target="#sle-cases-c2-d3-e2-f1">SLE cases — C2, D3, E2, F1</a>
   <ul class="collapse">
-  <li><a href="#representative-agreement" id="toc-representative-agreement" class="nav-link" data-scroll-target="#representative-agreement">Representative agreement</a></li>
+  <li><a href="#measured-errors" id="toc-measured-errors" class="nav-link" data-scroll-target="#measured-errors">Measured errors</a></li>
+  <li><a href="#what-the-numbers-mean" id="toc-what-the-numbers-mean" class="nav-link" data-scroll-target="#what-the-numbers-mean">What the numbers mean</a></li>
   </ul></li>
   <li><a href="#figures" id="toc-figures" class="nav-link" data-scroll-target="#figures">Figures</a></li>
   <li><a href="#provenance" id="toc-provenance" class="nav-link" data-scroll-target="#provenance">Provenance</a></li>
@@ -579,10 +590,10 @@ window.Quarto = {
 <div class="toc-actions"><ul><li><a href="https://github.com/fesmc/vilma2/blob/main/benchmarks/sea-level.qmd" class="toc-action"><i class="bi bi-github"></i>View source</a></li><li><a href="https://github.com/fesmc/vilma2/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></nav>
     </div>
 <!-- main -->
-<main class="content" id="quarto-document-content">
+<main class="content" id="quarto-document-content" tabindex="-1">
 
 
-<header id="title-block-header" class="quarto-title-block default"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../benchmarks/index.html">Benchmarks</a></li><li class="breadcrumb-item"><a href="../benchmarks/sea-level.html">Benchmark: the sea-level equation</a></li></ol></nav>
+<header id="title-block-header" class="quarto-title-block default"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="Breadcrumbs"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../benchmarks/index.html">Benchmarks</a></li><li class="breadcrumb-item"><a href="../benchmarks/sea-level.html">Benchmark: the sea-level equation</a></li></ol></nav>
 <div class="quarto-title">
 <h1 class="title">Benchmark: the sea-level equation</h1>
 </div>
@@ -607,11 +618,11 @@ window.Quarto = {
 <i class="callout-icon no-icon"></i>
 </div>
 <div class="callout-body-container">
-<p><strong>Reference:</strong> Martinec et al.&nbsp;(2018), the SLE intercomparison <span class="citation" data-cites="Martinec2018">(<a href="#ref-Martinec2018" role="doc-biblioref">Martinec et al. 2018</a>)</span>, cases A and C2/D3/E2/F1 (SBK reference curves). <strong>Tests:</strong> <code>test_benchmark_martinec</code> (case A, in <code>make check</code>) and <code>test_benchmark_sle</code> (the SLE cases, standalone). <strong>Status:</strong> ✅ all cases within inter-code scatter.</p>
+<p><strong>Reference:</strong> Martinec et al.&nbsp;(2018), the SLE intercomparison <span class="citation" data-cites="Martinec2018">(<a href="#ref-Martinec2018" role="doc-biblioref">Martinec et al. 2018</a>)</span>, cases A and C2/D3/E2/F1 (SBK reference curves). <strong>Tests:</strong> <code>test_benchmark_martinec</code> (case A, in <code>make check</code>) and <code>test_benchmark_sle</code> (the four SLE cases, in <code>make check-slow</code>). <strong>Asserted:</strong> case A within 1.5 % (uplift, horizontal) and 3 % (geoid) of the profile peak; SLE cases within 30 % (uplift), 35 % (horizontal), 12 % (geoid), 8 % (sea surface) and 12 % (relative sea level) of the profile peak. <strong>Measured</strong> (ifx, albedo): case A 0.5–1.9 %; cases D3, E2 and F1 at most 7.6 %; case C2 up to 28 %, see below.</p>
 </div>
 </div>
 </div>
-<p>This is the capstone benchmark: the full <strong>self-consistent, migrating-coastline sea-level equation</strong> driven by the viscoelastic response — the same benchmark VILMA1 itself passed. It exercises the ocean function, mass conservation, coastline migration, grounded-ice flotation, and the sub-grid sloping coast all together.</p>
+<p>This benchmark runs the full <strong>self-consistent, migrating-coastline sea-level equation</strong> driven by the viscoelastic response. It is the benchmark in which VILMA1 took part. It exercises the ocean function, mass conservation, coastline migration, grounded-ice flotation, and the sub-grid sloping coast all together.</p>
 <section id="benchmark-structure" class="level2">
 <h2 class="anchored" data-anchor-id="benchmark-structure">Benchmark structure</h2>
 <p>The authority for the case definitions is <strong>Martinec et al.&nbsp;(2018), Table 4</strong> (not the differing case labels in third-party reimplementations). The paper defines five cases from a small set of building blocks:</p>
@@ -686,85 +697,288 @@ window.Quarto = {
 </tbody>
 </table>
 </section>
+<section id="error-measure" class="level2">
+<h2 class="anchored" data-anchor-id="error-measure">Error measure</h2>
+<p>Every number on this page is a <strong>peak-normalized maximum error</strong>: the largest absolute difference between model and reference along one profile, divided by the largest absolute value of the reference along that same profile. The two horizontal components are normalized by the peak magnitude of the horizontal vector, since a profile through a symmetry axis nulls one component. This measure is strict in one respect and misleading in another. It reports the single worst point of a profile. It also grows without any change in the absolute error when a profile crosses a region where the field itself is small. Both effects appear in case C2.</p>
+</section>
 <section id="case-a-pure-viscoelastic-loading" class="level2">
 <h2 class="anchored" data-anchor-id="case-a-pure-viscoelastic-loading">Case A — pure viscoelastic loading</h2>
-<p>The simplest case: a spherical cap, Heaviside loading, 10 kyr relaxation, <strong>no ocean</strong>, with degrees <span class="math inline">\(n=0,1\)</span> dropped — a pure viscoelastic cap response. VILMA2 matches Martinec (2018) fig.&nbsp;10 to <strong>0.52 % (uplift) / 0.69 % (horizontal) / 1.94 % (geoid)</strong> (peak-normalized). This is the <strong>first horizontal-displacement</strong> benchmark and confirms the spheroidal <span class="math inline">\(V\)</span> field (<code>test_benchmark_martinec</code>).</p>
-</section>
-<section id="sle-cases-c2-d3-e2-f1" class="level2">
-<h2 class="anchored" data-anchor-id="sle-cases-c2-d3-e2-f1">SLE cases — C2, D3, E2, F1</h2>
-<p>These run the full SLE with the time-varying load. The reference files give seven columns: longitude/colatitude, vertical displacement, the two horizontal components, the gravitational potential increment, the sea-surface variation, and the SLE result, sampled along circles of constant longitude/latitude (figs. 10–13).</p>
-<p>Mass is conserved to <span class="math inline">\(\sim 10^{-16}\)</span> per step by construction in every case. Key findings from working through the cases:</p>
-<ul>
-<li><strong>Fixed vs.&nbsp;migrating ocean is the dominant control</strong> for C2/D3. C2 and D3 are fixed-ocean (SLE1) cases; running them with a migrating coastline drains the shallow/fixed basin roughly twice too far (C2 esl <span class="math inline">\(-272\)</span> → <span class="math inline">\(-126\)</span> m vs.&nbsp;data <span class="math inline">\(-120\)</span>; D3 <span class="math inline">\(-50\)</span> → <span class="math inline">\(-25.7\)</span> vs.&nbsp;<span class="math inline">\(-25.5\)</span>). Honouring the fixed-ocean mode is what makes them match.</li>
-<li><strong>Grounded-ice masking matters.</strong> The SLE load must apply only over <em>grounded</em> ice (<span class="math inline">\(\rho_{\text{ice}}\,\Delta I\,(1-C)\)</span>); floating ice over the deep basin is carried by the ocean term, and the ocean-water budget counts only grounded ice. Getting this wrong produced <span class="math inline">\(\sim 70\)</span> m of spurious flank subsidence.</li>
-<li><strong>The sub-grid sloping coast</strong> collapses the cap-edge grounding-line residual. In E2, switching the binary coastline for the sub-grid water-column load takes the worst local errors from <span class="math inline">\(\sim 14\)</span>–<span class="math inline">\(42\%\)</span> down to <span class="math inline">\(\sim 1\%\)</span> (esl <span class="math inline">\(-30.28\)</span> vs.&nbsp;data <span class="math inline">\(-30.0\)</span>), because the SBK reference is itself a sub-grid coast.</li>
-</ul>
-<section id="representative-agreement" class="level3">
-<h3 class="anchored" data-anchor-id="representative-agreement">Representative agreement</h3>
+<p>The simplest case is a spherical cap applied as a Heaviside load and relaxed for 10 kyr, with no ocean and with degrees 0 and 1 dropped. <code>test_benchmark_martinec</code> compares the profiles of fig.&nbsp;10 of <span class="citation" data-cites="Martinec2018">Martinec et al. (<a href="#ref-Martinec2018" role="doc-biblioref">2018</a>)</span>.</p>
+<div id="tbl-sle-a" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-tbl figure">
+<figcaption class="quarto-float-caption-top quarto-float-caption quarto-float-tbl" id="tbl-sle-a-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Table&nbsp;1: Case A, model 1790f86, ifx, albedo.
+</figcaption>
+<div aria-describedby="tbl-sle-a-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
 <table class="caption-top table">
-<colgroup>
-<col style="width: 16%">
-<col style="width: 16%">
-<col style="width: 16%">
-<col style="width: 16%">
-<col style="width: 16%">
-<col style="width: 16%">
-</colgroup>
 <thead>
 <tr class="header">
-<th style="text-align: center;">Case</th>
-<th style="text-align: center;">uplift</th>
-<th style="text-align: center;">geoid</th>
-<th style="text-align: center;">sea-surface</th>
-<th style="text-align: center;">SLE</th>
-<th>notes</th>
+<th>Field</th>
+<th style="text-align: center;">Peak</th>
+<th style="text-align: center;">Tolerance</th>
+<th style="text-align: center;">Measured</th>
 </tr>
 </thead>
 <tbody>
 <tr class="odd">
-<td style="text-align: center;">A</td>
+<td>uplift</td>
+<td style="text-align: center;">302.6 m</td>
+<td style="text-align: center;">1.5 %</td>
 <td style="text-align: center;">0.52 %</td>
+</tr>
+<tr class="even">
+<td>horizontal displacement</td>
+<td style="text-align: center;">41.4 m</td>
+<td style="text-align: center;">1.5 %</td>
+<td style="text-align: center;">0.69 %</td>
+</tr>
+<tr class="odd">
+<td>geoid</td>
+<td style="text-align: center;">7.4 m</td>
+<td style="text-align: center;">3 %</td>
 <td style="text-align: center;">1.94 %</td>
-<td style="text-align: center;">—</td>
-<td style="text-align: center;">—</td>
-<td>horizontal 0.69 %; no ocean</td>
-</tr>
-<tr class="even">
-<td style="text-align: center;">C2</td>
-<td style="text-align: center;"><span class="math inline">\(\le 2.5\%\)</span></td>
-<td style="text-align: center;"><span class="math inline">\(\le 7\%\)</span></td>
-<td style="text-align: center;"><span class="math inline">\(5\%\)</span></td>
-<td style="text-align: center;"><span class="math inline">\(7\%\)</span></td>
-<td>fixed ocean; horiz <span class="math inline">\(\le 28\%\)</span> on symmetry axis</td>
-</tr>
-<tr class="odd">
-<td style="text-align: center;">D3</td>
-<td style="text-align: center;"><span class="math inline">\(\le 7\%\)</span></td>
-<td style="text-align: center;"><span class="math inline">\(\le 7\%\)</span></td>
-<td style="text-align: center;"><span class="math inline">\(\le 7\%\)</span></td>
-<td style="text-align: center;"><span class="math inline">\(\le 7\%\)</span></td>
-<td>best SLE case (all <span class="math inline">\(\le 7\%\)</span>)</td>
-</tr>
-<tr class="even">
-<td style="text-align: center;">E2</td>
-<td style="text-align: center;"><span class="math inline">\(\sim 0.7\%\)</span>*</td>
-<td style="text-align: center;"><span class="math inline">\(\sim 1\%\)</span>*</td>
-<td style="text-align: center;"><span class="math inline">\(\sim 1\%\)</span>*</td>
-<td style="text-align: center;"><span class="math inline">\(\sim 1\%\)</span>*</td>
-<td>*with sub-grid coast</td>
-</tr>
-<tr class="odd">
-<td style="text-align: center;">F1</td>
-<td style="text-align: center;">within scatter</td>
-<td style="text-align: center;">within scatter</td>
-<td style="text-align: center;">within scatter</td>
-<td style="text-align: center;">within scatter</td>
-<td>E2 + paleo-topo spin-up</td>
 </tr>
 </tbody>
 </table>
-<p>Horizontal-displacement error is normalized by the peak <em>vector</em> magnitude <span class="math inline">\(|(v_\theta,v_\phi)|\)</span> rather than per-component, since a profile through a symmetry axis nulls one component.</p>
-<div class="callout callout-style-default callout-note callout-titled" title="An inter-code comparison, not an analytic one">
+</div>
+</figure>
+</div>
+<p>This is the first benchmark of the horizontal displacement and confirms the spheroidal <span class="math inline">\(V\)</span> field.</p>
+<div id="fig-martinec-A" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-martinec-A-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="figures/martinec-A.png" class="img-fluid figure-img">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-martinec-A-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;1: Case A, 10 kyr after a 1500 m spherical cap (10° radius) is applied: (a) vertical displacement, (b) horizontal displacement and (c) geoid along colatitude, VILMA2 (line) and the reference of Martinec et al.&nbsp;(2018), fig.&nbsp;10 (dots, every tenth point). (d–f) VILMA2 minus the reference, in percent of the profile’s peak. The oscillation near the cap edge is the truncation of the cap’s sharp edge at degree 128.
+</figcaption>
+</figure>
+</div>
+</section>
+<section id="sle-cases-c2-d3-e2-f1" class="level2">
+<h2 class="anchored" data-anchor-id="sle-cases-c2-d3-e2-f1">SLE cases — C2, D3, E2, F1</h2>
+<p>These cases run the full sea-level equation with the time-varying load at <span class="math inline">\(\ell_\max = 128\)</span> with a 20 yr step. The reference files give seven columns: longitude or colatitude, vertical displacement, the two horizontal components, the gravitational potential increment, the sea-surface variation, and the SLE result (relative sea level). They are sampled along four profiles per case (figs. 10–13 of the paper). Figs. 10 and 11 pass through the ice cap, along a meridian and a parallel. Figs. 12 and 13 pass through the ocean basin.</p>
+<p>Mass is conserved to <span class="math inline">\(\sim 10^{-16}\)</span> (relative) per step in every case. Three settings control the agreement:</p>
+<ul>
+<li><strong>Fixed or migrating ocean.</strong> C2 and D3 are fixed-ocean (SLE1) cases. Running them with a migrating coastline drains the basin roughly twice too far, so the fixed-ocean mode (<code>sle_fixed_ocean</code>) must be honored.</li>
+<li><strong>Grounded-ice masking.</strong> The ice load applies only over grounded ice. Floating ice over the deep basin is carried by the ocean term.</li>
+<li><strong>The sub-grid sloping coast</strong> (<code>sle_subgrid</code>). The SBK reference uses a sub-grid coast. With a binary coastline the local errors of E2 near the grounding line were 14–42 % during development (not re-measured for this page; <code>test_benchmark_sle.x E2 binary</code> runs that variant). With the sub-grid water-column load they are about 1 %.</li>
+</ul>
+<section id="measured-errors" class="level3">
+<h3 class="anchored" data-anchor-id="measured-errors">Measured errors</h3>
+<p>The table gives the peak-normalized maximum error [%] of every profile and field (model 1790f86, ifx, albedo, <code>make check-slow</code>).</p>
+<div id="tbl-sle" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-tbl figure">
+<figcaption class="quarto-float-caption-top quarto-float-caption quarto-float-tbl" id="tbl-sle-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Table&nbsp;2: Peak-normalized maximum error [%] against the SBK reference curves.
+</figcaption>
+<div aria-describedby="tbl-sle-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 12%">
+<col style="width: 12%">
+<col style="width: 12%">
+<col style="width: 12%">
+<col style="width: 12%">
+<col style="width: 12%">
+<col style="width: 12%">
+<col style="width: 12%">
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: center;">Case</th>
+<th style="text-align: center;">Profile</th>
+<th style="text-align: center;"><span class="math inline">\(u\)</span></th>
+<th style="text-align: center;"><span class="math inline">\(v_\theta\)</span></th>
+<th style="text-align: center;"><span class="math inline">\(v_\varphi\)</span></th>
+<th style="text-align: center;"><span class="math inline">\(N\)</span></th>
+<th style="text-align: center;">sea surface</th>
+<th style="text-align: center;">rsl</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: center;">C2</td>
+<td style="text-align: center;">fig.&nbsp;10</td>
+<td style="text-align: center;">2.51</td>
+<td style="text-align: center;">14.29</td>
+<td style="text-align: center;">9.12</td>
+<td style="text-align: center;">2.50</td>
+<td style="text-align: center;">4.96</td>
+<td style="text-align: center;">6.99</td>
+</tr>
+<tr class="even">
+<td style="text-align: center;">C2</td>
+<td style="text-align: center;">fig.&nbsp;11</td>
+<td style="text-align: center;">2.47</td>
+<td style="text-align: center;">15.00</td>
+<td style="text-align: center;">11.77</td>
+<td style="text-align: center;">1.34</td>
+<td style="text-align: center;">5.01</td>
+<td style="text-align: center;">6.93</td>
+</tr>
+<tr class="odd">
+<td style="text-align: center;">C2</td>
+<td style="text-align: center;">fig.&nbsp;12</td>
+<td style="text-align: center;">23.10</td>
+<td style="text-align: center;">27.73</td>
+<td style="text-align: center;">7.20</td>
+<td style="text-align: center;">7.16</td>
+<td style="text-align: center;">4.95</td>
+<td style="text-align: center;">7.16</td>
+</tr>
+<tr class="even">
+<td style="text-align: center;">C2</td>
+<td style="text-align: center;">fig.&nbsp;13</td>
+<td style="text-align: center;">21.42</td>
+<td style="text-align: center;">25.73</td>
+<td style="text-align: center;">24.34</td>
+<td style="text-align: center;">5.41</td>
+<td style="text-align: center;">4.92</td>
+<td style="text-align: center;">6.85</td>
+</tr>
+<tr class="odd">
+<td style="text-align: center;">D3</td>
+<td style="text-align: center;">fig.&nbsp;10</td>
+<td style="text-align: center;">1.11</td>
+<td style="text-align: center;">1.64</td>
+<td style="text-align: center;">6.04</td>
+<td style="text-align: center;">3.88</td>
+<td style="text-align: center;">0.92</td>
+<td style="text-align: center;">1.32</td>
+</tr>
+<tr class="even">
+<td style="text-align: center;">D3</td>
+<td style="text-align: center;">fig.&nbsp;11</td>
+<td style="text-align: center;">0.72</td>
+<td style="text-align: center;">3.42</td>
+<td style="text-align: center;">4.03</td>
+<td style="text-align: center;">5.42</td>
+<td style="text-align: center;">1.23</td>
+<td style="text-align: center;">1.07</td>
+</tr>
+<tr class="odd">
+<td style="text-align: center;">D3</td>
+<td style="text-align: center;">fig.&nbsp;12</td>
+<td style="text-align: center;">5.12</td>
+<td style="text-align: center;">4.73</td>
+<td style="text-align: center;">5.04</td>
+<td style="text-align: center;">5.33</td>
+<td style="text-align: center;">0.89</td>
+<td style="text-align: center;">1.70</td>
+</tr>
+<tr class="even">
+<td style="text-align: center;">D3</td>
+<td style="text-align: center;">fig.&nbsp;13</td>
+<td style="text-align: center;">3.31</td>
+<td style="text-align: center;">4.21</td>
+<td style="text-align: center;">4.44</td>
+<td style="text-align: center;">6.98</td>
+<td style="text-align: center;">0.93</td>
+<td style="text-align: center;">1.80</td>
+</tr>
+<tr class="odd">
+<td style="text-align: center;">E2</td>
+<td style="text-align: center;">fig.&nbsp;10</td>
+<td style="text-align: center;">0.70</td>
+<td style="text-align: center;">3.86</td>
+<td style="text-align: center;">7.57</td>
+<td style="text-align: center;">2.73</td>
+<td style="text-align: center;">0.92</td>
+<td style="text-align: center;">0.73</td>
+</tr>
+<tr class="even">
+<td style="text-align: center;">E2</td>
+<td style="text-align: center;">fig.&nbsp;11</td>
+<td style="text-align: center;">0.38</td>
+<td style="text-align: center;">3.33</td>
+<td style="text-align: center;">5.25</td>
+<td style="text-align: center;">1.46</td>
+<td style="text-align: center;">0.93</td>
+<td style="text-align: center;">0.87</td>
+</tr>
+<tr class="odd">
+<td style="text-align: center;">E2</td>
+<td style="text-align: center;">fig.&nbsp;12</td>
+<td style="text-align: center;">5.00</td>
+<td style="text-align: center;">5.02</td>
+<td style="text-align: center;">4.93</td>
+<td style="text-align: center;">4.79</td>
+<td style="text-align: center;">0.93</td>
+<td style="text-align: center;">1.30</td>
+</tr>
+<tr class="even">
+<td style="text-align: center;">E2</td>
+<td style="text-align: center;">fig.&nbsp;13</td>
+<td style="text-align: center;">2.83</td>
+<td style="text-align: center;">3.93</td>
+<td style="text-align: center;">5.04</td>
+<td style="text-align: center;">6.97</td>
+<td style="text-align: center;">0.94</td>
+<td style="text-align: center;">1.83</td>
+</tr>
+<tr class="odd">
+<td style="text-align: center;">F1</td>
+<td style="text-align: center;">fig.&nbsp;10</td>
+<td style="text-align: center;">0.73</td>
+<td style="text-align: center;">3.56</td>
+<td style="text-align: center;">7.02</td>
+<td style="text-align: center;">2.69</td>
+<td style="text-align: center;">0.88</td>
+<td style="text-align: center;">0.77</td>
+</tr>
+<tr class="even">
+<td style="text-align: center;">F1</td>
+<td style="text-align: center;">fig.&nbsp;11</td>
+<td style="text-align: center;">0.37</td>
+<td style="text-align: center;">3.35</td>
+<td style="text-align: center;">5.11</td>
+<td style="text-align: center;">1.51</td>
+<td style="text-align: center;">0.89</td>
+<td style="text-align: center;">0.82</td>
+</tr>
+<tr class="odd">
+<td style="text-align: center;">F1</td>
+<td style="text-align: center;">fig.&nbsp;12</td>
+<td style="text-align: center;">6.38</td>
+<td style="text-align: center;">4.92</td>
+<td style="text-align: center;">4.93</td>
+<td style="text-align: center;">5.28</td>
+<td style="text-align: center;">0.87</td>
+<td style="text-align: center;">1.42</td>
+</tr>
+<tr class="even">
+<td style="text-align: center;">F1</td>
+<td style="text-align: center;">fig.&nbsp;13</td>
+<td style="text-align: center;">2.83</td>
+<td style="text-align: center;">3.96</td>
+<td style="text-align: center;">4.95</td>
+<td style="text-align: center;">6.78</td>
+<td style="text-align: center;">0.90</td>
+<td style="text-align: center;">1.80</td>
+</tr>
+<tr class="odd">
+<td style="text-align: center;"></td>
+<td style="text-align: center;">tolerance</td>
+<td style="text-align: center;">30</td>
+<td style="text-align: center;">35</td>
+<td style="text-align: center;">35</td>
+<td style="text-align: center;">12</td>
+<td style="text-align: center;">8</td>
+<td style="text-align: center;">12</td>
+</tr>
+</tbody>
+</table>
+</div>
+</figure>
+</div>
+<p>The final uniform sea-level shift of the model is <span class="math inline">\(-125.83\)</span> m (C2), <span class="math inline">\(-25.74\)</span> m (D3), <span class="math inline">\(-30.28\)</span> m (E2) and <span class="math inline">\(-29.93\)</span> m (F1).</p>
+</section>
+<section id="what-the-numbers-mean" class="level3">
+<h3 class="anchored" data-anchor-id="what-the-numbers-mean">What the numbers mean</h3>
+<p><strong>Cases D3, E2 and F1.</strong> The sea surface and relative sea level agree with the reference to within 2 % of the peak in all twelve profiles, which is 0.2–0.8 m in absolute terms. The uplift through the ice cap agrees to about 1 % (0.4–1.0 m of 86–102 m). The percentages of 5–7.6 % belong to fields with a small peak along the profile: the uplift along the basin profiles (0.35–0.5 m of 7–15 m), the horizontal displacement (0.4–0.8 m of 7–15 m) and the geoid (0.02–0.14 m of 0.3–2.7 m). The absolute differences are thus below 1 m everywhere in these three cases.</p>
+<p><strong>Case C2.</strong> The differences are larger, and the percentages of 21–28 % are not a local effect at the migrating coastline (the ocean of C2 is fixed). Two smooth, large-scale differences explain them. First, the sea surface of the model lies 5.9 m below the reference at every point of all four profiles, which is 4.9 % of the 120 m sea-level fall of this case. Second, the uplift differs from the reference by a smooth pattern of global extent with an amplitude of about 7 m. It is positive on the side of the ice cap and negative on the far side, which is the shape of a degree-1 term. The absolute uplift difference is therefore about the same in all four profiles (7.3–7.8 m). It is 2.5 % of the 309 m peak along the profiles through the ice cap, and 21–23 % of the 34 m peak along the two profiles through the basin. The horizontal differences of 6–7 m behave in the same way. Case C2 has the thickest ice (1500 m, three times that of the other cases) applied as a Heaviside load on a fixed ocean, so a difference in the degree-0 and degree-1 treatment between the two codes is largest here. The same pattern is present in E2 with an amplitude of about 0.3 m. The origin of this difference (reference frame, or the mass budget of the fixed ocean) has not been attributed. The tolerances of the test (30 % and 35 %) are set to pass this case and are therefore not a meaningful bound for the other three.</p>
+<div class="callout callout-style-default callout-note callout-titled">
 <div class="callout-header d-flex align-content-center">
 <div class="callout-icon-container">
 <i class="callout-icon"></i>
@@ -774,18 +988,64 @@ window.Quarto = {
 </div>
 </div>
 <div class="callout-body-container callout-body">
-<p>The SBK reference is one code’s (giapy’s) output, so these tolerances are assessed against the documented <strong>inter-code scatter</strong> of the Martinec (2018) intercomparison, not against a closed-form solution. The residual few-metre eustatic offsets and the cap-edge grounding-line differences are within that scatter; where a definitional choice (binary vs.&nbsp;sub-grid coast) is involved, matching the reference’s choice removes the discrepancy.</p>
+<p>The SBK reference is the output of one code (giapy), not a closed-form solution. <span class="citation" data-cites="Martinec2018">Martinec et al. (<a href="#ref-Martinec2018" role="doc-biblioref">2018</a>)</span> document a scatter of a few percent between the participating codes. The agreement of D3, E2 and F1 is within that scatter. The uniform offset and the degree-1 pattern of C2 are larger than that and remain open.</p>
 </div>
 </div>
 </section>
 </section>
 <section id="figures" class="level2">
 <h2 class="anchored" data-anchor-id="figures">Figures</h2>
-<p><em>Figures to be added: per-case profiles (figs. 10–13) of uplift, horizontal displacement, geoid/potential, sea-surface, and the SLE result, VILMA2 vs. the SBK reference; the eustatic-sea-level time series.</em></p>
-<!--
-![Case E2, fig. 10 profiles](figures/sle_E2_fig10.png)
-![Eustatic sea level vs time](figures/sle_esl_series.png)
--->
+<div id="fig-sle" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-sle-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="figures/sle.png" class="img-fluid figure-img">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-sle-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;2: Summary of the SLE cases: (a–c) vertical displacement, geoid and relative sea level along one reference profile, VILMA2 and the reference of Martinec et al.&nbsp;(2018); (d) eustatic sea level against time for C2, D3, E2 and F1; (e) running maximum of the relative ocean-mass residual; (f) peak-normalized maximum error per field.
+</figcaption>
+</figure>
+</div>
+<div id="fig-sle-C2" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-sle-C2-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="figures/sle-C2.png" class="img-fluid figure-img">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-sle-C2-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;3: Case C2: profiles of uplift, horizontal displacement, geoid, sea surface and relative sea level along the four reference profiles (figs. 10–13), VILMA2 and the SBK reference.
+</figcaption>
+</figure>
+</div>
+<div id="fig-sle-D3" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-sle-D3-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="figures/sle-D3.png" class="img-fluid figure-img">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-sle-D3-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;4: Case D3: as for C2.
+</figcaption>
+</figure>
+</div>
+<div id="fig-sle-E2" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-sle-E2-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="figures/sle-E2.png" class="img-fluid figure-img">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-sle-E2-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;5: Case E2: as for C2.
+</figcaption>
+</figure>
+</div>
+<div id="fig-sle-F1" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-sle-F1-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="figures/sle-F1.png" class="img-fluid figure-img">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-sle-F1-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;6: Case F1: as for C2.
+</figcaption>
+</figure>
+</div>
+<p>With <code>VILMA_BENCH_DUMP</code> set, <code>test_benchmark_sle</code> writes the model and reference values of every profile (<code>sle_&lt;case&gt;_&lt;fig&gt;_profile.txt</code>) and the time history of each run (<code>sle_&lt;case&gt;_history.txt</code>); see <a href="../benchmarks/index.html#dumping-the-comparison-data">Benchmarks</a>.</p>
 </section>
 <section id="provenance" class="level2">
 <h2 class="anchored" data-anchor-id="provenance">Provenance</h2>
@@ -804,15 +1064,50 @@ Martinec, Z., V. Klemann, W. van der Wal, et al. 2018. <span>“A Benchmark Stud
   window.document.addEventListener("DOMContentLoaded", function (event) {
     // Ensure there is a toggle, if there isn't float one in the top right
     if (window.document.querySelector('.quarto-color-scheme-toggle') === null) {
-      const a = window.document.createElement('a');
-      a.classList.add('top-right');
-      a.classList.add('quarto-color-scheme-toggle');
-      a.href = "";
-      a.onclick = function() { try { window.quartoToggleColorScheme(); } catch {} return false; };
+      const toggle = window.document.createElement('button');
+      toggle.type = "button";
+      toggle.setAttribute("role", "switch");
+      toggle.setAttribute("aria-checked", "false");
+      toggle.classList.add('top-right');
+      toggle.classList.add('quarto-color-scheme-toggle');
+      toggle.setAttribute("aria-label", "Toggle dark mode");
+      toggle.onclick = function() { try { window.quartoToggleColorScheme(); } catch {} return false; };
       const i = window.document.createElement("i");
       i.classList.add('bi');
-      a.appendChild(i);
-      window.document.body.appendChild(a);
+      toggle.appendChild(i);
+      // Put the toggle in a landmark of its own, so that landmark navigation
+      // can reach it.
+      //
+      // The container is always a fresh direct child of body, and the toggle is
+      // never moved into page furniture that the theme or the author controls.
+      // The toggle is positioned against the page, so any ancestor that
+      // establishes a containing block captures it: a positioned element or a
+      // grid for position: absolute, and transform, filter, will-change or
+      // contain for position: fixed. A direct child of body has none of these
+      // to inherit, and the shift when one appears is silent and visual.
+      //
+      // ARIA says a document should have at most one banner, and axe reports a
+      // duplicate whether or not the banners carry distinct labels. So use a
+      // header when the page has no banner yet, and a named region otherwise.
+      //
+      // A header is a banner wherever it sits, unless it is inside sectioning
+      // content, so this cannot just look at the children of body: a custom
+      // page layout wraps the title block header in a plain div. An explicit
+      // role="banner" always counts.
+      const sectioning = 'article, aside, main, nav, section, [role="article"], [role="complementary"], [role="main"], [role="navigation"], [role="region"]';
+      const hasBanner = Array.from(
+        window.document.querySelectorAll('header:not([role]), [role="banner"]')
+      ).some(function(el) {
+        return el.hasAttribute("role") || el.closest(sectioning) === null;
+      });
+      const container = window.document.createElement(hasBanner ? "div" : "header");
+      if (hasBanner) {
+        container.setAttribute("role", "region");
+        container.setAttribute("aria-label", "Toggle dark mode");
+      }
+      container.classList.add('quarto-color-scheme-toggle-container');
+      container.appendChild(toggle);
+      window.document.body.appendChild(container);
     }
     setColorSchemeToggle(hasAlternateSentinel())
     const icon = "";
@@ -891,7 +1186,8 @@ Martinec, Z., V. Klemann, W. van der Wal, et al. 2018. <span>“A Benchmark Stud
           return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
       }
       // Inspect non-navigation links and adorn them if external
-     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      window.quartoDecorateExternalLinks = function (root) {
+     var links = (root || window.document).querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
       for (var i=0; i<links.length; i++) {
         const link = links[i];
         if (!isInternal(link.href)) {
@@ -900,8 +1196,69 @@ Martinec, Z., V. Klemann, W. van der Wal, et al. 2018. <span>“A Benchmark Stud
           if (link.dataset.originalHref !== undefined) {
             link.href = link.dataset.originalHref;
           }
+          if (!link.classList.contains('no-external-icon')) {
+          }
         }
       }
+      };
+      window.quartoDecorateExternalLinks(window.document);
+    // Esc closes the popup (WCAG 1.4.13) and focus leaving both trigger and
+    // popup closes it (WCAG 2.4.11); tippy handles neither for interactive popups.
+    const hideOnEscAndFocusOut = {
+      name: 'hideOnEscAndFocusOut',
+      defaultValue: true,
+      fn(instance) {
+        const dismiss = () => {
+          // A show scheduled by the trigger delay would otherwise reopen it
+          instance.clearDelayTimeouts();
+          instance.hide();
+        };
+        const onKeyDown = (event) => {
+          if (event.key !== 'Escape') {
+            return;
+          }
+          // Keep Esc from also reaching page handlers (e.g. reveal.js overview),
+          // except an open reveal.js slide menu, which Esc should close too.
+          // The menu handles keys only when its keyboard option is on.
+          const menuHandlesEsc = window.Reveal?.getPlugin?.('menu')?.isOpen() &&
+            window.Reveal.getConfig().menu?.keyboard !== false;
+          if (!menuHandlesEsc) {
+            event.stopPropagation();
+          }
+          if (instance.popper.contains(window.document.activeElement)) {
+            // Disabled while refocusing so the focus trigger does not reopen it
+            instance.disable();
+            instance.reference.focus();
+            instance.enable();
+          }
+          dismiss();
+        };
+        const onFocusOut = (event) => {
+          const target = event.relatedTarget;
+          if (target && !instance.reference.contains(target) &&
+              !instance.popper.contains(target)) {
+            dismiss();
+          }
+        };
+        // On the trigger too: a click trigger (code-annotations: select) has no
+        // blur handling. Attached for the instance's lifetime so leaving the
+        // trigger also cancels a show still pending on the trigger delay.
+        instance.reference.addEventListener('focusout', onFocusOut);
+        return {
+          onShow() {
+            window.document.addEventListener('keydown', onKeyDown, true);
+            instance.popper.addEventListener('focusout', onFocusOut);
+          },
+          onHide() {
+            window.document.removeEventListener('keydown', onKeyDown, true);
+            instance.popper.removeEventListener('focusout', onFocusOut);
+          },
+          onDestroy() {
+            instance.reference.removeEventListener('focusout', onFocusOut);
+          },
+        };
+      },
+    };
     function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
       const config = {
         allowHTML: true,
@@ -915,6 +1272,7 @@ Martinec, Z., V. Klemann, W. van der Wal, et al. 2018. <span>“A Benchmark Stud
         interactiveBorder: 10,
         theme: 'quarto',
         placement: 'bottom-start',
+        plugins: [hideOnEscAndFocusOut],
       };
       if (contentFn) {
         config.content = contentFn;
@@ -1077,44 +1435,54 @@ Martinec, Z., V. Klemann, W. van der Wal, et al. 2018. <span>“A Benchmark Stud
           const lineIds = lines.map((line) => {
             return targetCell + "-" + line;
           })
-          let top = null;
-          let height = null;
-          let parent = null;
+          // Each band is positioned against its own containing block, which is
+          // not the offsetParent of the lines, so place it from client rects.
+          const placeBand = (band, firstEl, lastEl, codeBlock) => {
+            const container = band.offsetParent;
+            if (container === null) {
+              return;
+            }
+            const containerRect = container.getBoundingClientRect();
+            // Reveal.js scales slides with a transform, so convert client
+            // pixels back to the CSS pixels of the container.
+            const scale = containerRect.height / container.offsetHeight || 1;
+            const firstRect = firstEl.getBoundingClientRect();
+            const lastRect = lastEl.getBoundingClientRect();
+            const top = (firstRect.top - containerRect.top) / scale - container.clientTop + container.scrollTop;
+            const height = (lastRect.bottom - firstRect.top) / scale;
+            band.style.top = top - 2 + "px";
+            band.style.height = height + 4 + "px";
+            if (codeBlock) {
+              // Without the copy button wrapper, the containing block is wider
+              // than the code block, so span the code block explicitly.
+              const blockRect = codeBlock.getBoundingClientRect();
+              band.style.left = (blockRect.left - containerRect.left) / scale - container.clientLeft + container.scrollLeft + "px";
+              band.style.width = blockRect.width / scale + "px";
+            }
+          };
           if (lineIds.length > 0) {
-              //compute the position of the single el (top and bottom and make a div)
-              const el = window.document.getElementById(lineIds[0]);
-              top = el.offsetTop;
-              height = el.offsetHeight;
-              parent = el.parentElement.parentElement;
-            if (lineIds.length > 1) {
-              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
-              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
-              height = bottom - top;
+            const el = window.document.getElementById(lineIds[0]);
+            const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+            const parent = el.parentElement.parentElement;
+            // cook up a div (if necessary) and position it
+            let div = window.document.getElementById("code-annotation-line-highlight");
+            if (div === null) {
+              div = window.document.createElement("div");
+              div.setAttribute("id", "code-annotation-line-highlight");
+              div.style.position = 'absolute';
+              parent.appendChild(div);
             }
-            if (top !== null && height !== null && parent !== null) {
-              // cook up a div (if necessary) and position it 
-              let div = window.document.getElementById("code-annotation-line-highlight");
-              if (div === null) {
-                div = window.document.createElement("div");
-                div.setAttribute("id", "code-annotation-line-highlight");
-                div.style.position = 'absolute';
-                parent.appendChild(div);
-              }
-              div.style.top = top - 2 + "px";
-              div.style.height = height + 4 + "px";
-              div.style.left = 0;
-              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
-              if (gutterDiv === null) {
-                gutterDiv = window.document.createElement("div");
-                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
-                gutterDiv.style.position = 'absolute';
-                const codeCell = window.document.getElementById(targetCell);
-                const gutter = codeCell.querySelector('.code-annotation-gutter');
-                gutter.appendChild(gutterDiv);
-              }
-              gutterDiv.style.top = top - 2 + "px";
-              gutterDiv.style.height = height + 4 + "px";
+            placeBand(div, el, lastEl, parent.closest("div.sourceCode") || parent);
+            let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+            if (gutterDiv === null) {
+              gutterDiv = window.document.createElement("div");
+              gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+              gutterDiv.style.position = 'absolute';
+              const codeCell = window.document.getElementById(targetCell);
+              const gutter = codeCell.querySelector('.code-annotation-gutter');
+              gutter.appendChild(gutterDiv);
             }
+            placeBand(gutterDiv, el, lastEl);
             selectedAnnoteEl = annoteEl;
           }
         };
@@ -1213,15 +1581,18 @@ Martinec, Z., V. Klemann, W. van der Wal, et al. 2018. <span>“A Benchmark Stud
     }
   });
   </script>
-<nav class="page-navigation">
+  <script type="application/javascript">
+  window.quartoScrollableRegionsLabels = {"code":"Scrollable code","output":"Scrollable output"};
+  </script>
+<nav class="page-navigation" aria-label="Page">
   <div class="nav-page nav-page-previous">
       <a href="../benchmarks/disc.html" class="pagination-link" aria-label="Benchmark: disc-load response">
         <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text">Benchmark: disc-load response</span>
       </a>          
   </div>
   <div class="nav-page nav-page-next">
-      <a href="../references.html" class="pagination-link" aria-label="References">
-        <span class="nav-page-text">References</span> <i class="bi bi-arrow-right-short"></i>
+      <a href="../benchmarks/rotation.html" class="pagination-link" aria-label="Benchmark: rotation (polar motion)">
+        <span class="nav-page-text">Benchmark: rotation (polar motion)</span> <i class="bi bi-arrow-right-short"></i>
       </a>
   </div>
 </nav>
