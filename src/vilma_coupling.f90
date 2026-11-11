@@ -28,6 +28,9 @@ module vilma_coupling
    !! and the ocean function C (bilinear and clipped to [0,1] on the remap path).
    !! se%z_bed is reconstructed as se%z_bed_eq - se%rsl on the host's own
    !! (high-resolution) bed, so host bed detail is preserved.
+   !! A lon-lat host grid must cover the sphere: the model needs the bed (and a host's
+   !! fractions) everywhere, and vilma_remap stops on a regional grid for any field that
+   !! is not a mass.
    !!
    !! Host-resolved terms (optional). A host that resolves the ice margin on its own grid
    !! inside regions of weight w passes, per unit Gauss-cell area, the grounded-ice column
@@ -215,8 +218,7 @@ contains
       !! w, I_g, C (optional, together): host-resolved terms of the REFERENCE state, per unit
       !! cell area (see the module header). z_bed_eq and h_ice_eq are then those of the 1 − w
       !! part; the reference F is 0 by definition. Not with solver="v1", sle_fixed_ocean or
-      !! h_ice_init. On a lon-lat host grid the host must be global (the remap's mass factor
-      !! is a full-sphere one).
+      !! h_ice_init. A lon-lat host grid must be global (see "Grids").
       real(wp),             intent(in), optional :: w(:,:), I_g(:,:), C(:,:)
       real(wp),             intent(in), optional :: time           !! model time of this state [years]; default 0
       real(wp), allocatable :: F0(:,:)

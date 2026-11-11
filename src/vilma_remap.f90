@@ -16,26 +16,39 @@ module vilma_remap
    !! `fldr` (default "maps") and reloads it on the next run, keyed by the grid names —
    !! which we tag with the grid dimensions so a resolution change invalidates the
    !! cache. The conservative weight build (polygon clipping) is the costly step; the
-   !! cache lets a restart skip it. (Same-dimension/different-axes host grids would
-   !! collide on the name — clear `fldr` if the host grid changes at fixed resolution. The key
+   !! cache lets a restart skip it. A regional grid's name carries its extent as well; global
+   !! grids of the same dimensions but different axes would collide on the name — clear
+   !! `fldr` if a global host grid changes at fixed resolution. The key
    !! does not include the planet either: both grids are spherical (planet="Spherical Earth",
-   !! as the model), so a cache built before that was set (WGS84 areas) must be cleared.)
+   !! as the model), so a cache built before that was set (WGS84 areas) must be cleared.
+   !!
+   !! Source grid. Longitudes ascending; latitudes ascending or descending (a descending
+   !! axis is reversed on the way in and out). The grid may be regional. What that means
+   !! depends on the field, and remap_to_gauss takes it from conserve_mass:
+   !!   mass (ice thickness, conserve_mass=.true.): the source's mass goes where the source
+   !!     has it. Each Gauss cell gets the source mass that falls into it over the WHOLE
+   !!     cell's area (coords norm="dst"), so a cell the source covers in part carries that
+   !!     part's mass and a cell outside the source is zero: ice outside the file is no
+   !!     ice. The Gauss-grid integral is the source integral by construction, for a
+   !!     regional source as for a global one.
+   !!   anything else (bed, fractions; conserve_mass=.false.): the area mean of the source
+   !!     over the cell. There is no value to give a cell outside the source, so the source
+   !!     must cover the sphere (remap_covers_sphere) and the call stops if it does not.
    !!
    !! Mass note: the Gauss target is built with coords' grid_init_gaussian, whose cell edges
    !! come from the Gauss weights, so its cell areas are the SHTns quadrature weights
    !! (R^2 dlon w_j) and the conservative map preserves the integral SHTns takes of the
    !! remapped field to round-off. conserve_mass=.true. then rescales by a factor of 1
-   !! (to ~1e-16, tests/test_remap); it is kept as a safeguard for mass-bearing fields
-   !! (ice) and converts the conserved coords-area total to steradians (4*pi over the
-   !! total area of the full-sphere source grid). Geometry fields (bed) are remapped as-is.
-   use vilma_precision, only: wp
+   !! (to ~1e-16, tests/test_remap), kept as a safeguard: the source total in steradians is
+   !! sum(f*area)/R^2, with R^2 from the Gauss grid's total area 4*pi*R^2.
+   use vilma_precision, only: wp, is_finite
    use vilma_sht,       only: sht_grid, sht_grid_surface_integral
    use coords,       only: grid_class, grid_init, grid_init_gaussian, map_class, map_init, map_field
    implicit none
    private
 
    public :: remap_ll_gauss
-   public :: remap_init, remap_to_gauss, remap_to_ll
+   public :: remap_init, remap_to_gauss, remap_to_ll, remap_covers_sphere
    public :: gauss_axes_rows, rows_copy
    public :: ROWS_NONE, ROWS_NORTH_FIRST, ROWS_SOUTH_FIRST
 
@@ -58,16 +71,20 @@ module vilma_remap
       type(map_class)  :: to_ll               !! Gauss -> ll, bilinear
       integer :: nlon = 0, nlat_ll = 0        !! host dimensions
       integer :: nphi = 0, nlat = 0           !! Gauss (SHTns) dimensions
+      logical :: flip_lat = .false.           !! host latitudes descend: rows reversed in and out
+      logical :: global   = .false.           !! every Gauss cell has host cells under it
    end type remap_ll_gauss
 
 contains
 
    subroutine remap_init(self, sht, lon_src, lat_src, fldr)
       !! Build (or load from cache) the conservative (ll->Gauss) and bilinear
-      !! (Gauss->ll) maps for source cell-centre axes lon_src(:), lat_src(:) [degrees,
-      !! ascending] against the SHTns Gauss grid. The Gauss grid is built with ASCENDING
-      !! latitude (south first), which coords expects; the apply routines flip into/out
-      !! of the SHTns (north-first) row order. fldr is the weight-cache directory.
+      !! (Gauss->ll) maps for source cell-centre axes lon_src(:), lat_src(:) [degrees]
+      !! against the SHTns Gauss grid. Longitudes must ascend; latitudes may ascend or
+      !! descend (strictly), and the grid may be regional (see the module header). The
+      !! Gauss grid is built with ASCENDING latitude (south first), which coords expects;
+      !! the apply routines flip into/out of the SHTns (north-first) row order. fldr is
+      !! the weight-cache directory.
       type(remap_ll_gauss), intent(out) :: self
       type(sht_grid),       intent(in)  :: sht
       real(wp),             intent(in)  :: lon_src(:)   !! source longitudes [deg]
@@ -75,9 +92,24 @@ contains
       character(len=*), optional, intent(in) :: fldr    !! weight-cache dir (default "maps")
       character(len=:), allocatable :: cache
       character(len=64) :: ll_name, gauss_name
+      real(wp), allocatable :: lat_asc(:), ones(:,:), cov(:,:)
+      logical,  allocatable :: m2(:,:)
+      real(wp) :: dx, dy, span
       integer :: j
 
       self%nlon = size(lon_src);  self%nlat_ll = size(lat_src)
+      if (self%nlon < 2 .or. self%nlat_ll < 2) error stop 'vilma_remap: the source grid needs >= 2 points per axis'
+      if (.not. (all(is_finite(lon_src)) .and. all(is_finite(lat_src)))) &
+         error stop 'vilma_remap: a source longitude or latitude is not finite'
+      if (any(lon_src(2:) <= lon_src(:self%nlon-1))) &
+         error stop 'vilma_remap: source longitudes must be strictly ascending'
+      self%flip_lat = lat_src(2) < lat_src(1)
+      lat_asc = lat_src
+      if (self%flip_lat) lat_asc = lat_src(self%nlat_ll:1:-1)
+      if (any(lat_asc(2:) <= lat_asc(:self%nlat_ll-1))) &
+         error stop 'vilma_remap: source latitudes must be strictly ascending or strictly descending'
+      if (lat_asc(1) < -90.0_wp .or. lat_asc(self%nlat_ll) > 90.0_wp) &
+         error stop 'vilma_remap: source latitudes outside [-90, 90] degrees'
       self%nphi = sht%nphi;       self%nlat    = sht%nlat
       cache = "maps";  if (present(fldr)) cache = trim(fldr)
       call execute_command_line("mkdir -p '"//cache//"'")
@@ -86,9 +118,20 @@ contains
 
       ! tag grid names with their dimensions so the weight cache is resolution-specific
       write(ll_name,    '(a,i0,a,i0)') "ll_",    self%nlon, "x", self%nlat_ll
+      ! a regional grid is named with its extent too [1/100 degree], so two regions of the
+      ! same dimensions do not share a cache; global grids keep the plain name
+      dx = lon_src(2) - lon_src(1);  dy = lat_asc(2) - lat_asc(1)
+      span = lon_src(self%nlon) - lon_src(1) + dx
+      if (abs(span - 360.0_wp) > 0.5_wp*dx .or. lat_asc(1) - dy > -90.0_wp &
+          .or. lat_asc(self%nlat_ll) + dy < 90.0_wp) &
+         write(ll_name, '(a,i0,a,i0,a,i0,a,i0,a,i0,a,i0)') "ll_", self%nlon, "x", self%nlat_ll, "_r", &
+              nint(100.0_wp*lon_src(1)), "_", nint(100.0_wp*lon_src(self%nlon)), "_", &
+              nint(100.0_wp*lat_asc(1)), "_", nint(100.0_wp*lat_asc(self%nlat_ll))
       write(gauss_name, '(a,i0,a,i0)') "gauss_", self%nphi, "x", self%nlat
+      ! a reversed axis gets its own name: its weights are those of the ascending grid
+      if (self%flip_lat) ll_name = trim(ll_name)//"_f"
       call grid_init(self%ll, name=trim(ll_name), mtype="latlon", units="degrees", &
-                     planet="Spherical Earth", lon180=.true., x=lon_src, y=lat_src)
+                     planet="Spherical Earth", lon180=.true., x=lon_src, y=lat_asc)
       ! Gauss target with edges from the Gauss weights, so its cell areas are the SHTns
       ! quadrature weights (R^2 dlon w_j); lat ascending (south first), as coords expects.
       call grid_init_gaussian(self%gauss, trim(gauss_name), nlon=self%nphi, nlat=self%nlat, &
@@ -108,19 +151,34 @@ contains
       call map_init(self%to_gauss, self%ll, self%gauss, method="con", gen="coords", fldr=cache)
       call map_init(self%to_ll, self%gauss, self%ll, method="bilinear", &
                     max_neighbors=BIL_NEIGHBORS, gen="coords", fldr=cache)
+
+      ! does the source reach every Gauss cell? (a field that is not a mass needs it)
+      allocate(ones(self%nlon, self%nlat_ll), source=1.0_wp)
+      allocate(cov(self%nphi, self%nlat), m2(self%nphi, self%nlat))
+      call map_field(self%to_gauss, "cover", ones, cov, stat="mean", mask2=m2)
+      self%global = all(m2)
    end subroutine remap_init
+
+   pure logical function remap_covers_sphere(self) result(g)
+      !! Does the source grid reach every Gauss cell? .false. for a regional source, which
+      !! can supply a mass field (ice) but not a bed or a fraction (remap_to_gauss).
+      type(remap_ll_gauss), intent(in) :: self
+      g = self%global
+   end function remap_covers_sphere
 
    subroutine remap_to_gauss(self, sht, f_ll, f_gauss, conserve_mass)
       !! Conservatively remap f_ll(nlon, nlat_ll) onto f_gauss(nphi, nlat) in the SHTns
-      !! spatial layout. conserve_mass (default .false.): rescale f_gauss so its SHTns
-      !! surface integral equals the source area-integral (use for ice thickness; leave
-      !! off for geometry such as bed).
+      !! spatial layout. conserve_mass says what the field is (see the module header):
+      !! .true., a mass per area (ice thickness): each Gauss cell gets the source mass that
+      !! falls into it, cells outside a regional source are zero, and the SHTns surface
+      !! integral equals the source area-integral. .false. (default), anything else (bed,
+      !! fractions): the area mean over the cell; stops unless the source covers the sphere.
       type(remap_ll_gauss), intent(in)  :: self
       type(sht_grid),       intent(in)  :: sht
       real(wp),             intent(in)  :: f_ll(:,:)    !! (nlon, nlat_ll)
       real(wp),             intent(out) :: f_gauss(:,:) !! (nphi, nlat)
       logical, optional,    intent(in)  :: conserve_mass
-      real(wp), allocatable :: vt(:,:)
+      real(wp), allocatable :: vt(:,:), src(:,:)
       logical,  allocatable :: m2(:,:)
       real(wp) :: src_int_sr, gauss_int
       integer  :: j
@@ -130,20 +188,38 @@ contains
          error stop 'vilma_remap: source field shape /= map source grid'
       if (size(f_gauss,1) /= self%nphi .or. size(f_gauss,2) /= self%nlat) &
          error stop 'vilma_remap: target field shape /= SHTns grid'
+      do_mass = .false.;  if (present(conserve_mass)) do_mass = conserve_mass
+      if (.not. do_mass .and. .not. self%global) &
+         error stop 'vilma_remap: a field that is not a mass (bed, fraction) needs a source grid '// &
+                    'that covers the sphere; this one is regional'
+
+      allocate(src(self%nlon, self%nlat_ll))              ! the source with latitude ascending
+      if (self%flip_lat) then
+         do j = 1, self%nlat_ll
+            src(:, j) = f_ll(:, self%nlat_ll - j + 1)
+         end do
+      else
+         src = f_ll
+      end if
 
       allocate(vt(self%nphi, self%nlat), m2(self%nphi, self%nlat))
-      call map_field(self%to_gauss, "f", f_ll, vt, stat="mean", mask2=m2)
-      where (.not. m2) vt = 0.0_wp                       ! uncovered cells (global src: none)
+      if (do_mass) then
+         ! the source mass in each Gauss cell over the cell's own area; none outside the source
+         call map_field(self%to_gauss, "f", src, vt, stat="mean", mask2=m2, norm="dst", &
+                        area1=self%ll%area, area2=self%gauss%area)
+         where (.not. m2) vt = 0.0_wp
+      else
+         call map_field(self%to_gauss, "f", src, vt, stat="mean", mask2=m2)
+      end if
 
       do j = 1, self%nlat                                 ! ascending-lat -> SHTns north-first
          f_gauss(:, j) = vt(:, self%nlat - j + 1)
       end do
 
-      do_mass = .false.;  if (present(conserve_mass)) do_mass = conserve_mass
       if (do_mass) then
-         ! conserved source total as a steradian integral: the map preserves
-         ! sum(f_ll*src_area); convert to sr via 4*pi/total_area (full-sphere grid).
-         src_int_sr = sum(f_ll * self%ll%area) / sum(self%ll%area) * FOURPI
+         ! safeguard: the source total as a steradian integral, sum(f*area)/R^2 with
+         ! 4*pi*R^2 the Gauss grid's total area (the source's own area may be regional)
+         src_int_sr = sum(src * self%ll%area) / sum(self%gauss%area) * FOURPI
          gauss_int  = sht_grid_surface_integral(sht, f_gauss)
          if (abs(gauss_int) > tiny(1.0_wp)) f_gauss = f_gauss * (src_int_sr/gauss_int)
       end if
@@ -153,11 +229,12 @@ contains
       !! Bilinearly remap f_gauss(nphi, nlat) in the SHTns spatial layout onto the host
       !! lon-lat grid f_ll(nlon, nlat_ll). Used for smooth fields (relative sea level)
       !! returned to the host; the host reconstructs z_bed on its own high-resolution
-      !! bed as z_bed_eq - f_ll, so no mass rescale is applied here.
+      !! bed as z_bed_eq - f_ll, so no mass rescale is applied here. Rows in the host's
+      !! own latitude order.
       type(remap_ll_gauss), intent(in)  :: self
       real(wp),             intent(in)  :: f_gauss(:,:) !! (nphi, nlat), SHTns north-first
       real(wp),             intent(out) :: f_ll(:,:)    !! (nlon, nlat_ll)
-      real(wp), allocatable :: g_asc(:,:)
+      real(wp), allocatable :: g_asc(:,:), row(:)
       logical,  allocatable :: m2(:,:)
       integer :: j
 
@@ -173,6 +250,12 @@ contains
 
       call map_field(self%to_ll, "f", g_asc, f_ll, method="bilinear", mask2=m2)
       where (.not. m2) f_ll = 0.0_wp                      ! uncovered host cells (full-sphere Gauss src: none)
+      if (self%flip_lat) then                             ! back to the host's descending latitudes
+         allocate(row(self%nlon))
+         do j = 1, self%nlat_ll/2
+            row = f_ll(:, j);  f_ll(:, j) = f_ll(:, self%nlat_ll - j + 1);  f_ll(:, self%nlat_ll - j + 1) = row
+         end do
+      end if
    end subroutine remap_to_ll
 
    integer function gauss_axes_rows(sht, lon, lat) result(rows)

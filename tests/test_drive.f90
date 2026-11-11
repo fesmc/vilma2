@@ -14,7 +14,7 @@ program test_drive
    use vilma_precision,       only: wp
    use vilma_constants,       only: rad2deg, pi
    use vilma_sht,             only: sht_grid, sht_grid_init, sht_grid_destroy
-   use vilma_drive,           only: vilma_run, forcing_window, forcing_time_ok
+   use vilma_drive,           only: vilma_run, forcing_window, forcing_time_ok, input_field_ok
    use vilma_radial_fe,       only: radial_fe_finalize
    use ncio,               only: nc_create, nc_write_dim, nc_write, nc_read, nc_size
    implicit none
@@ -159,6 +159,7 @@ program test_drive
 
    call restart_clock()
    call time_axis()
+   call field_values()
 
    call sht_grid_destroy(sht)
 
@@ -242,6 +243,25 @@ contains
       w = forcing_time_ok([0.0_wp, 1000.0_wp, 1000.0_wp], 'years', sc, msg)
       call expect(.not. w, 'repeated time: refused')
    end subroutine time_axis
+
+   subroutine field_values()
+      !! An input field with a fill value, a NaN or a value outside its range is refused.
+      real(wp), allocatable :: f(:,:)
+      real(wp) :: zero
+      character(len=200) :: msg
+      logical :: w
+      allocate(f(4,3));  zero = 0.0_wp
+      f = 1500.0_wp;                             w = input_field_ok(f, 0.0_wp, 1.0e4_wp, msg)
+      call expect(w, 'ice 1500 m: accepted')
+      f = 1500.0_wp;  f(2,2) = -9999.0_wp;       w = input_field_ok(f, 0.0_wp, 1.0e4_wp, msg)
+      call expect(.not. w, 'ice with -9999 (ncio missing value): refused')
+      f = 1500.0_wp;  f(3,1) = 9.96921e36_wp;    w = input_field_ok(f, 0.0_wp, 1.0e4_wp, msg)
+      call expect(.not. w, 'ice with a netCDF fill value: refused')
+      f = 1500.0_wp;  f(1,3) = zero/zero;        w = input_field_ok(f, 0.0_wp, 1.0e4_wp, msg)
+      call expect(.not. w, 'ice with NaN: refused')
+      f = -4000.0_wp;                            w = input_field_ok(f, -2.0e4_wp, 2.0e4_wp, msg)
+      call expect(w, 'bed -4000 m: accepted')
+   end subroutine field_values
 
    subroutine expect(cond, what)
       logical,          intent(in) :: cond

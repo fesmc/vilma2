@@ -19,6 +19,10 @@ module vilma_drive
    !!                       the latitude axis (ascending rows are reversed into the
    !!                       SHTns layout), and a file without the axes stops.
    !! A reference file whose axes are the Gauss grid's is read the same way in either mode.
+   !! A lon-lat ice file may be regional (ice outside it is no ice; vilma_remap) and its
+   !! latitudes may run either way; the bed and the reference fields must cover the sphere.
+   !! Every field read is checked (input_field_ok): a missing value, NaN or a value outside
+   !! the physical range stops the run rather than loading the Earth with a fill value.
    !!
    !! Reference state (i_eq), mirroring CLIMBER-X i_equilibrium. RSL is measured
    !! against the relaxed reference z_bed_eq, so i_eq=1 yields rsl ~0 at present day.
@@ -46,7 +50,12 @@ module vilma_drive
    private
 
    public :: vilma_run
-   public :: forcing_window, forcing_time_ok
+   public :: forcing_window, forcing_time_ok, input_field_ok
+
+   !! Admissible ranges of the input fields [m] (input_field_ok): anything outside is a
+   !! fill value or a unit error, not data.
+   real(wp), parameter :: ICE_MAX = 1.0e4_wp      !! ice thickness within [0, ICE_MAX]
+   real(wp), parameter :: ELEV_MAX = 2.0e4_wp     !! bed elevation and rsl within +- ELEV_MAX
 
    !! A &ctl time_init at or below this [years] is "unset" (the code default is -huge, the
    !! shipped vilma.nml writes -1e30): the window starts at the first forcing slice, or at
@@ -539,11 +548,50 @@ contains
       if (remap) then
          call nc_read(c%file_forcing, trim(c%name_ice), src, &
                       start=[1,1,k], count=[size(src,1), size(src,2), 1])
+         call require_field(src, 0.0_wp, ICE_MAX, c%file_forcing, c%name_ice)
          call remap_to_gauss(rmap, sht, src, h_ice, conserve_mass=.true.)
       else
          call read_gauss(c, sht, c%file_forcing, c%name_ice, h_ice, k)
+         call require_field(h_ice, 0.0_wp, ICE_MAX, c%file_forcing, c%name_ice)
       end if
    end subroutine read_ice
+
+   logical function input_field_ok(f, lo, hi, msg) result(ok)
+      !! Is every value of an input field finite and within [lo, hi]? A missing value
+      !! (ncio hands NaN over as -9999; other fill values come through as they are), a NaN
+      !! or a value in other units is none of these. On .false. msg counts the offenders
+      !! and names the first.
+      real(wp),         intent(in)  :: f(:,:)
+      real(wp),         intent(in)  :: lo, hi
+      character(len=*), intent(out) :: msg
+      integer :: i, j, nbad, i1, j1
+      nbad = 0;  i1 = 0;  j1 = 0;  msg = ''
+      do j = 1, size(f,2)
+         do i = 1, size(f,1)
+            if (is_finite(f(i,j))) then
+               if (f(i,j) >= lo .and. f(i,j) <= hi) cycle
+            end if
+            nbad = nbad + 1
+            if (nbad == 1) then;  i1 = i;  j1 = j;  end if
+         end do
+      end do
+      ok = (nbad == 0)
+      if (.not. ok) write(msg,'(i0,a,es10.3,a,es10.3,a,i0,a,i0,a,es12.4)') nbad, &
+           ' values not finite or outside [', lo, ',', hi, '], the first at (', i1, ',', j1, ') = ', f(i1,j1)
+   end function input_field_ok
+
+   subroutine require_field(f, lo, hi, file, var)
+      !! error stop unless input_field_ok.
+      real(wp),         intent(in) :: f(:,:), lo, hi
+      character(len=*), intent(in) :: file, var
+      character(len=200) :: msg
+      if (input_field_ok(f, lo, hi, msg)) return
+      write(error_unit,'(a)') ' vilma: variable "'//trim(var)//'" of '//trim(file)//':'
+      write(error_unit,'(a)') '   '//trim(msg)
+      write(error_unit,'(a)') '   Missing or fill values must be replaced before the run (ice: 0 where there is none).'
+      flush(error_unit)
+      error stop 'vilma_run: input field with missing or unphysical values (see message above)'
+   end subroutine require_field
 
    subroutine read_bed(c, rmap, sht, remap, k, src, z_bed)
       !! Read the reference bedrock. remap: slice k of name_zbed_eq from the forcing
@@ -559,10 +607,12 @@ contains
       if (remap) then
          call nc_read(c%file_forcing, trim(c%name_zbed_eq), src, &
                       start=[1,1,k], count=[size(src,1), size(src,2), 1])
+         call require_field(src, -ELEV_MAX, ELEV_MAX, c%file_forcing, c%name_zbed_eq)
          call remap_to_gauss(rmap, sht, src, z_bed, conserve_mass=.false.)
       else
          if (len_trim(c%file_ref) == 0) error stop 'vilma_run: file_ref not set (remap_input=.false.)'
          call read_gauss(c, sht, c%file_ref, c%name_zbed_eq, z_bed)
+         call require_field(z_bed, -ELEV_MAX, ELEV_MAX, c%file_ref, c%name_zbed_eq)
       end if
    end subroutine read_bed
 
@@ -615,12 +665,16 @@ contains
       real(wp),             intent(out) :: field(:,:)
       type(remap_ll_gauss)    :: m
       real(wp), allocatable :: lon_s(:), lat_s(:), buf(:,:)
+      real(wp) :: lo, hi
       integer :: nlon, nls
       if (len_trim(file) == 0) &
          error stop 'vilma_run: reference file not set for the chosen i_eq'
+      ! conserve marks the ice; the others are elevations (bed, rsl)
+      lo = merge(0.0_wp, -ELEV_MAX, conserve);  hi = merge(ICE_MAX, ELEV_MAX, conserve)
       if (remap) then
          if (gauss_file_rows(c, sht, file) /= ROWS_NONE) then
             call read_gauss(c, sht, file, varname, field)   ! already on the Gauss grid
+            call require_field(field, lo, hi, file, varname)
             return
          end if
          nlon = nc_size(file, trim(c%name_lon));  nls = nc_size(file, trim(c%name_lat))
@@ -628,10 +682,12 @@ contains
          call nc_read(file, trim(c%name_lon), lon_s)
          call nc_read(file, trim(c%name_lat), lat_s)
          call nc_read(file, trim(varname),    buf)
+         call require_field(buf, lo, hi, file, varname)
          call remap_init(m, sht, lon_s, lat_s)
          call remap_to_gauss(m, sht, buf, field, conserve_mass=conserve)
       else
          call read_gauss(c, sht, file, varname, field)
+         call require_field(field, lo, hi, file, varname)
       end if
    end subroutine read_ref2d
 
