@@ -60,9 +60,9 @@ module vilma_tensor_sh
    ! array arguments: grid slots 1-4 of a synthesis are tr, tt, pp, tp and 5-11 the
    ! spin-2 fields (spin2_synth), slots 1-2 of an analysis are vt, vp and 3-5 the
    ! adjoint's (spin2_adjoint). Passed as dummy arrays, not reached through the
-   ! pool pointer, so the compiler may assume they alias nothing: reached through
-   ! the pointer, every grid statement got a temporary and the 3-D memory advance
-   ! ran 1.4x slower.
+   ! pool pointer, so the compiler may assume they alias nothing. Measured on an
+   ! exclusive albedo node (lmax 128, Bagge 3-D, 32 threads): the 3-D memory
+   ! advance is ~4 % faster than with the automatic arrays it replaces.
    integer, parameter :: NGRID = 11, NCOEF = 3
 
    type :: tensor_sh_thread
