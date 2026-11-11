@@ -500,7 +500,8 @@ contains
       !! relaxation state and advancing the Maxwell memory at each sub-step.
       type(solid_earth), intent(inout) :: self
       real(wp),           intent(in)    :: h_ice(:,:)   !! grounded-ice thickness [m] (host grid)
-      real(wp),           intent(in)    :: dt_yr        !! interval to advance [years]
+      real(wp),           intent(in)    :: dt_yr        !! interval to advance [years], >= 0; 0 re-solves
+                                                        !! the diagnostics under h_ice without advancing
       !! w, I_g, C, F (optional, together, host grid): host-resolved terms at the new time, per
       !! unit cell area (see the module header). They replace the host's part of the cell;
       !! h_ice is then the ice of the 1 − w part. Present if and only if they were at init;
@@ -520,6 +521,10 @@ contains
          error stop 'solid_earth_update: host terms w, I_g, C, F come together'
       if (hosted .neqv. self%gg%host%on) &
          error stop 'solid_earth_update: host terms must be given at every update if and only if at init'
+      ! time runs forward: a negative interval is a caller's error (a descending time axis),
+      ! not a seed, and would move the clock back under an un-advanced state
+      if (.not. is_finite(dt_yr)) error stop 'solid_earth_update: dt_yr is not finite'
+      if (dt_yr < 0.0_wp)         error stop 'solid_earth_update: dt_yr must be >= 0 (time runs forward)'
       dt = dt_yr*sec_per_year                       ! interface is years; integrator is seconds
       t0 = self%time*sec_per_year;  t1 = t0 + dt
 

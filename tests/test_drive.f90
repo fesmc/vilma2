@@ -14,7 +14,7 @@ program test_drive
    use vilma_precision,       only: wp
    use vilma_constants,       only: rad2deg, pi
    use vilma_sht,             only: sht_grid, sht_grid_init, sht_grid_destroy
-   use vilma_drive,           only: vilma_run, forcing_window
+   use vilma_drive,           only: vilma_run, forcing_window, forcing_time_ok
    use vilma_radial_fe,       only: radial_fe_finalize
    use ncio,               only: nc_create, nc_write_dim, nc_write, nc_read, nc_size
    implicit none
@@ -158,6 +158,7 @@ program test_drive
    call same_output(OUTA2, 'ascending files, i_eq = 2')
 
    call restart_clock()
+   call time_axis()
 
    call sht_grid_destroy(sht)
 
@@ -221,6 +222,26 @@ contains
       w = forcing_window(tyr, 0.0_wp, 1.0e30_wp, k0, k1, msg, t_restart=2000.0_wp, restart_reset=.true.)
       call expect(w .and. k0 == 1 .and. k1 == 3, 'restart_time_reset: the window time_init gives')
    end subroutine restart_clock
+
+   subroutine time_axis()
+      !! The forcing time axis must be in years (or a unit that converts to them without a
+      !! guess) and strictly ascending.
+      character(len=400) :: msg
+      real(wp) :: sc
+      logical  :: w
+      w = forcing_time_ok(tyr, 'years', sc, msg);   call expect(w .and. sc == 1.0_wp, 'units "years"')
+      w = forcing_time_ok(tyr, '', sc, msg);        call expect(w .and. sc == 1.0_wp, 'no units: years')
+      w = forcing_time_ok(tyr, 'Years since 0000-01-01', sc, msg)
+      call expect(w .and. sc == 1.0_wp, 'units "years since ..."')
+      w = forcing_time_ok(tyr, 'kyr', sc, msg);     call expect(w .and. sc == 1000.0_wp, 'units "kyr": x 1000')
+      w = forcing_time_ok(tyr, 'ka BP', sc, msg);   call expect(.not. w, 'units "ka BP": refused')
+      w = forcing_time_ok(tyr, 'ka', sc, msg);      call expect(.not. w, 'units "ka": refused')
+      w = forcing_time_ok(tyr, 'days since 1950-01-01', sc, msg);  call expect(.not. w, 'units "days since": refused')
+      w = forcing_time_ok(tyr, 'seconds', sc, msg); call expect(.not. w, 'units "seconds": refused')
+      w = forcing_time_ok(tyr(NT:1:-1), 'years', sc, msg);  call expect(.not. w, 'descending axis: refused')
+      w = forcing_time_ok([0.0_wp, 1000.0_wp, 1000.0_wp], 'years', sc, msg)
+      call expect(.not. w, 'repeated time: refused')
+   end subroutine time_axis
 
    subroutine expect(cond, what)
       logical,          intent(in) :: cond

@@ -30,7 +30,7 @@ module vilma_drive
    !! Optional (non-default) LGM-memory spin-up when pre_spinup_1d or equil_time_max>0:
    !! relax under the start-slice ice while HOLDING the i_eq reference as the datum, so
    !! the model enters the transient spun up (viscous memory) — see solid_earth_spinup.
-   use vilma_precision, only: wp
+   use vilma_precision, only: wp, is_finite
    use vilma_constants, only: sec_per_year
    use vilma_params,    only: vilma_param_class, vilma_par_load, vilma_par_print
    use vilma_control,   only: vilma_ctl_class, vilma_ctl_load, vilma_ctl_print
@@ -46,7 +46,7 @@ module vilma_drive
    private
 
    public :: vilma_run
-   public :: forcing_window
+   public :: forcing_window, forcing_time_ok
 
    !! A &ctl time_init at or below this [years] is "unset" (the code default is -huge, the
    !! shipped vilma.nml writes -1e30): the window starts at the first forcing slice, or at
@@ -138,8 +138,8 @@ contains
       write(*,'(a,f8.2,a)') ' [PROFILE setup] build_remap =', real(pc1-pc0,wp)/prate, ' s'
 
       ! --- forcing time axis (years) + window -----------------------------------
-      nt = nc_size(c%file_forcing, trim(c%name_time))
-      allocate(tyr(nt));  call nc_read(c%file_forcing, trim(c%name_time), tyr)
+      call read_time_axis(c, tyr)
+      nt = size(tyr)
       ! A restart continues where it left off: its time is the window start (see
       ! forcing_window), so its state is never replayed under another stretch of forcing.
       resume = len_trim(c%restart_in_file) > 0
@@ -656,6 +656,84 @@ contains
          call sht_grid_init(sht, p%lmax, nlat=nlat, nphi=nphi, mres=p%mres)
       end if
    end subroutine build_grid
+
+   subroutine read_time_axis(c, tyr)
+      !! The forcing time axis in years: read, checked and converted (forcing_time_ok).
+      !! An axis without a units attribute is taken as years, and said so.
+      type(vilma_ctl_class), intent(in)  :: c
+      real(wp), allocatable, intent(out) :: tyr(:)
+      character(len=256) :: units
+      character(len=400) :: msg
+      real(wp) :: scale
+      units = ''
+      if (nc_exists_attr(c%file_forcing, trim(c%name_time), "units")) &
+         call nc_read_attr(c%file_forcing, trim(c%name_time), "units", units)
+      allocate(tyr(nc_size(c%file_forcing, trim(c%name_time))))
+      call nc_read(c%file_forcing, trim(c%name_time), tyr)
+      if (.not. forcing_time_ok(tyr, units, scale, msg)) then
+         write(error_unit,'(a)') ' vilma: time axis "'//trim(c%name_time)//'" of '//trim(c%file_forcing)//':'
+         write(error_unit,'(a)') '   '//trim(msg)
+         flush(error_unit)
+         error stop 'vilma_run: forcing time axis not admissible (see message above)'
+      end if
+      if (len_trim(units) == 0) write(*,'(a)') ' vilma: the forcing time axis has no units attribute; taken as years'
+      if (scale /= 1.0_wp) write(*,'(a,a,a,f0.1)') ' vilma: forcing time axis in "', trim(units), &
+           '", converted to years by ', scale
+      tyr = tyr*scale
+   end subroutine read_time_axis
+
+   logical function forcing_time_ok(t, units, scale, msg) result(ok)
+      !! Is t(:) with the units attribute `units` ('' = none) an admissible forcing time
+      !! axis: finite, strictly ascending, and in a unit that is years after multiplying
+      !! by `scale`? Years ("years", "year", "yr", "yrs", "a", and "<those> since ...",
+      !! an offset the model does not need) give scale 1; "kyr", "kyrs", "ky" give 1000;
+      !! no units are taken as years. Anything else is refused, among them the ages
+      !! ("ka", "BP", "ago", "before ..."), whose time runs backwards. On failure msg
+      !! says why.
+      real(wp),         intent(in)  :: t(:)
+      character(len=*), intent(in)  :: units
+      real(wp),         intent(out) :: scale
+      character(len=*), intent(out) :: msg
+      character(len=len(units)) :: u, base
+      integer :: i, k
+      ok = .false.;  msg = '';  scale = 1.0_wp
+      u = adjustl(units)
+      do i = 1, len(u)                       ! lower case
+         k = iachar(u(i:i))
+         if (k >= iachar('A') .and. k <= iachar('Z')) u(i:i) = achar(k + 32)
+      end do
+      if (index(u, 'bp') > 0 .or. index(u, 'ago') > 0 .or. index(u, 'before') > 0) then
+         msg = 'units "'//trim(units)//'" are an age (time running backwards); the model needs '// &
+               'time in years, ascending (e.g. -26000 ... 0)'
+         return
+      end if
+      base = u
+      i = index(u, ' since ')
+      if (i > 0) base = u(1:i-1)
+      select case (trim(base))
+      case ('', 'years', 'year', 'yr', 'yrs', 'a')
+         scale = 1.0_wp
+      case ('kyr', 'kyrs', 'ky')
+         scale = 1000.0_wp
+      case default
+         msg = 'units "'//trim(units)//'" are not years (accepted: years, year, yr, yrs, a; kyr, kyrs, ky)'
+         return
+      end select
+      if (size(t) < 2) then
+         msg = 'fewer than 2 time slices';  return
+      end if
+      if (.not. all(is_finite(t))) then
+         msg = 'a time value is not finite';  return
+      end if
+      do i = 2, size(t)
+         if (t(i) <= t(i-1)) then
+            write(msg,'(a,i0,a,es14.6,a,i0,a,es14.6)') 'not strictly ascending: t(', i-1, ') = ', t(i-1), &
+                 ', t(', i, ') = ', t(i)
+            return
+         end if
+      end do
+      ok = .true.
+   end function forcing_time_ok
 
    logical function forcing_window(tyr, t_init, t_end, k0, k1, msg, t_restart, restart_reset) result(ok)
       !! The slices k0..k1 of the forcing axis tyr [years, ascending] the run marches over:
