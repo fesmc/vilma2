@@ -55,7 +55,7 @@ export published_dir, have_published, require_published,
        slice_at, rsl_anomaly, uplift_rate, srf_elevation, nearest_epoch, nearest_t,
        ocean_mean, polar_motion, site_series, regrid, lat_weights,
        budget_series, budget_at, raw_series, deg01,
-       load_v2v1, load_blockE,
+       load_v2v1, load_blockE, ka, sh_parts,
        BenchRun, load_blockA, dumptable, hasdump, verdict, passed, linear_nodes,
        BENCH_TESTS, BENCH_FORCINGS, BENCH_EPOCHS_KYR, BENCH_NPT, BENCH_LMAX, BENCH_CONV_LMAX,
        BENCH_CONV_TESTS, BenchV3D, load_blockB, bench_love_path
@@ -434,6 +434,49 @@ function deg01(d::AbstractMatrix, lon, lat)
     fit = reshape(A * c, size(d))
     r   = d .- fit
     (c[1], sqrt(sum(c[2:4] .^ 2)), r, 1 - sum(w .* r .^ 2) / sum(w .* d .^ 2))
+end
+
+"Model year → ka for a label: −21000 → 21, and 0 → 0 (never −0)."
+ka(t::Real) = -t / 1000 + 0.0
+
+"""
+    sh_parts(d, lon, lat; lmax = 8) -> (rms, parts)
+
+Area-weighted rms of an oriented (lon, lat) field and its real spherical-harmonic
+content to degree `lmax`, by projection with the Gauss quadrature weights:
+`parts[(l, m)] = (rms, fit)`, where `rms` is the area-weighted rms of the
+degree-l, order-|m| part (cos and sin together) and `fit` that part as a field.
+"""
+function sh_parts(d::AbstractMatrix, lon, lat; lmax::Int = 8)
+    w   = lat_weights(lat)
+    W   = repeat(reshape(w, 1, :), length(lon), 1) ./ length(lon)
+    x   = sind.(Float64.(lat))
+    φ   = deg2rad.(Float64.(lon))
+    wrms(f) = sqrt(sum(W .* f .^ 2))
+    # unnormalised associated Legendre P_l^m(x), l, m ≤ lmax
+    P = Dict{Tuple{Int,Int},Vector{Float64}}()
+    for m in 0:lmax
+        pmm = ones(length(x)); fct = 1.0
+        for _ in 1:m
+            pmm .*= -fct .* sqrt.(max.(0.0, 1 .- x .^ 2)); fct += 2
+        end
+        P[(m, m)] = pmm
+        m < lmax && (P[(m + 1, m)] = x .* (2m + 1) .* pmm)
+        for l in m+2:lmax
+            P[(l, m)] = (x .* (2l - 1) .* P[(l - 1, m)] .- (l + m - 1) .* P[(l - 2, m)]) ./ (l - m)
+        end
+    end
+    parts = Dict{Tuple{Int,Int},Tuple{Float64,Matrix{Float64}}}()
+    for l in 0:lmax, m in 0:l
+        fit = zeros(size(d))
+        for trig in (m == 0 ? (cos,) : (cos, sin))
+            B = trig.(m .* φ) * P[(l, m)]'          # (lon, lat)
+            nb = sum(W .* B .^ 2)
+            nb > 0 && (fit .+= (sum(W .* d .* B) / nb) .* B)
+        end
+        parts[(l, m)] = (wrms(fit), fit)
+    end
+    (wrms(d), parts)
 end
 
 # ---------------------------------------------------------------------------

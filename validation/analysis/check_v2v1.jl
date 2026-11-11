@@ -71,7 +71,9 @@ const PAIR_STYLE = Dict("3d"     => (col = C_3D,  lab = "3-D"),
                         "3d_tor" => (col = C_TOR, lab = "3-D, toroidal"))
 
 # V7: the toroidal effect, tor − notor, against the residual it is meant to close.
-const TOR, NOTOR, V3D = "D-V2-3D.l170.tor", "D-V2-3D.l170.notor", "D-V1-3D.l170.fe"
+# The control is the production 3-D run: same head, reference and namelist but
+# for l_toroidal.
+const TOR, NOTOR, V3D = "D-V2-3D.l170.tor", "D-V2-3D.l170.fe", "D-V1-3D.l170.fe"
 
 # Every mark must be one of `Published.EPOCHS`: the table is evaluated from the
 # published 2-D fields, and Published.slice_at refuses an epoch that was not
@@ -361,7 +363,7 @@ open(joinpath(tables_dir(), "v2v1.md"), "w") do io
             sg = maximum(abs.(rsl_anomaly(f, t))); st = stats(d)
             c0, c1, r, _ = deg01(d, f.lon, f.lat)
             @printf(io, "| %.0f ka | %.3f | %.3f | %.3f | %.1f | %.2e | %.2f | %.2f | %.3f |\n",
-                    -t/1000, st.rms, st.mx, st.p99, sg, st.rms/sg, c0, c1, sqrt(mean(r .^ 2)))
+                    ka(t), st.rms, st.mx, st.p99, sg, st.rms/sg, c0, c1, sqrt(mean(r .^ 2)))
         end
 
         dupl = uplift_rate(f) .- uplift_rate(v)
@@ -391,7 +393,7 @@ open(joinpath(tables_dir(), "v2v1.md"), "w") do io
         for t in [T_MARKS; 0.0]
             c1 = slice_at(f, "C_ocean", t); c2 = slice_at(v, "C_ocean", t)
             nd = count(abs.(c1 .- c2) .> 0.5)
-            @printf(io, "| %.0f ka | %d | %.3f %% |\n", -t/1000, nd, 100nd/length(c1))
+            @printf(io, "| %.0f ka | %d | %.3f %% |\n", ka(t), nd, 100nd/length(c1))
         end
 
         d21 = rsl_anomaly(f, -21000.0) .- rsl_anomaly(v, -21000.0)
@@ -407,6 +409,35 @@ open(joinpath(tables_dir(), "v2v1.md"), "w") do io
             "$(p.tag)_uplift_rms_mmyr" => round(st.rms, digits = 3),
             "$(p.tag)_bsl_max_dif_m"   => round(maximum(abs.(bf[1:nb] .- bv[1:nb])), digits = 3))
     end
+
+    # ------------------------------------------------- degree 2, order 1
+    println(io, "\n## The degree-2, order-1 part of the residual at 21 ka\n")
+    println(io, "Area-weighted (Gauss quadrature) rms of V2 − V1 relative sea level at 21 ka, ",
+                "its Y21 part (cos and sin, by projection), the rms after removing it, and ",
+                "the largest single (degree, order) part up to degree 8 after Y21. At ",
+                "907bc74 the table read 3-D 8.91 / 7.74 / 4.41 m and 1Db 7.93 / 7.86 / 1.04 m.\n")
+    println(io, "| pair | rms [m] | Y21 part [m] | rms without Y21 [m] | largest other part [m] |")
+    println(io, "|---|---:|---:|---:|---|")
+    for p in PAIRS[1:2]
+        f, v = load_run(p.v2), load_run(p.v1)
+        (f === nothing || v === nothing) && continue
+        d = rsl_anomaly(f, -21000.0) .- rsl_anomaly(v, -21000.0)
+        tot, parts = sh_parts(d, f.lon, f.lat)
+        y21, fit21 = parts[(2, 1)]
+        W = repeat(reshape(lat_weights(f.lat), 1, :), length(f.lon), 1) ./ length(f.lon)
+        rest = sqrt(sum(W .* (d .- fit21) .^ 2))
+        others = sort([(k, v[1]) for (k, v) in parts if k != (2, 1)], by = x -> -x[2])
+        (lk, mk), rk = others[1]
+        @printf(io, "| %s | %.2f | %.2f | %.2f | degree %d, order %d: %.2f |\n",
+                p.tag, tot, y21, rest, lk, mk, rk)
+        record!("v2v1", "$(p.tag)_rms_area_21ka_m" => round(tot, digits = 2),
+                        "$(p.tag)_y21_21ka_m" => round(y21, digits = 2),
+                        "$(p.tag)_rms_noy21_21ka_m" => round(rest, digits = 2),
+                        "$(p.tag)_largest_other_lm" => "$(lk),$(mk)",
+                        "$(p.tag)_largest_other_m" => round(rk, digits = 2))
+    end
+    println(io, "\nParts are projections on the real harmonics of the grid; the rms of ",
+                "everything above degree 8 is what the first and last columns leave.")
 
     println(io, "\n## Differences that are not solver error\n")
     println(io, "* **Load path within a coupling interval** — VILMA2 ramps the load ",
@@ -431,7 +462,7 @@ open(joinpath(tables_dir(), "v2v1.md"), "w") do io
         println(io, "|---|---:|---:|---:|---:|")
         for t in T_MARKS
             d = rsl_anomaly(tr, t) .- rsl_anomaly(nt, t)
-            @printf(io, "| %.0f ka | %.3f | %.2f | %.3f | %.3f |\n", -t/1000,
+            @printf(io, "| %.0f ka | %.3f | %.2f | %.3f | %.3f |\n", ka(t),
                     stats(d).rms, stats(d).mx,
                     stats(rsl_anomaly(nt, t) .- rsl_anomaly(v, t)).rms,
                     stats(rsl_anomaly(tr, t) .- rsl_anomaly(v, t)).rms)

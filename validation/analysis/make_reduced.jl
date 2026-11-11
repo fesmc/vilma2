@@ -71,10 +71,8 @@ const BLOCKD_RUNS = [
     (id = "D-V2-1Db.l170.fe", root = "blockD_v2",    solver = "VILMA2"),
     (id = "D-V1-3D.l170.fe",  root = "blockD_v1", solver = "VILMA1"),
     (id = "D-V1-1Db.l170.fe", root = "blockD_v1", solver = "VILMA1"),
-    # V7: the 3-D run with and without the toroidal coupling, one binary
-    # (model d0afd2f). notor is the control; tor − notor is the toroidal effect.
+    # V7: the 3-D run with the toroidal field on; D-V2-3D.l170.fe is its control.
     (id = "D-V2-3D.l170.tor",   root = "blockD_tor", solver = "VILMA2"),
-    (id = "D-V2-3D.l170.notor", root = "blockD_tor", solver = "VILMA2"),
 ]
 
 # The pruned V2−V1 list: every pair on VILMA2's own LGM equilibrium

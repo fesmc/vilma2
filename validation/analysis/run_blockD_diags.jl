@@ -204,7 +204,7 @@ if have_pair
         hm = hu = nothing
         for (k, (t, dm)) in enumerate(zip(T_MARKS[1:3], dmaps))
             row, col = divrem(k - 1, 2) .+ (1, 1)
-            a = Axis(fig3[row, col], title = @sprintf("%.0f ka", -t/1000),
+            a = Axis(fig3[row, col], title = @sprintf("%.0f ka", ka(t)),
                      aspect = DataAspect(),
                      xticks = ([-90, 0, 90], ["90°W", "0°", "90°E"]),
                      yticks = ([-60, 0, 60], ["60°S", "0°", "60°N"]),
@@ -387,7 +387,7 @@ open(joinpath(tables_dir(), "blockD.md"), "w") do io
             s = maximum(abs.(rsl_anomaly(r3, t)))
             ad = abs.(vec(d))
             @printf(io, "| %.0f ka | %.3f | %.3f | %.3f | %.1f | %.2e |\n",
-                    -t/1000, sqrt(mean(d .^ 2)), maximum(ad), quantile(ad, 0.99), s,
+                    ka(t), sqrt(mean(d .^ 2)), maximum(ad), quantile(ad, 0.99), s,
                     s == 0 ? NaN : sqrt(mean(d .^ 2))/s)
         end
         du = uplift_rate(r3) .- uplift_rate(r1)
@@ -411,7 +411,7 @@ open(joinpath(tables_dir(), "blockD.md"), "w") do io
         for t in T_MARKS
             c3 = slice_at(r3, "C_ocean", t); c1 = slice_at(r1, "C_ocean", t)
             nd = count(abs.(c3 .- c1) .> 0.5)
-            @printf(io, "| %.0f ka | %d | %.3f %% |\n", -t/1000, nd, 100nd/length(c3))
+            @printf(io, "| %.0f ka | %d | %.3f %% |\n", ka(t), nd, 100nd/length(c3))
         end
     end
 
