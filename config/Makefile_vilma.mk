@@ -467,12 +467,13 @@ diag_visc3d_paths: vilma-static | $(bindir)
 		-o $(bindir)/diag_visc3d_paths.x $(objdir)/libvilma.a $(LFLAGS)
 	@echo "    $(bindir)/diag_visc3d_paths.x is ready."
 
-# 3-D lateral-viscosity benchmark (protocol output, no pass/fail; not in check).
+# Radial-mesh resolution study (tables, no pass/fail; not in check).
 diag_mesh_spacing: vilma-static | $(bindir)
 	$(FC) $(DFLAGS) $(CPPFLAGS) $(FFLAGS) $(testdir)/diag_mesh_spacing.f90 \
 		-o $(bindir)/diag_mesh_spacing.x $(objdir)/libvilma.a $(LFLAGS)
 	@echo "    $(bindir)/diag_mesh_spacing.x is ready."
 
+# 3-D lateral-viscosity benchmark (protocol output, no pass/fail; not in check).
 bench_visc3d: vilma-static | $(bindir)
 	$(FC) $(DFLAGS) $(CPPFLAGS) $(FFLAGS) $(testdir)/bench_visc3d.f90 \
 		-o $(bindir)/bench_visc3d.x $(objdir)/libvilma.a $(LFLAGS)
