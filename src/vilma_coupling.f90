@@ -44,7 +44,7 @@ module vilma_coupling
    !! d_ice = 0, rsl = 0, z_bed = z_bed_eq. Departures from the reference ice load
    !! drive the deformation and sea-level change incrementally. The reference
    !! topography z_bed_eq doubles as the SLE's reference topo0.
-   use vilma_precision,       only: wp
+   use vilma_precision,       only: wp, is_finite
    use vilma_constants,       only: sec_per_year, pi, kyr
    use vilma_params,          only: vilma_param_class
    use vilma_sht,             only: sht_grid, sht_grid_init, sht_grid_destroy, &
@@ -62,7 +62,6 @@ module vilma_coupling
    use vilma_v1,           only: vilma_v1_backend, vilma_v1_init, vilma_v1_update, vilma_v1_finalize, &
                                  vilma_v1_require
    use coords,             only: grid_class
-   use, intrinsic :: iso_fortran_env, only: int64
    implicit none
    private
 
@@ -844,14 +843,6 @@ contains
    end subroutine solid_earth_finalize
 
    ! --- host-resolved terms ----------------------------------------------------
-
-   elemental logical function is_finite(x)
-      !! Not NaN or Inf, by the exponent bits: the compiler may assume finite arithmetic
-      !! (-ffast-math), which folds the comparison and ieee_is_finite away.
-      real(wp), intent(in) :: x
-      integer(int64), parameter :: EXPO = int(z'7FF0000000000000', int64)
-      is_finite = (iand(transfer(x, 0_int64), EXPO) /= EXPO)
-   end function is_finite
 
    logical function solid_earth_host_check(w, I_g, C, F, msg, tol) result(good)
       !! Are host-resolved terms (Gauss grid, per unit cell area) admissible: all finite,
