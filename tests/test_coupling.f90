@@ -111,6 +111,7 @@ program test_coupling
    call rotation_check()
    call rotation_visc_check()
    call reinit_check()
+   call dt_min_check()
 
    call sht_grid_destroy(sht)
 
@@ -272,6 +273,33 @@ contains
          end if
       end do
    end subroutine reinit_check
+
+   subroutine dt_min_check()
+      !! The explicit sub-step is the stability ceiling cfl/max(mu/eta) (278 yr for the
+      !! default earth: 8 sub-steps in 2 kyr). A dt_min above it overrides it and must be
+      !! flagged; one below it changes nothing.
+      type(vilma_param_class) :: pr
+      type(solid_earth)    :: se
+      real(wp), allocatable :: h(:,:)
+      integer :: pass, nsub(2)
+      logical :: flag(2)
+      allocate(h(sht%nphi,sht%nlat));  call make_load(h)
+      pr%lmax = LMAX;  pr%nlat = 2*LMAX;  pr%nphi = 4*LMAX;  pr%rotation = .false.
+      do pass = 1, 2
+         pr%dt_min = merge(100.0_wp, 400.0_wp, pass == 1)*sec_per_year
+         se%par = pr; call solid_earth_init(se, z_bed_eq, h_ice_eq)
+         call solid_earth_update(se, h, dt_couple)
+         nsub(pass) = se%stepper%n_accept;  flag(pass) = se%stepper%dt_min_overrides
+         call solid_earth_finalize(se)
+      end do
+      write(*,'(a)') ''
+      write(*,'(a,i0,a,l1,a,i0,a,l1)') '   dt_min 100 yr: ', nsub(1), ' sub-steps, overrides=', flag(1), &
+           '   dt_min 400 yr: ', nsub(2), ' sub-steps, overrides=', flag(2)
+      if (flag(1) .or. .not. flag(2) .or. nsub(1) /= 8 .or. nsub(2) /= 5) then
+         write(*,'(a)') '   FAIL: dt_min over the stability sub-step is not flagged (or the sub-steps changed)'
+         ok = .false.
+      end if
+   end subroutine dt_min_check
 
    subroutine make_load_offaxis(h_ice)
       !! A 2 km grounded cap centred at colat 35°, lon 90° (off the rotation axis, on

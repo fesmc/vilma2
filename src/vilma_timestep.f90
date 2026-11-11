@@ -10,10 +10,11 @@ module vilma_timestep
    !!  • EXPLICIT (forward-Euler, the default): the 1st-order memory has no embedded
    !!    error signal, so Δt is set a priori by the Maxwell STABILITY ceiling
    !!    Δt ≤ cfl/max(μ/η) and the interval is divided into equal sub-steps (this is
-   !!    how VILMA1 marches its explicit memory). A cheap reactive guard rolls a sub-step
-   !!    back (resp%save_state/restore_state) and halves it if the memory ∞-norm goes
-   !!    non-finite or grows past guard_growth× — a safety net for a stiffer-than-
-   !!    estimated structure that normally never fires.
+   !!    how VILMA1 marches its explicit memory). The ceiling is exact — max(μ/η) is taken
+   !!    over every element and, with lateral viscosity, every grid point — so the scheme
+   !!    is stable by construction; a sub-step whose memory ∞-norm comes back non-finite
+   !!    (a corrupt input or state) is rolled back and halved, and the run stops when
+   !!    halving does not cure it.
    !!
    !!  • IMPLICIT (trapezoidal, SCHEME_TRAP): Δt is chosen by a step-doubling local-error
    !!    estimate on the memory (the §3c adaptive-dt controller) + the SLE↔memory
@@ -24,7 +25,8 @@ module vilma_timestep
    !!
    !! Δt enters the response only through Mk = (μ/η)Δt, so changing it (resp%set_dt) is a
    !! cheap rescale — no operator re-factorization (the band LU is Δt-independent).
-   use vilma_precision,    only: wp
+   use vilma_precision,    only: wp, is_finite
+   use vilma_constants,    only: sec_per_year
    use vilma_sht,          only: sht_grid
    use vilma_response,     only: response_coarse_fine_error, response_stash_coarse, response_prime_sigma, response_restore_state, response_set_dt, response_save_state, response_memory_norm, response_max_rate, response
    use vilma_sle,          only: sle_solve, sle_solver, sle_result, sle_host
@@ -47,7 +49,9 @@ module vilma_timestep
       real(wp) :: shrink_min = 0.2_wp     !! min Δt shrink per step (reject or grow)
       real(wp) :: dt_min    = 0.0_wp      !! Δt floor (0 = none); a step at the floor is
                                           !! accepted even if over tolerance (no infinite
-                                          !! subdivision) and tallied in n_floor
+                                          !! subdivision) and tallied in n_floor. For the
+                                          !! explicit scheme it OVERRIDES the stability
+                                          !! ceiling when larger (dt_min_overrides)
       real(wp) :: dt_max    = huge(1.0_wp)!! Δt ceiling
       !! Explicit (forward-Euler) sub-stepping. The 1st-order memory carries no
       !! embedded local-error signal, so Δt is set a priori by the Maxwell stability
@@ -55,11 +59,10 @@ module vilma_timestep
       !! Maxwell number M = μΔt/η ≤ cfl. cfl = 1 matches the rotation channel's
       !! convention (M ≤ 1, a factor-2 margin below the |1−M| = 1 stability bound).
       real(wp) :: cfl       = 1.0_wp      !! explicit sub-step Maxwell-number ceiling
-      !! Reactive instability guard (b): a sub-step is rolled back and halved when the
-      !! memory ∞-norm is non-finite OR grows by more than guard_growth× over the step
-      !! (floor atol). A generous factor ⇒ a true safety net for a stiffer-than-
-      !! estimated structure, not an accuracy controller; it normally never fires.
-      real(wp) :: guard_growth = 1.0e3_wp !! max memory-norm growth per sub-step
+      !! Set (and a warning printed, once) when dt_min exceeded the explicit stability
+      !! ceiling cfl/max(μ/η) and so set the sub-step: the run is then outside the
+      !! Maxwell number the user asked for, and unstable beyond M = 2.
+      logical  :: dt_min_overrides = .false.
       real(wp) :: dt_try    = 0.0_wp      !! next-step Δt suggestion (carried across
                                           !! intervals; 0 ⇒ first guess = whole interval)
       integer  :: n_accept  = 0           !! accepted steps (cumulative)
@@ -129,9 +132,9 @@ contains
       complex(wp), allocatable :: sig0(:), sig_last(:), u_last(:), N_last(:)
       real(wp) :: dphi_last, fill_last(2)
       real(wp) :: t, dt, err_inf, tau_inf, errsc, fac, ricfac, expo, span
-      real(wp) :: rate, dt_stab, tau0, tau_run, scale
+      real(wp) :: rate, dt_stab
       integer  :: p, np, nl, n_sub
-      logical  :: at_floor, accept, finite, hmode
+      logical  :: at_floor, accept, hmode
       integer(kind=8) :: gc0, gc1, grate          ! PROFILE: see %t_guard
 
       span = t1 - t0
@@ -195,14 +198,10 @@ contains
          ! --- explicit (forward-Euler) memory: a-priori stability sub-stepping -------
          ! The 1st-order memory carries no embedded error signal, so step-doubling is
          ! meaningless. Instead the interval is divided into equal sub-steps sized by
-         ! the Maxwell stability ceiling Δt ≤ cfl/max(μ/η) (M = μΔt/η ≤ cfl), and a
-         ! cheap reactive guard rolls back and halves a sub-step whose memory goes
-         ! non-finite OR grows past guard_growth× an ESTABLISHED memory scale (a safety
-         ! net for a stiffer-than-estimated structure that normally never fires). The
-         ! scale is the running max of the accepted memory norm, NOT a fixed floor —
-         ! otherwise the legitimate ramp-up of memory from the relaxed (τ≈0) start, where
-         ! the instantaneous norm is tiny, reads as runaway growth and trips false alarms.
-         ! VILMA1 advances its explicit memory the same way (small fixed Δt).
+         ! the Maxwell stability ceiling Δt ≤ cfl/max(μ/η) (M = μΔt/η ≤ cfl), as VILMA1
+         ! advances its explicit memory (small fixed Δt). max(μ/η) is exact
+         ! (response_max_rate), so within the ceiling the memory cannot run away and no
+         ! growth test is made; the one check is that the memory norm stays finite.
          np = sht%nphi;  nl = sht%nlat
          allocate(rsl_n(np,nl), ice_now(np,nl), dice_now(np,nl))
          rate = response_max_rate(resp)
@@ -212,19 +211,24 @@ contains
             dt_stab = span                           ! purely elastic: one step suffices
          end if
          dt_stab = min(dt_stab, self%dt_max)
-         if (self%dt_min > 0.0_wp) dt_stab = max(dt_stab, self%dt_min)
+         if (self%dt_min > dt_stab) then
+            ! the floor wins over stability: say so once, with the Maxwell number it implies
+            if (.not. self%dt_min_overrides) write(*,'(a,es10.3,a,es10.3,a,f0.2,a)') &
+               ' WARNING vilma_timestep: dt_min = ', self%dt_min/sec_per_year, &
+               ' yr exceeds the explicit sub-step limit ', dt_stab/sec_per_year, &
+               ' yr and overrides it: Maxwell number M = ', rate*self%dt_min, &
+               ' (cfl asked for less; forward Euler is unstable for M > 2)'
+            self%dt_min_overrides = .true.
+            dt_stab = self%dt_min
+         end if
          n_sub = max(1, ceiling(span/dt_stab - 1.0e-9_wp))
          dt    = span/real(n_sub, wp)                 ! nominal (equal) sub-step
          t = t0
-         call system_clock(gc0, grate)
-         tau_run = response_memory_norm(resp)                ! established memory scale at entry
-         call system_clock(gc1);  self%t_guard = self%t_guard + real(gc1-gc0,wp)/grate
          do
             if (t >= t1 - 1.0e-9_wp*span) exit
             dt   = min(dt, t1 - t)
             rsl_n = rsl
             call system_clock(gc0, grate)
-            tau0 = response_memory_norm(resp)                ! entering memory ∞-norm
             call response_save_state(resp)
             if (present(rot)) call rotation_save_state(rot)
             call system_clock(gc1);  self%t_guard = self%t_guard + real(gc1-gc0,wp)/grate
@@ -233,15 +237,8 @@ contains
             call system_clock(gc0, grate)
             err_inf = response_memory_norm(resp)
             call system_clock(gc1);  self%t_guard = self%t_guard + real(gc1-gc0,wp)/grate
-            finite  = (err_inf <= huge(1.0_wp))      ! .false. for NaN / +Inf
-            scale   = max(tau0, tau_run)             ! established memory magnitude
-            if (scale <= 0.0_wp) then
-               accept = finite                       ! no scale yet (relaxed): finite-only
-            else
-               accept = finite .and. (err_inf <= self%guard_growth*scale)
-            end if
+            accept  = is_finite(err_inf)             ! .false. for NaN / Inf
             if (accept) then
-               tau_run = max(tau_run, err_inf)       ! grow the running scale
                t = t + dt;  self%n_accept = self%n_accept + 1
                dt = min(span/real(n_sub, wp), 2.0_wp*dt)   ! recover toward nominal
             else
@@ -252,7 +249,7 @@ contains
                self%n_reject = self%n_reject + 1
                dt = 0.5_wp*dt
                if (dt <= 1.0e-12_wp*span) error stop &
-                  'vilma_timestep: explicit guard sub-step collapsed (viscosity too stiff for FE)'
+                  'vilma_timestep: the memory is not finite at any explicit sub-step (corrupt input or state)'
             end if
          end do
          call hand_back()
@@ -308,11 +305,11 @@ contains
          call system_clock(gc1);  self%t_guard = self%t_guard + real(gc1-gc0,wp)/grate
          call response_set_dt(resp, dt)                       ! leave resp%dt at the step size
          errsc = (err_inf/ricfac) / (self%atol + self%rtol*tau_inf)
-         ! Same two guards the explicit path carries. Without them a non-finite
-         ! estimate makes fac NaN and dt_try NaN, so t never advances; and with the
-         ! default dt_min = 0 a persistently rejected step shrinks geometrically
-         ! toward zero forever. Both are an infinite hang rather than an error.
-         if (.not. (errsc <= huge(1.0_wp))) error stop &
+         ! Two guards. Without them a non-finite estimate makes fac NaN and dt_try NaN,
+         ! so t never advances; and with the default dt_min = 0 a persistently rejected
+         ! step shrinks geometrically toward zero forever. Both are an infinite hang
+         ! rather than an error.
+         if (.not. is_finite(errsc)) error stop &
             'vilma_timestep: implicit local-error estimate went non-finite &
             &(viscosity too stiff, or the state has already diverged)'
 
