@@ -700,6 +700,17 @@ const BLOCKB_ROOT = "blockB"
 # vendored in the model repo; published beside the runs so the check needs no model.
 const BLOCKB_LOVE = joinpath(dirname(REPO), "data", "benchmarks", "love_M3-L70-V01", "mod_M3-L70-V01")
 
+"Threads of a job script: its last `export OMP_NUM_THREADS=`, 0 if none."
+function job_threads(path)
+    isfile(path) || return 0
+    n = 0
+    for l in eachline(path)
+        m = match(r"^export\s+OMP_NUM_THREADS=(\d+)", l)
+        m === nothing || (n = parse(Int, m[1]))
+    end
+    n
+end
+
 "Check one case's protocol files and copy them into `dst`; false if the run is absent."
 function publish_bench_case(t, f, lmax, dst)
     dir = rundir(BLOCKB_ROOT, "$(t)-i_$(f).l$(lmax)")
@@ -730,6 +741,17 @@ function publish_bench_case(t, f, lmax, dst)
     mkpath(dst)
     cp(pd, joinpath(dst, basename(pd)); force = true)
     cp(pg, joinpath(dst, basename(pg)); force = true)
+    # cost: the segment jobs' elapsed times (the accounting lines run_block_B.sh's
+    # job scripts print), summed over the chain
+    segs = sort(filter(n -> occursin(r"^out\.seg\d+\.out$", n), readdir(dir)))
+    el = [get(BlockA.slurm_meta(readlines(joinpath(dir, n))), "elapsed_s", nothing) for n in segs]
+    if !isempty(el) && all(!isnothing, el)
+        thr = job_threads(joinpath(dir, "job.seg1.submit"))
+        open(joinpath(dst, Published.bench_cost_name(t, f)), "w") do io
+            println(io, "wall_s ", sum(el)); println(io, "segments ", length(el))
+            println(io, "threads ", thr)
+        end
+    end
     @info "  $(t)-i $(f) ℓmax $lmax: $ne epochs × $np points, copied"
     true
 end

@@ -58,7 +58,7 @@ export published_dir, have_published, require_published,
        load_v2v1, load_blockE, ka, sh_parts,
        BenchRun, load_blockA, dumptable, hasdump, verdict, passed, linear_nodes,
        BENCH_TESTS, BENCH_FORCINGS, BENCH_EPOCHS_KYR, BENCH_NPT, BENCH_LMAX, BENCH_CONV_LMAX,
-       BENCH_CONV_TESTS, BenchV3D, load_blockB, bench_love_path
+       BENCH_CONV_TESTS, BenchV3D, load_blockB, bench_love_path, bench_cost
 
 const REPO = dirname(@__DIR__)
 
@@ -786,6 +786,20 @@ bench_love_path() = joinpath(blockB_dir(), "mod_M3-L70-V01")
 
 bench_disp_name(t, f) = "disp_VILMA2_$(t)-i_$(f).txt"
 bench_gcm_name(t, f)  = "gcm_VILMA2_$(t)-i_$(f).txt"
+bench_cost_name(t, f) = "cost_$(t)-i_$(f).txt"
+
+"""
+    bench_cost(t, f; lmax) -> (wall_s, nseg, threads) | nothing
+
+Wall time of the whole chain of segment jobs of one case, from the jobs' own
+accounting, written at reduction.
+"""
+function bench_cost(t, f; lmax = BENCH_LMAX)
+    p = joinpath(bench_case_dir(lmax), bench_cost_name(t, f))
+    isfile(p) || return nothing
+    kv = Dict(split(l)[1] => parse(Float64, split(l)[2]) for l in eachline(p) if length(split(l)) == 2)
+    (wall_s = kv["wall_s"], nseg = Int(kv["segments"]), threads = Int(get(kv, "threads", 0)))
+end
 
 """
 One benchmark case. `disp` columns: lon, lat, distance along the section [deg],
