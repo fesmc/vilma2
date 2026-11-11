@@ -5,6 +5,32 @@ quote from there): `blockA.md`, `blockB.md`, `blockD.md` (deglaciation budget,
 3-D minus 1Db), `v2v1.md` (VILMA2 against VILMA1), `results.toml` (headline
 values). Figures: `docs/benchmarks/figures/`.
 
+## Pass 2 — model sources f0c4678 (visc-shift with every fix branch), albedo, 2026-11-11
+
+The current tables and figures are from this pass. Raw runs: `runs/`, reduced
+data: `data/published/` (untracked, on albedo under
+`/albedo/work/projects/p_forclima/robinson/models/vilma2-paper/validation/`).
+
+| Stage | Jobs | Outcome |
+|---|---|---|
+| check | 48965936 (8:48) | `make check`: all 49 passed. `make check-slow`: all 9 passed |
+| A | 48965938–48965950; A3.caseA again as 48966766 with the case-A dump (tests from 83f63e4) | 13 of 13 PASS, numbers as in pass 1 |
+| B | 60 segment jobs from 48965951 | A-i and B-i, heaviside and ramp, ℓmax 64, 128, 256: complete, as in pass 1. C-i not run |
+| ref | 48966011 (52:41) | `visc3d split: 82 of 220` (`mesh_depth` 80 km keeps the 220-element mesh); ocean-mean rsl −101.25 m |
+| prep | 48966753 (0:16) | reference re-exported; viscosity files reused |
+| D | 48966755 3-D (47:19), 48966756 1Db (2:53) | complete |
+| V1 | 48966757 3-D (52:58), 48966759 1Db (13:27) | complete |
+| reduce + analyse | 48966942 (6:17) | all figures and tables |
+| T (V7) | 48966776 | toroidal field on, see `tables/toroidal.md` |
+
+Pass 2 agrees with pass 1 to the third printed digit (V2 − V1 rms at 21 ka
+5.138 against 5.141 m), so the comparison with 907bc74 below holds for both.
+The degree-2, order-1 part of V2 − V1 at 21 ka (`tables/v2v1.md`) is 0.50 m in
+3-D and 0.37 m in 1Db, against 7.74 m and 7.86 m at 907bc74: the rotation fixes
+of 304f4cb removed that pattern. What remains in 3-D (4.08 m area-weighted) has no
+dominant low-degree part: the largest part up to degree 8 is degree 6, order 2
+at 0.70 m.
+
 ## Pass 1 — model 0278975, albedo, 2026-11-11
 
 All jobs: account envi.p_forclima, partition smp, shared nodes (16–64 threads).

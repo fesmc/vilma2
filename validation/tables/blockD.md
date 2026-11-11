@@ -28,22 +28,22 @@ The 0 ka row is omitted on purpose: `rsl_anomaly` is measured against each run's
 
 | time | rms [m] | max\|Δ\| [m] | 99th pct \|Δ\| [m] | signal max\|rsl\| [m] | rms/signal |
 |---|---:|---:|---:|---:|---:|
-| 21 ka | 17.247 | 248.946 | 75.340 | 463.4 | 3.72e-02 |
-| 14 ka | 15.042 | 218.497 | 65.469 | 427.5 | 3.52e-02 |
-| 8 ka | 6.194 | 66.092 | 27.148 | 185.0 | 3.35e-02 |
+| 21 ka | 17.248 | 248.905 | 75.342 | 463.3 | 3.72e-02 |
+| 14 ka | 15.042 | 218.463 | 65.465 | 427.4 | 3.52e-02 |
+| 8 ka | 6.195 | 66.087 | 27.141 | 185.0 | 3.35e-02 |
 
-Present-day uplift rate: rms **0.6333 mm/yr**, max **24.2196**, 99th pct **2.3928**, against a signal max of 38.36 mm/yr.
+Present-day uplift rate: rms **0.6334 mm/yr**, max **24.2212**, 99th pct **2.3928**, against a signal max of 38.36 mm/yr.
 
-Barystatic sea level: max \|3-D − 1Db\| = **0.156 m** over the run.
+Barystatic sea level: max \|3-D − 1Db\| = **0.158 m** over the run.
 
 ### Ocean-function mismatch
 
 | time | cells differing | % of grid |
 |---|---:|---:|
-| 21 ka | 42 | 0.018 % |
-| 14 ka | 251 | 0.108 % |
-| 8 ka | 1042 | 0.448 % |
-| -0 ka | 1170 | 0.503 % |
+| 21 ka | 44 | 0.019 % |
+| 14 ka | 248 | 0.107 % |
+| 8 ka | 1043 | 0.448 % |
+| 0 ka | 1170 | 0.503 % |
 
 ## Polar motion
 
