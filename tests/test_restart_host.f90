@@ -8,6 +8,8 @@ program test_restart_host
    !!   (2) continuation: restoring the earlier snapshot and stepping on with the same ice
    !!       and terms reproduces the uninterrupted run; with the last terms reset to the
    !!       reference instead it does not (the ramp start is part of the state);
+   !!   (1b) the ice in the file: h_ice is the load of the last solve, I_g + (1 - w) h_ice_ext with the last terms,
+   !!       h_ice_ext VILMA2's own ice, and the restore reads h_ice_ext; in a plain file h_ice = h_ice_ext;
    !!   (3) mismatches stop: a hosted file into a model without host terms, a plain file
    !!       into a hosted model, and a hosted file into a model with another reference.
    !!       Each runs as a child process of this program and must exit with an error.
@@ -17,6 +19,7 @@ program test_restart_host
    use vilma_sht,       only: sht_grid, sht_grid_init
    use vilma_coupling,  only: solid_earth, solid_earth_init, solid_earth_update, solid_earth_finalize
    use vilma_io,        only: vilma_restart_write, vilma_restart_read
+   use ncio,            only: nc_read, nc_size
    implicit none
 
    integer,  parameter :: LMAX = 12, K1 = 3, K2 = 3
@@ -132,6 +135,24 @@ contains
          write(*,'(a)') '     FAIL: restored state or last terms differ from the written ones';  ok = .false.
       end if
 
+      ! (1b) the ice in the file
+      block
+         real(wp), allocatable :: hl(:,:), he(:,:)
+         integer :: nt
+         real(wp) :: d_load, d_ext, d_own
+         allocate(hl(np,nl), he(np,nl)); nt = nc_size(FHOST, "time")
+         call nc_read(FHOST, "h_ice", hl, start=[1,1,nt], count=[np,nl,1])
+         call nc_read(FHOST, "h_ice_ext", he, start=[1,1,nt], count=[np,nl,1])
+         d_load = maxval(abs(hl - (a%gg%host%last%I_g + (1.0_wp - a%gg%host%last%w)*a%gg%h_ice)))
+         d_ext  = maxval(abs(he - a%gg%h_ice));  d_own = maxval(abs(b%gg%h_ice - a%gg%h_ice))
+         write(*,'(a)') ' (1b) the ice in the file'
+         write(*,'(a,es10.2,a,es10.2,a,es10.2,a,es10.2)') '     max|h_ice - load| =', d_load, '   max|h_ice_ext - own| =', d_ext, &
+              '   restored own ice', d_own, '   max|h_ice - h_ice_ext| =', maxval(abs(hl - he))
+         if (d_load > 1.0e-9_wp .or. d_ext /= 0.0_wp .or. d_own /= 0.0_wp .or. maxval(abs(hl - he)) < 1.0_wp) then
+            write(*,'(a)') '     FAIL: h_ice is not the load, or h_ice_ext not the own ice, or the check is blind';  ok = .false.
+         end if
+      end block
+
       ! (2) continuation from the earlier snapshot
       call solid_earth_init(c, z_eq, h_eq, w=wr, I_g=Ir, C=Cr)
       call vilma_restart_read(c, FHOST, time=t1)
@@ -165,6 +186,16 @@ contains
       call solid_earth_init(a, z_eq, h_eq)
       call solid_earth_update(a, h1, 500.0_wp)
       call vilma_restart_write(a, a%time, filename=FPLAIN, init=.true.)
+      block
+         real(wp), allocatable :: hl(:,:), he(:,:)
+         allocate(hl(np,nl), he(np,nl))
+         call nc_read(FPLAIN, "h_ice", hl, start=[1,1,1], count=[np,nl,1])
+         call nc_read(FPLAIN, "h_ice_ext", he, start=[1,1,1], count=[np,nl,1])
+         write(*,'(a,es10.2)') '     plain file: max|h_ice - h_ice_ext| =', maxval(abs(hl - he))
+         if (maxval(abs(hl - he)) /= 0.0_wp) then
+            write(*,'(a)') '     FAIL: without host terms h_ice is not VILMA2''s own ice';  ok = .false.
+         end if
+      end block
       call solid_earth_finalize(a)
    end subroutine roundtrip
 

@@ -26,8 +26,9 @@ module vilma_io
    !! says whether the run had host terms, and a read into the other kind stops. The Earth the
    !! memory was built on is stamped as global attributes and checked on read
    !! (vilma_restart_compatible): the radial mesh and shear moduli, the radial viscosity
-   !! profile and, with lateral viscosity, the 3-D field. Diagnostic: h_ice,
-   !! rsl, z_bed, dz_bed, dz_ss, C_ocean (lon,lat) and the scalars bsl, bsl_ive, bsl_ive_host, dphi, fill_int, fill_int_own — written
+   !! profile and, with lateral viscosity, the 3-D field. Diagnostic: h_ice (the
+   !! grounded-ice column of the load: with host terms I_g + (1 - w) h_ice_ext), h_ice_ext (VILMA2's own ice, the 1 - w
+   !! part; restored, and read from h_ice in a file of before it), rsl, z_bed, dz_bed, dz_ss, C_ocean (lon,lat) and the scalars bsl, bsl_ive, bsl_ive_host, dphi, fill_int, fill_int_own — written
    !! for inspection and restored if present.
    use vilma_precision,    only: wp
    use vilma_constants,    only: rad2deg, sec_per_year
@@ -52,8 +53,8 @@ module vilma_io
    ! the Maxwell stress tensor + trapezoidal σ_n; RESP_ELASTIC/RESP_NULL are
    ! memoryless (COMMON_VARS only).
    ! Static reference fields are written once in the init branch.
-   character(len=12), parameter :: COMMON_VARS(14) = [character(len=12) :: &
-        "h_ice", "rsl", "z_bed", "dz_bed", "dz_ss", "C_ocean", "dt_try", "dt_try_s", "bsl", "bsl_ive", &
+   character(len=12), parameter :: COMMON_VARS(15) = [character(len=12) :: &
+        "h_ice", "h_ice_ext", "rsl", "z_bed", "dz_bed", "dz_ss", "C_ocean", "dt_try", "dt_try_s", "bsl", "bsl_ive", &
         "bsl_ive_host", "dphi", "fill_int", "fill_int_own"]
    character(len=12), parameter :: VE_MEM_VARS(9) = [character(len=12) :: &
         "tau_a_re", "tau_a_im", "tau_b_re", "tau_b_im", "tau_c_re", "tau_c_im", &
@@ -478,7 +479,8 @@ contains
       case ("tau_b_im"); call put3d(self, filename, name, self%resp%Bim, n, ncid, lossless)
       case ("tau_c_re"); call put3d(self, filename, name, self%resp%Cre, n, ncid, lossless)
       case ("tau_c_im"); call put3d(self, filename, name, self%resp%Cim, n, ncid, lossless)
-      case ("h_ice");    call put2d(self, filename, name, self%gg%h_ice, n=n, ncid=ncid, lossless=lossless)
+      case ("h_ice");    call put2d(self, filename, name, ice_load(self), n=n, ncid=ncid, lossless=lossless)
+      case ("h_ice_ext"); call put2d(self, filename, name, self%gg%h_ice, n=n, ncid=ncid, lossless=lossless)
       case ("rsl");      call put2d(self, filename, name, self%gg%rsl,   n=n, ncid=ncid, lossless=lossless)
       case ("z_bed");    call put2d(self, filename, name, self%gg%z_bed, n=n, ncid=ncid, lossless=lossless)
       case ("dz_bed");   call put2d(self, filename, name, self%gg%dz_bed, n=n, ncid=ncid, lossless=lossless)
@@ -575,6 +577,19 @@ contains
            start=[n], count=[1], units=trim(v%units), long_name=trim(v%long_name), &
            prec_abs=v%prec_abs, prec_rel=v%prec_rel)
    end subroutine put_scalar
+
+   function ice_load(self) result(L)
+      !! The grounded-ice column of the load the last solve used, per unit Gauss-cell area [m]: VILMA2's own ice h_ice
+      !! (the 1 - w part) plus, with host-resolved terms, the host's grounded column of its last update, I_g + (1 - w) h_ice.
+      !! Without host terms it is h_ice.
+      type(solid_earth), intent(in) :: self
+      real(wp), allocatable :: L(:,:)
+      if (self%gg%host%on) then
+         L = self%gg%host%last%I_g + (1.0_wp - self%gg%host%last%w)*self%gg%h_ice
+      else
+         L = self%gg%h_ice
+      end if
+   end function ice_load
 
    subroutine put2d(self, filename, name, dat, n, ncid, static, lossless)
       !! Write a (lon,lat) field — static (no time) or at time slice n.
@@ -864,7 +879,12 @@ contains
       type(solid_earth), intent(inout) :: self
       character(len=*),   intent(in)    :: filename
       integer,            intent(in)    :: n, np, nl
-      call get2d(filename, "h_ice",   self%gg%h_ice, np, nl, n)
+      ! VILMA2's own ice (the 1 - w part with host terms): h_ice_ext; a file of before it has only h_ice, which was that
+      if (nc_exists_var(filename, "h_ice_ext")) then
+         call get2d(filename, "h_ice_ext", self%gg%h_ice, np, nl, n)
+      else
+         call get2d(filename, "h_ice",   self%gg%h_ice, np, nl, n)
+      end if
       call get2d(filename, "rsl",     self%gg%rsl,   np, nl, n)
       call get2d(filename, "z_bed",   self%gg%z_bed, np, nl, n)
       call get2d(filename, "C_ocean", self%gg%C,     np, nl, n)
