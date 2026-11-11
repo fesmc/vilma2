@@ -182,7 +182,7 @@ contains
       !! layer table. Each model below differs from a file's in one respect.
       character(len=*), intent(in)    :: file3d, file1d
       logical,          intent(inout) :: ok
-      type(vilma_param_class) :: p0, p
+      type(vilma_param_class) :: p0, p, pc
       type(solid_earth)    :: m
       character(len=400)   :: msg
       logical :: w
@@ -207,10 +207,27 @@ contains
       w = vilma_restart_compatible(m, file1d, msg);  call expect(w, 'the same 1-D model: accepted', msg, ok)
       w = vilma_restart_compatible(m, file3d, msg);  call expect(.not. w, 'a 3-D file into the 1-D model: refused', msg, ok)
 
-      p = p0;  p%earth = "PREM"                                      ! another radial structure
+      ! the layer table of M3-L70-V01 as a custom model: the same Earth under another name
+      p = p0;  p%earth = "custom";  p%n_layer = 5;  p%r_earth = 6371.0e3_wp;  p%r_core = 3480.0e3_wp
+      p%r_bot(1:5) = [6301.0e3_wp, 5951.0e3_wp, 5701.0e3_wp, 3480.0e3_wp, 0.0_wp]
+      p%r_top(1:5) = [6371.0e3_wp, 6301.0e3_wp, 5951.0e3_wp, 5701.0e3_wp, 3480.0e3_wp]
+      p%rho(1:5)   = [3037.0_wp, 3438.0_wp, 3871.0_wp, 4978.0_wp, 10750.0_wp]
+      p%mu(1:5)    = [5.0605e10_wp, 7.0363e10_wp, 1.0549e11_wp, 2.2834e11_wp, 0.0_wp]
+      p%eta(1:5)   = [huge(1.0_wp), 1.0e21_wp, 1.0e21_wp, 2.0e21_wp, 0.0_wp]
+      p%rheology(1:5) = [0, 1, 1, 1, 2]
+      pc = p
       m%par = p; call solid_earth_init(m, z_bed_eq, h_ice_eq)
-      w = vilma_restart_compatible(m, file1d, msg);  call expect(.not. w, 'another earth model: refused', msg, ok)
-      w = vilma_restart_compatible(m, file1d, msg, other_visc=.true.);  call expect(.not. w, '   ... also as a seed (the mesh differs)', msg, ok)
+      w = vilma_restart_compatible(m, file1d, msg);  call expect(w, 'the same layers as a custom model: accepted', msg, ok)
+
+      p = pc;  p%eta(2) = 5.0e20_wp                                  ! another 1-D viscosity
+      m%par = p; call solid_earth_init(m, z_bed_eq, h_ice_eq)
+      w = vilma_restart_compatible(m, file1d, msg);  call expect(.not. w, 'another upper-mantle viscosity: refused', msg, ok)
+      w = vilma_restart_compatible(m, file1d, msg, other_visc=.true.);  call expect(w, '   ... accepted as a seed', msg, ok)
+
+      p = pc;  p%mu(2) = 1.1_wp*pc%mu(2)                             ! another elastic structure
+      m%par = p; call solid_earth_init(m, z_bed_eq, h_ice_eq)
+      w = vilma_restart_compatible(m, file1d, msg);  call expect(.not. w, 'another shear modulus: refused', msg, ok)
+      w = vilma_restart_compatible(m, file1d, msg, other_visc=.true.);  call expect(.not. w, '   ... also as a seed', msg, ok)
       call solid_earth_finalize(m)
    end subroutine same_earth
 
