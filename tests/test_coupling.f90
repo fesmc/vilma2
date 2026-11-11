@@ -110,6 +110,7 @@ program test_coupling
    ! centred away from the pole here.
    call rotation_check()
    call rotation_visc_check()
+   call reinit_check()
 
    call sht_grid_destroy(sht)
 
@@ -234,6 +235,43 @@ contains
       end if
       call solid_earth_finalize(se)
    end subroutine rotation_visc_check
+
+   subroutine reinit_check()
+      !! init -> update -> finalize -> init -> update on ONE object, with rotation and a
+      !! viscosity file (the configuration in which a leftover rotation flag stopped the
+      !! second init). Finalize must leave the object pristine, so the second run
+      !! repeats the first bit for bit.
+      type(vilma_param_class) :: pr
+      type(solid_earth)    :: se
+      real(wp), allocatable :: h_off(:,:), z1(:,:)
+      complex(wp) :: m1
+      integer :: run, s
+      allocate(h_off(sht%nphi,sht%nlat))
+      call make_load_offaxis(h_off)
+      pr%lmax = LMAX;  pr%nlat = 2*LMAX;  pr%nphi = 4*LMAX
+      pr%rotation = .true.;  pr%l_visc_3d = .true.;  pr%visc_3d_file = VISC;  pr%visc_3d_structure = 6
+      write(*,'(a)') ''
+      do run = 1, 2
+         se%par = pr; call solid_earth_init(se, z_bed_eq, h_ice_eq)
+         do s = 1, 2;  call solid_earth_update(se, h_off, 500.0_wp);  end do
+         if (run == 1) then
+            z1 = se%z_bed;  m1 = se%rotation%m
+         else
+            write(*,'(a,es10.2,a,es10.2)') '   re-init: max|z_bed run2 − run1| = ', maxval(abs(se%z_bed - z1)), &
+                 '   |m run2 − run1| = ', abs(se%rotation%m - m1)
+            if (any(se%z_bed /= z1) .or. se%rotation%m /= m1) then
+               write(*,'(a)') '   FAIL: a re-initialised object does not repeat the first run'; ok = .false.
+            end if
+         end if
+         call solid_earth_finalize(se)
+         if (se%rotation%enabled .or. se%use_vilma_v1 .or. se%remap .or. associated(se%sht) &
+             .or. allocated(se%rsl) .or. allocated(se%gg%h_ice) .or. allocated(se%sigma_lm) &
+             .or. allocated(se%rotation%load_ch%Are) .or. se%time /= 0.0_wp &
+             .or. se%stepper%n_accept /= 0 .or. se%sle%n_solve /= 0 .or. se%bsl /= 0.0_wp) then
+            write(*,'(a)') '   FAIL: solid_earth_finalize left state behind'; ok = .false.
+         end if
+      end do
+   end subroutine reinit_check
 
    subroutine make_load_offaxis(h_ice)
       !! A 2 km grounded cap centred at colat 35°, lon 90° (off the rotation axis, on

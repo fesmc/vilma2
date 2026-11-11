@@ -420,7 +420,6 @@ contains
 
       ! rotational feedback (degree-2 Liouville polar motion → centrifugal potential
       ! fed back into the SLE; vilma_rotation).
-      self%rotation%enabled = self%par%rotation
       if (self%par%rotation) then
          if (self%par%rotation_k_s > 0.0_wp) then
             call rotation_init(self%rotation, self%earth, self%sht, dt0, &
@@ -429,7 +428,7 @@ contains
             call rotation_init(self%rotation, self%earth, self%sht, dt0, &
                                CminusA=self%par%rotation_c_minus_a)
          end if
-         self%rotation%enabled = .true.          ! init clears it; turn back on
+         self%rotation%enabled = .true.          ! rotation_init leaves it off
          ! the channels relax on the response's radial viscosity, not the layer table
          call rotation_set_rate(self%rotation, response_radial_rate(self%resp))
       end if
@@ -453,7 +452,8 @@ contains
       !! Hand a node log10(η) field to the response, and the resulting radial profile
       !! to the rotation channels, so the two always relax on the same Earth. Every
       !! viscosity change goes through here (the 3-D enable and the 1-D pre-spin).
-      !! Before build_solver the rotation is not yet initialised; build_solver syncs it.
+      !! Until build_solver has initialised the rotation it is not enabled (a finalized
+      !! object is pristine), and build_solver syncs it once it is.
       type(solid_earth), intent(inout) :: self
       type(sht_grid),    intent(in)    :: sht
       real(wp),          intent(in)    :: visc_node(:,:)
@@ -804,9 +804,13 @@ contains
    end subroutine update_bsl
 
    subroutine solid_earth_finalize(self)
+      !! Free what the model owns and return the object to its pristine (default-initialised)
+      !! state, keeping only the parameter record self%par: every field, flag, counter and
+      !! timer is what a new object has, so a second solid_earth_init starts from the same
+      !! state as the first. Safe on an object that was never initialised.
       type(solid_earth), intent(inout) :: self
+      type(solid_earth) :: fresh
       if (self%use_vilma_v1) call vilma_v1_finalize(self%vilma_v1)
-      self%use_vilma_v1 = .false.
       call response_destroy(self%resp)
       call rotation_destroy(self%rotation)
       if (associated(self%sht)) then
@@ -814,32 +818,10 @@ contains
          deallocate(self%sht)
          self%sht => null()
       end if
-      self%remap = .false.
-      if (allocated(self%sigma_lm))    deallocate(self%sigma_lm)
-      if (allocated(self%gg%z_bed_eq)) deallocate(self%gg%z_bed_eq)
-      if (allocated(self%gg%h_ice_eq)) deallocate(self%gg%h_ice_eq)
-      if (allocated(self%gg%h_ice))    deallocate(self%gg%h_ice)
-      if (allocated(self%gg%rsl))      deallocate(self%gg%rsl)
-      if (allocated(self%gg%z_bed))    deallocate(self%gg%z_bed)
-      if (allocated(self%gg%dz_bed))   deallocate(self%gg%dz_bed)
-      if (allocated(self%gg%dz_ss))    deallocate(self%gg%dz_ss)
-      if (allocated(self%gg%C))        deallocate(self%gg%C)
-      if (allocated(self%gg%C0))       deallocate(self%gg%C0)
-      if (allocated(self%gg%dIg))      deallocate(self%gg%dIg)
-      call host_free(self%gg%host%ref);  call host_free(self%gg%host%last)
-      self%gg%host%on = .false.
-      if (allocated(self%z_bed_eq))    deallocate(self%z_bed_eq)
-      if (allocated(self%h_ice_eq))    deallocate(self%h_ice_eq)
-      if (allocated(self%h_ice))       deallocate(self%h_ice)
-      if (allocated(self%rsl))         deallocate(self%rsl)
-      if (allocated(self%z_bed))       deallocate(self%z_bed)
-      if (allocated(self%dz_bed))      deallocate(self%dz_bed)
-      if (allocated(self%dz_ss))       deallocate(self%dz_ss)
-      if (allocated(self%C))           deallocate(self%C)
-      self%host_rows = ROWS_NORTH_FIRST
-      self%dphi = 0.0_wp
-      self%fill_int = 0.0_wp;  self%fill_int_own = 0.0_wp
-      self%time = 0.0_wp
+      ! the rest by assignment from a default-initialised object, which also deallocates
+      ! every allocatable component: nothing can be left over from the last run
+      fresh%par = self%par
+      self = fresh
    end subroutine solid_earth_finalize
 
    ! --- host-resolved terms ----------------------------------------------------
