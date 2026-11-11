@@ -55,3 +55,14 @@ rms Δu_r along the section [m]: A-i against the normal-mode solution to degree 
 | B-i | heav | 128 | 0.5986 | 0.1786 | 0.0978 |
 | B-i | ramp | 64 | 0.3535 | 2.9461 | 1.8826 |
 | B-i | ramp | 128 | 0.0448 | 0.3477 | 0.0981 |
+
+## Cost
+
+Wall time to 100 kyr at ℓmax 128, toroidal coupling on, summed over the chain of segment jobs (shared albedo nodes).
+
+| test | load | segments | threads | wall to 100 kyr [h] |
+|---|---|---:|---:|---:|
+| A-i | heav | 5 | 64 | 0.07 |
+| A-i | ramp | 5 | 64 | 0.07 |
+| B-i | heav | 5 | 64 | 0.16 |
+| B-i | ramp | 5 | 64 | 0.16 |

@@ -8,9 +8,9 @@
 #   ./run.sh B         block B: lateral-viscosity benchmark, bench_visc3d (6 chains of 5 jobs; C-i ~20 h each)
 #   ./run.sh ref       the LGM reference: 26 ka load held 30 kyr, lmax 170
 #   ./run.sh prep      export the LGM reference, write the shared viscosity files
-#   ./run.sh D         deglaciation, VILMA2, 3-D and 1Db, lmax 170
+#   ./run.sh D         deglaciation, VILMA2, 3-D (toroidal off: V7's control) and 1Db, lmax 170
 #   ./run.sh V1        the same through the VILMA1 backend
-#   ./run.sh T         D's 3-D run with the toroidal field on (V7)
+#   ./run.sh T         the production 3-D run: D's with the toroidal field on (V7)
 #   ./run.sh E         sensitivity: lmax 64/128/256 and visc3d_tol
 #   ./run.sh reduce    runs/ -> data/published/
 #   ./run.sh analyse   figures (docs/benchmarks/figures, figures/) and tables/

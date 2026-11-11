@@ -82,8 +82,10 @@ function report(path; nrow = 12)
 end
 
 paths = isempty(ARGS) ?
-    filter(isfile, [joinpath(REPO, "runs", "blockD_v2", d, "out.nc")
-                    for d in ("D-V2-3D.l170.fe", "D-V2-1Db.l170.fe")]) : ARGS
+    filter(isfile, [joinpath(REPO, "runs", root, d, "out.nc")
+                    for (root, d) in (("blockD_tor", "D-V2-3D.l170.tor"),
+                                      ("blockD_v2",  "D-V2-1Db.l170.fe"),
+                                      ("blockD_v2",  "D-V2-3D.l170.fe"))]) : ARGS
 isempty(paths) && error("no block D VILMA2 output found; pass a path explicitly")
 for p in paths
     report(p)

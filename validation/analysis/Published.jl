@@ -58,9 +58,21 @@ export published_dir, have_published, require_published,
        load_v2v1, load_blockE, ka, sh_parts,
        BenchRun, load_blockA, dumptable, hasdump, verdict, passed, linear_nodes,
        BENCH_TESTS, BENCH_FORCINGS, BENCH_EPOCHS_KYR, BENCH_NPT, BENCH_LMAX, BENCH_CONV_LMAX,
-       BENCH_CONV_TESTS, BenchV3D, load_blockB, bench_love_path
+       BENCH_CONV_TESTS, BenchV3D, load_blockB, bench_love_path, bench_cost,
+       RUN_V2_3D, RUN_V2_3D_NOTOR, RUN_V2_1DB, RUN_V1_3D, RUN_V1_1DB
 
 const REPO = dirname(@__DIR__)
+
+# The block D run ids, named once. The production 3-D row is V7, the toroidal
+# field of the 3-D elements on, the model default since visc-shift 0d1eac9.
+# D-V2-3D.l170.fe, run before that with it off, is V7's control and the ℓmax 170
+# member of the truncation sweep (whose other members are off too). The 1Db runs
+# have no laterally 3-D element, so l_toroidal has nothing to act on there.
+const RUN_V2_3D       = "D-V2-3D.l170.tor"
+const RUN_V2_3D_NOTOR = "D-V2-3D.l170.fe"
+const RUN_V2_1DB      = "D-V2-1Db.l170.fe"
+const RUN_V1_3D       = "D-V1-3D.l170.fe"
+const RUN_V1_1DB      = "D-V1-1Db.l170.fe"
 
 published_dir() = joinpath(REPO, "data", "published")
 blockD_dir()    = joinpath(published_dir(), "blockD")
@@ -185,7 +197,7 @@ Base.show(io::IO, r::PubRun) =
 """
     load_run(id) -> PubRun | nothing
 
-`load_run("D-V2-3D.l170.fe")`. `nothing` when that run was not reduced, so a
+`load_run(RUN_V2_3D)`. `nothing` when that run was not reduced, so a
 caller can skip a case the way it used to skip a missing run directory.
 """
 function load_run(id::AbstractString)
@@ -786,6 +798,20 @@ bench_love_path() = joinpath(blockB_dir(), "mod_M3-L70-V01")
 
 bench_disp_name(t, f) = "disp_VILMA2_$(t)-i_$(f).txt"
 bench_gcm_name(t, f)  = "gcm_VILMA2_$(t)-i_$(f).txt"
+bench_cost_name(t, f) = "cost_$(t)-i_$(f).txt"
+
+"""
+    bench_cost(t, f; lmax) -> (wall_s, nseg, threads) | nothing
+
+Wall time of the whole chain of segment jobs of one case, from the jobs' own
+accounting, written at reduction.
+"""
+function bench_cost(t, f; lmax = BENCH_LMAX)
+    p = joinpath(bench_case_dir(lmax), bench_cost_name(t, f))
+    isfile(p) || return nothing
+    kv = Dict(split(l)[1] => parse(Float64, split(l)[2]) for l in eachline(p) if length(split(l)) == 2)
+    (wall_s = kv["wall_s"], nseg = Int(kv["segments"]), threads = Int(get(kv, "threads", 0)))
+end
 
 """
 One benchmark case. `disp` columns: lon, lat, distance along the section [deg],

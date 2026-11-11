@@ -24,9 +24,10 @@ using CairoMakie
 using Printf
 using Statistics
 using TOML
+using ..Published: RUN_V2_3D, RUN_V2_1DB, RUN_V1_3D, RUN_V1_1DB   # include Published.jl first
 
 export DOCS_FIGURES, panel!, panels!, savefig, record!, results_path, tables_dir,
-       figures_dir, docs_figures_dir, C_1D, C_3D, C_TOR, C_V2, C_V1, C_GREY,
+       figures_dir, docs_figures_dir, C_1D, C_3D, C_3D_DARK, C_V2, C_V1, C_GREY,
        CMAP_DIV, CMAP_SEQ, symlim, TICK_FS,
        SCALE_RUNS, SCALE_EPOCHS, SCALE_DIFF_PAIRS, deglac_scales
 
@@ -73,7 +74,7 @@ results_path()     = joinpath(tables_dir(), "results.toml")
 # Earth structure (1-D vs 3-D) and solver (VILMA2 vs VILMA1).
 const C_1D   = "#1f5c99"
 const C_3D   = "#c8553d"
-const C_TOR  = "#6e1f12"     # 3-D with the toroidal coupling: a darker 3-D red
+const C_3D_DARK = "#6e1f12"   # a darker 3-D red: V7 control (toroidal off), block B ℓmax 256
 const C_V2    = "#c8553d"     # VILMA2 — the same red as 3-D: V2 is the 3-D code
 const C_V1    = "#2f6f4e"
 const C_GREY = "#8a8f98"
@@ -160,8 +161,7 @@ end
 # comparable with any other panel of the same kind in any other figure.
 
 "The runs whose fields share a colour scale: the block D production matrix."
-const SCALE_RUNS = ["D-V2-3D.l170.fe", "D-V2-1Db.l170.fe",
-                    "D-V1-3D.l170.fe", "D-V1-1Db.l170.fe"]
+const SCALE_RUNS = [RUN_V2_3D, RUN_V2_1DB, RUN_V1_3D, RUN_V1_1DB]
 
 "The epochs any block D map is drawn at. All must be in `Published.EPOCHS`."
 const SCALE_EPOCHS = [-21000.0, -14000.0, -10000.0, -8000.0]
@@ -174,9 +174,9 @@ minus another's on the identical problem — and the whole point is that a reade
 can weigh them against each other.
 """
 const SCALE_DIFF_PAIRS = [
-    ("D-V2-3D.l170.fe",  "D-V2-1Db.l170.fe"),   # lateral structure, solver held fixed
-    ("D-V2-3D.l170.fe",  "D-V1-3D.l170.fe"),    # solver, 3-D structure held fixed
-    ("D-V2-1Db.l170.fe", "D-V1-1Db.l170.fe"),   # solver, 1Db structure held fixed
+    (RUN_V2_3D,  RUN_V2_1DB),   # lateral structure, solver held fixed
+    (RUN_V2_3D,  RUN_V1_3D),    # solver, 3-D structure held fixed
+    (RUN_V2_1DB, RUN_V1_1DB),   # solver, 1Db structure held fixed
 ]
 
 """
