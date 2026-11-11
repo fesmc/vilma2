@@ -19,7 +19,7 @@ module vilma_params
    private
 
    public :: vilma_param_class, vilma_par_load, vilma_par_print, expand_path
-   public :: scheme_name_valid
+   public :: scheme_name_valid, cfl_valid
    public :: MAX_LAYER, MAX_MESH_ZONE, MESH_DR_DEFAULT, MESH_DEPTH_DEFAULT
 
    integer, parameter :: MAX_LAYER = 16   !! cap on custom earth-structure layers
@@ -327,6 +327,8 @@ contains
       call nml_read(filename, g, "grow_max",   p%grow_max,   defaults_file=df)
       call nml_read(filename, g, "shrink_min", p%shrink_min, defaults_file=df)
       call nml_read(filename, g, "cfl",        p%cfl,        defaults_file=df)
+      if (.not. cfl_valid(p%cfl)) &
+         error stop 'vilma_params: cfl must lie in (0, 2): forward Euler is unstable for M >= 2'
 
       ! rotation
       call nml_read(filename, g, "rotation",   p%rotation,   defaults_file=df)
@@ -390,6 +392,14 @@ contains
       character(len=*), intent(in) :: name
       valid = (trim(name) == "fe" .or. trim(name) == "trap")
    end function scheme_name_valid
+
+   pure logical function cfl_valid(cfl) result(valid)
+      !! Whether `cfl`, the "fe" sub-step ceiling on the Maxwell number M = μΔt/η,
+      !! keeps the update stable: τ ← (1-M)τ decays only for 0 < M < 2 (at M = 2
+      !! it oscillates undamped, above it grows).
+      real(wp), intent(in) :: cfl
+      valid = (cfl > 0.0_wp .and. cfl < 2.0_wp)
+   end function cfl_valid
 
    function expand_path(path) result(out)
       !! Expand a leading `~/` or `$HOME/` in a file path using the HOME

@@ -115,7 +115,7 @@
     safety     = 0.9
     grow_max   = 5.0
     shrink_min = 0.2
-    cfl        = 1.0           ! explicit (fe) sub-step Maxwell-number ceiling M=mu*dt/eta
+    cfl        = 1.0           ! explicit (fe) sub-step Maxwell-number ceiling M=mu*dt/eta, in (0, 2)
 
     ! --- rotational feedback (vilma_rotation) ----------------------------
     rotation = .true.          ! TPW feedback: on for real runs; set .false. for

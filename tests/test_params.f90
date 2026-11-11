@@ -9,7 +9,7 @@ program test_params
    !! the defaults file.
    use vilma_precision,       only: wp
    use vilma_constants,       only: sec_per_year
-   use vilma_params,          only: vilma_param_class, vilma_par_load, expand_path, scheme_name_valid
+   use vilma_params,          only: vilma_param_class, vilma_par_load, expand_path, scheme_name_valid, cfl_valid
    use vilma_earth_structure, only: earth_n_layers, earth_model, build_earth, RHEOL_MAXWELL, RHEOL_FLUID
    implicit none
 
@@ -58,6 +58,12 @@ program test_params
    call check_log("scheme trap valid",  scheme_name_valid("trap"), .true.)
    call check_log("scheme etd1 valid",  scheme_name_valid("etd1"), .false.)
    call check_log("scheme be valid",    scheme_name_valid("be"),   .false.)
+   ! the fe Maxwell-number ceiling: stable only for 0 < M < 2
+   call check_log("cfl 1 valid",    cfl_valid(1.0_wp),  .true.)
+   call check_log("cfl 1.9 valid",  cfl_valid(1.9_wp),  .true.)
+   call check_log("cfl 2 valid",    cfl_valid(2.0_wp),  .false.)
+   call check_log("cfl 2.5 valid",  cfl_valid(2.5_wp),  .false.)
+   call check_log("cfl 0 valid",    cfl_valid(0.0_wp),  .false.)
    call check_int("sle_n_outer", p%sle_n_outer, 5)
    call check_log("sle_subgrid", p%sle_subgrid, .false.)
    call check_log("rotation",    p%rotation,    .true.)
