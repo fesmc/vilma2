@@ -78,6 +78,8 @@ compares the profiles of fig. 10 of @Martinec2018.
 This is the first benchmark of the horizontal displacement and confirms the
 spheroidal $V$ field.
 
+![Case A, 10 kyr after a 1500 m spherical cap (10° radius) is applied: (a) vertical displacement, (b) horizontal displacement and (c) geoid along colatitude, VILMA2 (line) and the reference of Martinec et al. (2018), fig. 10 (dots, every tenth point). (d–f) VILMA2 minus the reference, in percent of the profile's peak. The oscillation near the cap edge is the truncation of the cap's sharp edge at degree 128.](figures/martinec-A.png){#fig-martinec-A}
+
 ## SLE cases — C2, D3, E2, F1
 
 These cases run the full sea-level equation with the time-varying load at
@@ -173,25 +175,15 @@ remain open.
 
 ## Figures
 
-<!-- FIGURE (enable when figures/sle.png exists)
 ![Summary of the SLE cases: (a–c) vertical displacement, geoid and relative sea level along one reference profile, VILMA2 and the reference of Martinec et al. (2018); (d) eustatic sea level against time for C2, D3, E2 and F1; (e) running maximum of the relative ocean-mass residual; (f) peak-normalized maximum error per field.](figures/sle.png){#fig-sle}
--->
 
-<!-- FIGURE (enable when figures/sle-C2.png exists)
 ![Case C2: profiles of uplift, horizontal displacement, geoid, sea surface and relative sea level along the four reference profiles (figs. 10–13), VILMA2 and the SBK reference.](figures/sle-C2.png){#fig-sle-C2}
--->
 
-<!-- FIGURE (enable when figures/sle-D3.png exists)
 ![Case D3: as for C2.](figures/sle-D3.png){#fig-sle-D3}
--->
 
-<!-- FIGURE (enable when figures/sle-E2.png exists)
 ![Case E2: as for C2.](figures/sle-E2.png){#fig-sle-E2}
--->
 
-<!-- FIGURE (enable when figures/sle-F1.png exists)
 ![Case F1: as for C2.](figures/sle-F1.png){#fig-sle-F1}
--->
 
 With `VILMA_BENCH_DUMP` set, `test_benchmark_sle` writes the model and
 reference values of every profile (`sle_<case>_<fig>_profile.txt`) and the

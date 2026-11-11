@@ -110,9 +110,7 @@ M3–L70–V01 table.
 
 ## Figures
 
-<!-- FIGURE (enable when figures/love-numbers.png exists)
 ![Loading Love numbers $h$, $\ell$ and $k$ of M3–L70–V01 against degree for the elastic and the fluid limit, VILMA2 and the reference table, with the relative difference.](figures/love-numbers.png){#fig-love-numbers}
--->
 
 The full comparison table can be written by the test itself: set
 `VILMA_BENCH_DUMP` to an existing directory and the test writes

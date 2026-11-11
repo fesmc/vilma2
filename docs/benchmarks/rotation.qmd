@@ -76,9 +76,7 @@ benchmark. It is checked for consistency by `test_rotation_sle`
 
 ## Figures
 
-<!-- FIGURE (enable when figures/rotation.png exists)
 ![Polar motion $|m(t)|$ for the cap and the disc load of Spada et al. (2011) test 3/2, VILMA2 (lines) and Table 14 with the Chandler wobble excluded (symbols).](figures/rotation.png){#fig-rotation}
--->
 
 With `VILMA_BENCH_DUMP` set, the test writes the full trajectory ($m_1$, $m_2$,
 $|m|$ every 25 yr) to `rotation_cap_series.txt` and

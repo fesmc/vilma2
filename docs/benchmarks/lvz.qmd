@@ -72,9 +72,7 @@ only against VILMA1.
 
 ## Figures
 
-<!-- FIGURE (enable when figures/lvz.png exists)
 ![Low-viscosity-zone benchmark of Weerdesteijn et al. (2023): vertical displacement at the load center against time and the displacement profile at 200 yr, for the homogeneous model and the model with the low-viscosity zone, with the published values at the load center.](figures/lvz.png){#fig-lvz}
--->
 
 With `VILMA_BENCH_DUMP` set, the test writes the center displacement against
 time and the profile at 200 yr of both runs (`lvz_homog_series.txt`,

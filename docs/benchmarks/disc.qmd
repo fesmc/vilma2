@@ -85,9 +85,7 @@ sum and the 1° sampling of the reference, not the per-degree response.
 
 ## Figures
 
-<!-- FIGURE (enable when figures/disc.png exists)
 ![Disc-load benchmark: elastic uplift and geoid profiles, viscoelastic uplift profiles at 1, 2, 5 and 10 kyr, and the center uplift against time, VILMA2 and the Spada et al. (2011) reference.](figures/disc.png){#fig-disc}
--->
 
 With `VILMA_BENCH_DUMP` set, the test writes `disc_elastic_profile.txt`,
 `disc_ve_profile.txt` and `disc_ve_centre_series.txt` (see
