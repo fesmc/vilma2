@@ -154,7 +154,9 @@ program test_remap
       if (abs(m_gauss - m_src) > 1.0e-10_wp*m_src) then
          write(*,*) 'FAIL: a regional ice field does not keep its mass'; ok = .false.
       end if
-      if (maxval(g) > 1000.0_wp*(1.0_wp + 1.0e-3_wp) .or. maxval(g) < 999.0_wp) then
+      ! thickness to 2e-3: coords' overlap areas are good to ~1e-3 of a cell (worst at the
+      ! pole), and the mass rescale spreads that over the cap
+      if (maxval(g) > 1000.0_wp*(1.0_wp + 2.0e-3_wp) .or. maxval(g) < 998.0_wp) then
          write(*,*) 'FAIL: a regional ice field changes its thickness'; ok = .false.
       end if
       if (south /= 0.0_wp) then

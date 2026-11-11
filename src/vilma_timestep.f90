@@ -70,6 +70,16 @@ module vilma_timestep
       integer  :: n_floor   = 0           !! steps accepted at dt_min over tolerance
       integer  :: n_solve   = 0           !! SLE solves issued (the dominant cost unit)
       real(wp) :: worst_mass_resid = 0.0_wp  !! worst SLE mass residual over the LAST advance()
+      !! Convergence of the SLE solves of the LAST advance() (sle_result): how many there
+      !! were, how many ended at a cap of the inner (water load), coastline or memory
+      !! iteration, the worst inner residual max|ΔS|/max|S| (sle%tol bounds it when
+      !! converged) and the most cells still changing ocean/land state at the end of a solve.
+      integer  :: n_sle       = 0
+      integer  :: n_cap_inner = 0
+      integer  :: n_cap_coast = 0
+      integer  :: n_cap_mem   = 0
+      real(wp) :: worst_resid = 0.0_wp
+      integer  :: worst_coast_flip = 0
       !! PROFILE: wall-clock [s] of the rollback bookkeeping — response_save_state /
       !! _restore_state (a full copy of the (NLAM,ne,nk) memory arrays) and the
       !! response_memory_norm scans that feed the guards. This is paid on EVERY
@@ -150,7 +160,9 @@ contains
       allocate(sig_last(sht%nlm), u_last(sht%nlm), N_last(sht%nlm), dIg_last(sht%nphi,sht%nlat))
       dIg_last = 0.0_wp
       dphi_last = 0.0_wp;  fill_last = 0.0_wp
-      self%worst_mass_resid = 0.0_wp             ! per-interval diagnostic (reset each advance)
+      self%worst_mass_resid = 0.0_wp             ! per-interval diagnostics (reset each advance)
+      self%n_sle = 0;  self%n_cap_inner = 0;  self%n_cap_coast = 0;  self%n_cap_mem = 0
+      self%worst_resid = 0.0_wp;  self%worst_coast_flip = 0
 
       ! Zero-length interval: no time or memory advance, but still refresh the diagnostic
       ! fields (rsl, C) so they are consistent with the CURRENT memory + ice load. A
@@ -188,9 +200,7 @@ contains
          ice_now  = ice0
          dice_now = ice0 - ice_ref
          call solve(dice_now, ice_now, sig_last, 0.0_wp, host1, report_only=.true.)
-         self%worst_mass_resid = res%mass_resid
-         u_last = res%u_lm;  N_last = res%N_lm;  dphi_last = res%esl
-         fill_last = [res%fill_int, res%fill_own]
+         call tally()
          call hand_back()
          return
       end if
@@ -353,6 +363,20 @@ contains
          if (present(fill_out))  fill_out  = fill_last
       end subroutine hand_back
 
+      subroutine tally()
+         !! Record the solve just made (res): the fields handed back from the final one,
+         !! and the interval's convergence record.
+         self%worst_mass_resid = max(self%worst_mass_resid, res%mass_resid)
+         u_last = res%u_lm;  N_last = res%N_lm;  dphi_last = res%esl
+         fill_last = [res%fill_int, res%fill_own]
+         self%n_sle = self%n_sle + 1
+         if (res%inner_capped) self%n_cap_inner = self%n_cap_inner + 1
+         if (res%coast_capped) self%n_cap_coast = self%n_cap_coast + 1
+         if (res%mem_capped)   self%n_cap_mem   = self%n_cap_mem + 1
+         self%worst_resid      = max(self%worst_resid, res%resid_rel)
+         self%worst_coast_flip = max(self%worst_coast_flip, res%n_coast_flip)
+      end subroutine tally
+
       subroutine solve(dice, ice, sigma, h, hn, report_only)
          !! The one place sle_solve is called: with the host terms hn (and the reference)
          !! when the stepper has them, else exactly the host-free call. Solves into the
@@ -392,9 +416,7 @@ contains
          else
             call solve(dice_now, ice_now, sig_last, h)
          end if
-         self%worst_mass_resid = max(self%worst_mass_resid, res%mass_resid)
-         u_last = res%u_lm;  N_last = res%N_lm;  dphi_last = res%esl
-         fill_last = [res%fill_int, res%fill_own]
+         call tally()
       end subroutine solve_at
 
    end subroutine stepper_advance

@@ -490,6 +490,11 @@ contains
       case ("dphi");     call put_scalar(filename, name, self%dphi, n, ncid, lossless)
       case ("fill_int");     call put_scalar(filename, name, self%fill_int,     n, ncid, lossless)
       case ("fill_int_own"); call put_scalar(filename, name, self%fill_int_own, n, ncid, lossless)
+      ! convergence of the interval's sea-level solves (native solver; diagnostic output only)
+      case ("sle_resid");    call put_scalar(filename, name, self%sle_resid, n, ncid, lossless)
+      case ("sle_n_cap");    call put_scalar(filename, name, &
+                                  real(self%sle_n_cap_inner + self%sle_n_cap_coast + self%sle_n_cap_mem, wp), &
+                                  n, ncid, lossless)
       ! Polar motion m = m1 + i*m2 [rad]. Already prognostic and already
       ! serialized into restarts by write_rotation; these two cases let the
       ! DIAGNOSTIC output file carry it as well, via an explicit nms list.

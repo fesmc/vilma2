@@ -113,6 +113,7 @@ program test_coupling
    call reinit_check()
    call dt_min_check()
    call elastic_rotation_check()
+   call sle_cap_check()
 
    call sht_grid_destroy(sht)
 
@@ -324,6 +325,35 @@ contains
       end if
       call solid_earth_finalize(se)
    end subroutine elastic_rotation_check
+
+   subroutine sle_cap_check()
+      !! The convergence record of the sea-level solves: with the defaults none ends at a
+      !! cap and the residual is within sle_tol; with one inner iteration every solve ends
+      !! at that cap and the residual says how far it is from the fixed point.
+      type(vilma_param_class) :: pr
+      type(solid_earth)    :: se
+      real(wp), allocatable :: h(:,:)
+      integer :: pass
+      allocate(h(sht%nphi,sht%nlat));  call make_load(h)
+      pr%lmax = LMAX;  pr%nlat = 2*LMAX;  pr%nphi = 4*LMAX;  pr%rotation = .false.
+      write(*,'(a)') ''
+      do pass = 1, 2
+         if (pass == 2) pr%sle_n_inner = 1
+         se%par = pr; call solid_earth_init(se, z_bed_eq, h_ice_eq)
+         call solid_earth_update(se, h, dt_couple)
+         write(*,'(a,i0,a,es10.2,a,i0,a,i0,a,i0,a,i0)') '   sle_n_inner=', se%sle%n_inner, ': resid ', &
+              se%sle_resid, '   solves ', se%sle_n_solve, '   capped inner/coast/mem ', se%sle_n_cap_inner, &
+              '/', se%sle_n_cap_coast, '/', se%sle_n_cap_mem
+         if (pass == 1 .and. (se%sle_n_cap_inner + se%sle_n_cap_coast + se%sle_n_cap_mem /= 0 &
+                              .or. se%sle_resid > pr%sle_tol .or. se%sle_n_solve < 1)) then
+            write(*,'(a)') '   FAIL: a default solve reports a cap or a residual above sle_tol'; ok = .false.
+         end if
+         if (pass == 2 .and. (se%sle_n_cap_inner < 1 .or. se%sle_resid <= pr%sle_tol)) then
+            write(*,'(a)') '   FAIL: a solve cut at one inner iteration is not reported as capped'; ok = .false.
+         end if
+         call solid_earth_finalize(se)
+      end do
+   end subroutine sle_cap_check
 
    subroutine make_load_offaxis(h_ice)
       !! A 2 km grounded cap centred at colat 35°, lon 90° (off the rotation axis, on

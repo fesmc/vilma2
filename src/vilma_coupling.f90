@@ -185,6 +185,16 @@ module vilma_coupling
       ! clock + diagnostics
       real(wp) :: time = 0.0_wp               !! model time [years]; read-only for a caller (see "Clock")
       real(wp) :: worst_mass_resid = 0.0_wp   !! worst SLE mass residual over the last interval
+                                              !! (zero to round-off by construction: not a convergence measure)
+      !! Convergence of the sea-level solves of the last interval (vilma_timestep, sle_result).
+      !! A solve that ends at a cap returns its last iterate, not the fixed point; update
+      !! warns once per interval when one did. sle_resid is VILMA_UNSET with solver="v1".
+      real(wp) :: sle_resid = 0.0_wp          !! worst inner residual max|ΔS|/max|S| (<= sle_tol when converged)
+      integer  :: sle_n_solve = 0             !! sea-level solves in the interval
+      integer  :: sle_n_cap_inner = 0         !! of them, ended at sle_n_inner unconverged
+      integer  :: sle_n_cap_coast = 0         !! ended at sle_n_outer with the coastline still moving
+      integer  :: sle_n_cap_mem = 0           !! ended at sle_max_mem_iter (implicit schemes)
+      integer  :: sle_coast_flip = 0          !! most cells still changing ocean/land state at the end of a solve
       real(wp) :: dphi = 0.0_wp               !! uniform sea-surface shift Δφ [m] (the part of dz_ss that is not N)
       real(wp) :: bsl = 0.0_wp                !! barystatic sea level vs reference [m]: ocean mean of C·rsl
       real(wp) :: bsl_ive = 0.0_wp            !! ice-volume equivalent of the grounded-ice change [m] (see update_bsl)
@@ -583,6 +593,7 @@ contains
          ! stays at the documented fill value rather than a made-up number. The
          ! driver skips printing it (see vilma_drive).
          self%worst_mass_resid = VILMA_UNSET
+         self%sle_resid        = VILMA_UNSET
 
          self%h_ice = h_ice
          call system_clock(pc0)
@@ -645,6 +656,7 @@ contains
       self%gg%h_ice         = ice_new
       self%gg%z_bed         = self%gg%z_bed_eq - self%gg%rsl
       self%worst_mass_resid = self%stepper%worst_mass_resid
+      call sle_convergence(self)
       self%time             = self%time + dt_yr
       call update_bsl(self, active)
 
@@ -653,6 +665,30 @@ contains
       call solid_earth_sync_host(self)
       call system_clock(pc1);  self%t_remap = self%t_remap + real(pc1-pc0,wp)/prate
    end subroutine solid_earth_update
+
+   subroutine sle_convergence(self)
+      !! Take the convergence record of the interval's sea-level solves from the stepper,
+      !! and say so, once, if any of them ended at an iteration cap: its result is then the
+      !! last iterate of that loop, not the solution to sle_tol.
+      type(solid_earth), intent(inout) :: self
+      self%sle_resid       = self%stepper%worst_resid
+      self%sle_n_solve     = self%stepper%n_sle
+      self%sle_n_cap_inner = self%stepper%n_cap_inner
+      self%sle_n_cap_coast = self%stepper%n_cap_coast
+      self%sle_n_cap_mem   = self%stepper%n_cap_mem
+      self%sle_coast_flip  = self%stepper%worst_coast_flip
+      if (self%sle_n_cap_inner + self%sle_n_cap_coast + self%sle_n_cap_mem == 0) return
+      write(*,'(a,f0.1,a,i0,a)') ' WARNING vilma: sea-level solve not converged in the interval ending at t = ', &
+           self%time, ' yr (', self%sle_n_solve, ' solves):'
+      if (self%sle_n_cap_inner > 0) write(*,'(a,i0,a,i0,a,es9.2,a,es9.2)') '   water load: ', &
+           self%sle_n_cap_inner, ' ended at sle_n_inner = ', self%sle%n_inner, &
+           ', worst residual ', self%sle_resid, ' against sle_tol = ', self%sle%tol
+      if (self%sle_n_cap_coast > 0) write(*,'(a,i0,a,i0,a,i0,a)') '   coastline:  ', &
+           self%sle_n_cap_coast, ' ended at sle_n_outer = ', self%sle%n_outer, ' with up to ', &
+           self%sle_coast_flip, ' cells still changing between ocean and land'
+      if (self%sle_n_cap_mem > 0) write(*,'(a,i0,a,i0)') '   memory:     ', &
+           self%sle_n_cap_mem, ' ended at sle_max_mem_iter = ', self%sle%max_mem_iter
+   end subroutine sle_convergence
 
    subroutine solid_earth_sync_host(self)
       !! Refresh the host-grid output fields from the Gauss-grid state (to_host): the smooth

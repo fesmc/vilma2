@@ -77,6 +77,9 @@ module vilma_drive
    ! VILMA1 returns rsl alone, so under it these hold VILMA_UNSET and are omitted.
    character(len=8), parameter :: DZ_OUT_VARS(3) = &
         [character(len=8) :: "dz_bed", "dz_ss", "dphi"]
+   ! ... and the convergence of the sea-level solves of each interval (native solver only).
+   character(len=9), parameter :: SLE_OUT_VARS(2) = &
+        [character(len=9) :: "sle_resid", "sle_n_cap"]
 
 contains
 
@@ -101,7 +104,7 @@ contains
       logical  :: remap, resume, win_ok
       character(len=400) :: msg
       character(len=:), allocatable :: rundir
-      character(len=8), allocatable :: out_names(:)   ! OUT_VARS, + polar motion if active
+      character(len=9), allocatable :: out_names(:)   ! OUT_VARS, + polar motion if active
       integer(kind=8) :: pc0, pc1, prate          ! PROFILE: per-step phase timers
       real(wp) :: t_read = 0.0_wp, t_upd = 0.0_wp, t_wrt = 0.0_wp
       real(wp) :: t_dr, t_mm                      ! PROFILE: solid_earth_update sub-phases
@@ -216,9 +219,9 @@ contains
 
       ! The diagnostic output list. Polar motion is appended only when the
       ! rotation solver is actually integrating it -- see ROT_OUT_VARS above.
-      out_names = OUT_VARS
-      if (.not. se%use_vilma_v1) out_names = [out_names, DZ_OUT_VARS]
-      if (se%rotation%enabled)   out_names = [out_names, ROT_OUT_VARS]
+      out_names = [character(len=9) :: OUT_VARS]
+      if (.not. se%use_vilma_v1) out_names = [out_names, [character(len=9) :: DZ_OUT_VARS], SLE_OUT_VARS]
+      if (se%rotation%enabled)   out_names = [out_names, [character(len=9) :: ROT_OUT_VARS]]
 
       ! --- march the transient --------------------------------------------------
       ! the model clock is at the window start: set at init, held by the spin-up, and
@@ -249,15 +252,17 @@ contains
          if (len_trim(c%file_hor) > 0) call vilma_write_horizontal(se, c%file_hor, se%time, init=.false.)
          call system_clock(pc1);  t_wrt = t_wrt + real(pc1-pc0,wp)/prate
          nstep = nstep + 1
-         ! mass_resid is the native SLE's own residual; the VILMA1 backend leaves it
-         ! at VILMA_UNSET (no analogue), so it is omitted rather than printed as a
-         ! meaningless number.
-         if (se%worst_mass_resid == VILMA_UNSET) then
+         ! The convergence of the native solver's sea-level solves: the worst inner
+         ! residual (sle_tol bounds it) and how many solves ended at an iteration cap.
+         ! (mass_resid is zero by construction and says nothing.) VILMA1 has no
+         ! analogue and leaves sle_resid at VILMA_UNSET, so it is omitted there.
+         if (se%sle_resid == VILMA_UNSET) then
             write(*,'(a,f12.2,a,es10.2)') '   t=', se%time, &
                  ' yr   max|rsl|=', maxval(abs(se%rsl))
          else
-            write(*,'(a,f12.2,a,es10.2,a,es9.2)') '   t=', se%time, &
-                 ' yr   max|rsl|=', maxval(abs(se%rsl)), '   mass_resid=', se%worst_mass_resid
+            write(*,'(a,f12.2,a,es10.2,a,es9.2,a,i0,a,i0)') '   t=', se%time, &
+                 ' yr   max|rsl|=', maxval(abs(se%rsl)), '   sle_resid=', se%sle_resid, &
+                 '   capped=', se%sle_n_cap_inner + se%sle_n_cap_coast + se%sle_n_cap_mem, '/', se%sle_n_solve
          end if
       end do
 
