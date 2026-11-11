@@ -213,10 +213,11 @@ A few conventions worth knowing:
   `visc3d_lid_log10max` make its top effectively elastic. `visc3d_tol` sets
   which elements are treated as genuinely 3-D. The order of these steps is given
   in [Rheology](physics/rheology.qmd#visc3d-input).
-- **Toroidal flow** (`l_toroidal`) is **off by default**, for speed: with
-  lateral viscosity it makes a run 1.5–1.8 times slower. Global means change
-  by centimetres, but local relative sea level near former ice sheets by up to
-  about 90 m in a deglaciation; switch it on where that matters (see
+- **Toroidal flow** (`l_toroidal`) is **on by default**: with lateral
+  viscosity it changes local relative sea level near former ice sheets by up
+  to about 90 m in a deglaciation, though global means only by centimetres.
+  `l_toroidal = .false.` makes such runs 1.5–1.8 times faster, for quick runs
+  that do not depend on local sea level (see
   [Toroidal flow](physics/toroidal.qmd)).
 - **Rotational feedback** (`rotation`) is **on by default** for real-Earth runs.
   Set `rotation = .false.` for the non-rotating community benchmarks. The

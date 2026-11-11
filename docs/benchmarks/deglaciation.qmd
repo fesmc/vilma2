@@ -50,7 +50,7 @@ The settings below are common to both solvers unless stated. They are set in
 | Coastlines | migrating, with the subgrid (water-column) ocean load |
 | VILMA2 time stepping | `scheme = "fe"`, equal sub-steps at the Maxwell stability limit within the 100 yr interval |
 | VILMA1 time stepping | `vilma_v1_nsub = 12` uniform sub-steps of 8.33 yr |
-| Toroidal field | off (`l_toroidal = .false.`), the model default; one extra 3-D run with it on |
+| Toroidal field | off (`l_toroidal = .false.`), the model default when these runs were made; one extra 3-D run with it on (now the default) |
 
 **Reference state.** The reference is built once, by VILMA2 with the 3-D
 viscosity. The 26 ka ice load is held for 30 kyr from rest
@@ -184,8 +184,8 @@ each layer to whole elements. With lateral variation, each code also carries it 
 VILMA2 treats only the elements whose lateral spread exceeds `visc3d_tol =
 1e-3` as 3-D (82 of 220). The lateral variation is the only difference between
 the 3-D and the 1Db pair, and the 3-D pair differs about eight times more.
-About half of that is the toroidal field, which VILMA1 carries and VILMA2 does
-not by default (next section). The residual without the toroidal field of the 3-D pair is not a low-degree pattern: at
+About half of that is the toroidal field, which VILMA1 carries and these
+VILMA2 runs did not (next section). The residual without the toroidal field of the 3-D pair is not a low-degree pattern: at
 21 ka the largest single part up to degree 8 is degree 6, order 2, at 0.70 m of
 an area-weighted RMS of 4.08 m, so most of it lies above degree 8. The maps
 place it along the margins of the ice sheets and the steep viscosity gradients
@@ -194,7 +194,8 @@ of the cratonic keels.
 ### 3. Toroidal field
 
 Lateral viscosity drives toroidal flow. VILMA1 includes it; VILMA2 includes it
-only with `l_toroidal = .true.`, which is off by default for speed. A third
+only with `l_toroidal = .true.`, which was off by default when these runs were
+made and is on by default since. A third
 VILMA2 run, identical to the 3-D run but for `l_toroidal = .true.`, measures
 both its effect and how much of the 3-D residual it explains
 (`validation/tables/toroidal.md`, `v2v1.md`).

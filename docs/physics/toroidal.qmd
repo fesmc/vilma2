@@ -9,11 +9,12 @@ drives **toroidal** flow $W$: horizontal, divergence-free motion with no
 radial component. That flow feeds back into the spheroidal field. VILMA2
 carries this toroidal degree of freedom in its 3D path, as VILMA1 does.
 
-::: {.callout-note title="Status: implemented, off by default"}
-The toroidal treatment is implemented and unit-tested (see
-[Validation](#validation)). It is switched **off by default**
-(`l_toroidal = .false.`). The reason is model speed. With the toroidal field
-on, every 3-D element synthesizes, advances and analyses six tensor channels
+::: {.callout-note title="Status: implemented, on by default"}
+The toroidal treatment is implemented, unit-tested (see
+[Validation](#validation)) and **on by default** (`l_toroidal = .true.`),
+because it changes local relative sea level substantially (below).
+`l_toroidal = .false.` is the faster option for quick runs that do not depend
+on local sea level near the ice sheets. With the toroidal field on, every 3-D element synthesizes, advances and analyses six tensor channels
 instead of four, a second per-degree drift solve is added for $W$, and the
 memory state grows by about 50 %. In the lateral-viscosity benchmark (test
 C-i, $\ell_{\max} = 128$, 64 threads) a run takes 1.8 times as long with the
@@ -206,7 +207,7 @@ discard memory.
 
 | Parameter | Group | Default | Effect |
 |---|---|---|---|
-| `l_toroidal` | `&vilma` | `.false.` | carry $W$ and $\lambda = 3,4$ once a 3-D element exists |
+| `l_toroidal` | `&vilma` | `.true.` | carry $W$ and $\lambda = 3,4$ once a 3-D element exists |
 | `l_visc_3d` | `&vilma` | `.false.` | load a lateral viscosity field (required for any toroidal flow) |
 | `visc3d_tol` | `&vilma` | $10^{-3}$ dex | lateral spread above which an element is 3-D |
 | `file_hor` | `&ctl` | `""` | write the surface horizontal displacement |
@@ -241,14 +242,13 @@ It shows that the toroidal field is driven, has the right symmetry, scales as
 perturbation theory predicts and vanishes where it must. The measured values
 in the table are those recorded in `doc/design-toroidal.md`.
 
-What is not tested is the solution of the full model with the toroidal field
-on. The restart tests run it through the sea-level equation, but they assert
-reproducibility only. No test uses a realistic viscosity field and ice
-history, and no result has been compared with VILMA1 or another code. The
-size of its effect on relative sea level and on horizontal displacement is
-therefore unknown. The planned production deglaciation run with
-`l_toroidal = .true.` addresses this. A cross-check against VILMA1 through
-`solver = "v1"` remains open.
+The full model with the toroidal field on is checked against VILMA1, which
+carries it, in the last deglaciation (`validation/`, run V7): with it on, the
+rms difference in relative sea level between the two codes at 21 ka falls
+from 4.1 to 2.2 m (area-weighted), and the present-day uplift-rate difference
+from 0.13 to 0.08 mm/yr. The restart tests run it through the sea-level
+equation and assert reproducibility. No community benchmark exercises it, and
+its effect on horizontal displacement has not been compared with another code.
 
 Radially symmetric and laterally uniform runs carry no toroidal field, so
 their results do not depend on `l_toroidal`.

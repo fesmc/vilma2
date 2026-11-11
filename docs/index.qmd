@@ -92,9 +92,11 @@ What is still open:
   axisymmetric low-viscosity-zone case (200 yr) and with VILMA1 on the last
   deglaciation. No multi-code benchmark of a realistic 3-D structure at glacial
   time scales exists yet.
-- **Toroidal flow** driven by lateral viscosity is implemented but **off by
-  default** (`l_toroidal = .false.`), for model speed: it makes 3-D runs 1.5–1.8
-  times slower. In the 3-D last deglaciation at $\ell_\max = 170$ it costs a factor of 1.5 and changes relative sea level by 2–3 m rms over the globe, up to 92 m near the former ice sheets ([Toroidal flow](physics/toroidal.qmd)).
+- **Toroidal flow** driven by lateral viscosity is **on by default**
+  (`l_toroidal = .true.`). In the 3-D last deglaciation it changes relative sea
+  level by 2–3 m rms and up to 92 m near the former ice sheets.
+  `l_toroidal = .false.` makes 3-D runs 1.5–1.8 times faster, for quick runs
+  that do not depend on local sea level ([Toroidal flow](physics/toroidal.qmd)).
 - **Rotation coupled to the sea-level equation** has no published benchmark
   and is checked for consistency only.
 
