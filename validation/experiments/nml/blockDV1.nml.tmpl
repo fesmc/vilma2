@@ -1,0 +1,84 @@
+! Last deglaciation, VILMA1 backend (staged by experiments/run_deglac.sh).
+!
+! Same driver, forcing, reference file and output grid as nml/blockD.nml.tmpl;
+! `solver` differs. Enforced by vilma_v1:
+!
+!   equil_time_max = 0, pre_spinup_1d = .false.   the spin-up is refused for
+!       this backend (VILMA1 advances its memory only along its own time axis)
+!   restart_in_file = ""
+!   lmax is the coupling and output grid; vilma_v1_jmax is VILMA1's own degree
+!       and must agree with vilma_v1_grid_file (jmax = 170 is 512 x 256).
+!
+! The &vilma settings of the VILMA2 solver (earth, scheme, sle_*, rotation) are
+! ignored when solver = "v1". rho_ice and rho_water are used: they go into
+! VILMA1's load file and into the ocean function and bsl diagnostics.
+
+&vilma settings describing the VILMA2 solver -- earth/layer arrays,
+! scheme, earth_response, sle_*, the adaptive-dt knobs, rotation -- are IGNORED
+! when solver="v1". They are omitted here rather than set to misleading values.
+
+&vilma
+    solver = "v1"
+
+    lmax   = @LMAX@              ! coupling + output grid, matched to the D-V2- row
+    rho_ice   = 931.0            ! as nml/blockD.nml.tmpl (the default is 917)
+    rho_water = 1000.0
+    vilma_v1_jmax = 170             ! VILMA1's own degree; must match vilma_v1_grid_file
+
+    ! experiments/vilma1_input_vilma2grid: densi.inp written from VILMA2's layer
+    ! table, the viscosity files resampled onto its element centres, and links
+    ! to the static VILMA1 inputs. VILMA1 reads its viscosity NetCDF directly, so
+    ! VILMA2's clamp is applied in the file (make_vilma1_visc.jl).
+    vilma_v1_input_dir    = "@VINDIR@"
+    vilma_v1_grid_file    = "@VINDIR@/vilma_grid.nc"
+    vilma_v1_out_dir      = "vilma_v1"
+
+    l_visc_3d          = @V3D@
+    vilma_v1_visc_1d_file = "@VISC1D@"
+    vilma_v1_visc_3d_file = "@VISC3D@"
+
+    ! VILMA1 aborts if its step exceeds the shortest Maxwell time (it has no
+    ! sub-stepping), so the 100 yr coupling interval is divided here. With the
+    ! field clamped at 1e19.5 the minimum is 10.5 yr on this mesh: nsub = 12.
+    vilma_v1_nsub         = @NSUB@
+
+    ! 1: VILMA1's polynomial PREM. 0: densi.inp's rho/mu as given (VILMA2's
+    ! layer table, make_vilma1_densi.jl), so the two share a radial structure.
+    vilma_v1_l_prem       = @LPREM@
+
+    equil_time_max = 0.0         ! REQUIRED: spin-up is refused for this backend
+    pre_spinup_1d  = .false.     ! REQUIRED
+/
+
+&ctl
+    file_forcing  = "input/geo_ice_glac1d_deglac.nc"
+    name_ice      = "ice_thickness"
+    name_time     = "time"
+    file_ref      = ""
+    name_zbed_eq  = "z_bed_eq"
+    name_hice_ref = "h_ice_ref"
+    remap_input   = .true.
+    name_lon      = "lon"
+    name_lat      = "lat"
+
+    ! i_eq as in nml/blockD.nml.tmpl
+    i_eq           = @IEQ@
+    z_bed_ref_file = "data/reference/rtopo_gauss_l128.nc"
+    h_ice_ref_file = "data/reference/rtopo_gauss_l128.nc"
+    z_bed_eq_file  = "@ZEQ@"
+    h_ice_eq_file  = "@HEQ@"
+    rsl_restart_file = ""
+    name_z_bed_ref = "bedrock_topography"
+    name_h_ice_ref = "ice_thickness"
+    name_rsl       = "rsl"
+
+    file_out     = "out.nc"
+    ! No output rounding (the default rounds rsl and z_bed to 1 cm, which is
+    ! 0.1 mm/yr on an uplift rate taken over one 100 yr interval).
+    write_lossless = .true.
+    file_hor     = ""
+    time_init    = @T0@
+    time_end     = @T1@
+
+    restart_in_file = ""
+/

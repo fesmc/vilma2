@@ -1,0 +1,105 @@
+! Last deglaciation, VILMA2 (staged by experiments/run_deglac.sh).
+!
+!   * earth = "PREM" with the 11-layer block below. The eta column is the
+!     CLIMBER-X/VILMA1 "Clemens" radial profile (upper mantle 4e20, lower mantle
+!     1e22); with l_visc_3d the Bagge et al. (2021) field is overlaid on it.
+!   * Layer 1 (0-80 km) is Maxwell (rheology = 1), not elastic, so that with
+!     l_visc_3d the Bagge field sets the lithosphere, weak zones included.
+!     Without a 3-D field its eta = 1e40 keeps it effectively elastic.
+!   * scheme = "fe": explicit, sub-stepped to the Maxwell stability limit.
+!   * Every value that the model's defaults have changed since the reference
+!     results (model 907bc74) is set here: the ice density 931 (the default is
+!     now 917) and the lon, lat, r viscosity file (visc_3d_structure = 0; the
+!     default is now the FesmData product).
+!
+! Structures, via @V3D@/@V3DTOL@/@VISCF@:
+!   1Da  l_visc_3d=.false.                      the PREM/Clemens radial profile
+!   1Db  l_visc_3d=.true.,  visc3d_tol=99.0     a laterally uniform field: the
+!        radial mean of the 3-D field
+!   3D   l_visc_3d=.true.,  visc3d_tol=1.0e-3   full lateral variation
+
+&vilma
+    lmax           = @LMAX@
+    scheme         = "@SCHEME@"
+    rtol           = @RTOL@
+    earth_response = "ve"
+    rotation       = .true.
+    rho_ice        = 931.0
+    rho_water      = 1000.0
+
+    ! --- 1-D structure: incompressible PREM geometry, VILMA1 "Clemens" viscosity
+    earth    = "PREM"
+    n_layer  = 11
+    r_earth  = 6371.0e3
+    r_core   = 3480.0e3
+    r_bot    = 6291.0e3, 6151.0e3, 5971.0e3, 5771.0e3, 5701.0e3, 5600.0e3, 4943.0e3, 4287.0e3, 3630.0e3, 3480.0e3,    0.0
+    r_top    = 6371.0e3, 6291.0e3, 6151.0e3, 5971.0e3, 5771.0e3, 5701.0e3, 5600.0e3, 4943.0e3, 4287.0e3, 3630.0e3, 3480.0e3
+    rho      =   3175.1,   3367.3,   3489.4,   3848.4,   3984.9,   4411.9,   4628.0,   4986.1,   5318.7,   5538.8,  10987.2
+    mu       = 5.727e10, 6.655e10, 7.732e10, 1.051e11, 1.225e11, 1.638e11, 1.926e11, 2.313e11, 2.690e11, 2.913e11,      0.0
+    eta      = 1.0e40,   4.0e20,   4.0e20,   4.0e20,   4.0e20,   1.0e22,   1.0e22,   1.0e22,   1.0e22,   1.0e22,      0.0
+    rheology = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2
+
+    ! --- initial state. With i_eq = 2 the reference is the glacial state and
+    ! equil_time_max = 0. The LGM reference run holds the 26 ka load for a fixed
+    ! time instead (equil_rate_tol = 0: with the Bagge cratonic keels no rate
+    ! tolerance defines an equilibrium).
+    equil_time_max = @EQUIL@
+    equil_rate_tol = @EQTOL@
+    pre_spinup_1d  = @PRE1D@
+
+    ! --- degree-1 frame: "cm" keeps geocentre motion, as VILMA1 does
+    deg1_frame     = "@DEG1@"
+
+    ! --- lateral viscosity
+    l_visc_3d      = @V3D@
+    visc_3d_file   = "@VISCF@"
+    visc_3d_structure = 0          ! a lon, lat, r file with the names below
+    name_visc      = "eta"
+    name_visc_lon  = "lon"
+    name_visc_lat  = "lat"
+    name_visc_r    = "r"
+    visc_log10_min = 19.5
+    visc_log10_max = 30.0
+    visc3d_tol     = @V3DTOL@
+    ! Lid rule (experiments/earth_lid.sh); VILMA1's on-grid files carry the same.
+    visc3d_lid_depth    = @LIDDEPTH@
+    visc3d_lid_log10max = @LIDMAX@
+    l_toroidal     = .false.
+/
+
+&ctl
+    file_forcing  = "input/geo_ice_glac1d_deglac.nc"
+    name_ice      = "ice_thickness"
+    name_time     = "time"
+    file_ref      = ""
+    name_zbed_eq  = "z_bed_eq"
+    name_hice_ref = "h_ice_ref"
+    remap_input   = .true.
+    name_lon      = "lon"
+    name_lat      = "lat"
+
+    ! i_eq = 1: present-day reference (RTopo-2). i_eq = 2: equilibrium read from
+    ! z_bed_eq_file / h_ice_eq_file, here VILMA2's LGM reference state, which
+    ! both backends read, so neither needs a spin-up.
+    i_eq           = @IEQ@
+    z_bed_ref_file = "data/reference/rtopo_gauss_l128.nc"
+    h_ice_ref_file = "data/reference/rtopo_gauss_l128.nc"
+    z_bed_eq_file  = "@ZEQ@"
+    h_ice_eq_file  = "@HEQ@"
+    rsl_restart_file = ""
+    name_z_bed_ref = "bedrock_topography"
+    name_h_ice_ref = "ice_thickness"
+    name_rsl       = "rsl"
+
+    file_out     = "out.nc"
+    ! No output rounding (the default rounds rsl and z_bed to 1 cm, which is
+    ! 0.1 mm/yr on an uplift rate taken over one 100 yr interval).
+    write_lossless = .true.
+    file_hor     = ""
+    ! A window ending at the forcing's second slice runs the spin-up, which
+    ! writes <rundir>/spinup/vilma_restart.nc, then one coupling step: the LGM
+    ! reference run. The driver refuses time_end == time_init.
+    time_init    = @T0@
+    time_end     = @T1@
+    restart_in_file = ""
+/
