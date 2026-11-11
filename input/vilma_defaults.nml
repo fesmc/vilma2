@@ -74,6 +74,19 @@
     !   eta      = 1.0e40,   4.0e20,   4.0e20,   4.0e20,   4.0e20,   1.0e22,   1.0e22,   1.0e22,   1.0e22,   1.0e22,      0.0
     !   rheology = 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2
 
+    ! --- radial mesh (vilma_radial_fe) ------------------------------------
+    ! Target element size by the element's depth: mesh_dr(k) between the depths
+    ! mesh_depth(k-1) and mesh_depth(k) (from the surface for k = 1, to the centre
+    ! for the last), so n sizes take n-1 depths (at most 8 sizes). Layer
+    ! interfaces are always element boundaries. The element count is part of the
+    ! restart format: a restart file is read only on the mesh that wrote it.
+    ! Meshes before mesh_dr sized each layer by its mid-depth; the defaults give
+    ! the same mesh for M3-L70-V01, and for the PREM block below with
+    ! mesh_depth = 80.0e3, 670.0e3 (220 elements, against 219 with the default).
+    mesh_dr       = 5.0e3, 10.0e3, 40.0e3   ! [m] 5 km to 70 km depth, 10 km to 670 km, 40 km below
+    mesh_depth    = 70.0e3, 670.0e3         ! [m]
+    mesh_dr_scale = 1.0                     ! factor on every mesh_dr (0.5 halves the element size)
+
     ! --- viscoelastic memory scheme (vilma_response) ---------------------
     scheme          = "fe"     ! fe | etd1 | trap | be  (fe = 1st-order explicit, default; trap = 2nd-order adaptive)
     max_couple_iter = 20       ! SLE<->memory co-convergence cap (implicit schemes)
