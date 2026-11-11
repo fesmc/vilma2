@@ -3,7 +3,7 @@
 # sle_budget.jl — decompose VILMA2's SLE grounded-ice mass source
 #
 #
-#   julia --project=../analysis analysis/sle_budget.jl [run/out.nc ...]
+#   julia --project=. analysis/sle_budget.jl [run/out.nc ...]
 #
 # With no arguments it decomposes every completed block D VILMA2 run. The
 # arithmetic lives in analysis/Budget.jl, which analysis/make_reduced.jl also

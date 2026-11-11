@@ -4,7 +4,7 @@
 # experiments/run_block_A.sh and produce the validation figures and the summary
 # table for the paper's Appendix A / Supporting Information.
 #
-#   julia --project=../analysis analysis/run_blockA.jl
+#   julia --project=. analysis/run_blockA.jl
 #
 # Figures land in figures/, the summary table in validation/tables/blockA.md.
 #

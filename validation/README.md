@@ -47,10 +47,9 @@ Requirements:
 - the model configured for the machine (`configme`), `runme` with
   `.runme/config.toml`, and for `V1` a VILMA1 installation (`include/`,
   `lib/vega_pism.a`) and its static input files;
-- Julia ≥ 1.12 with the repository's `analysis/` environment instantiated
-  (`julia --project=analysis -e 'using Pkg; Pkg.instantiate()'` from the
-  repository root; the suite uses CairoMakie and NCDatasets from it and adds no
-  package);
+- Julia ≥ 1.12 with the suite's own environment (`validation/Project.toml`,
+  `Manifest.toml`: CairoMakie and NCDatasets) instantiated:
+  `julia --project=. -e 'using Pkg; Pkg.instantiate()'` from `validation/`;
 - `data/input/bagge2021.nc`: Bagge et al. (2021) log10 viscosity on lon, lat, r
   (512 × 256 × 164, quantised to 0.01 dex), the file this repository vendored
   as `input/bagge2021.nc` until commit 2676879. It derives from
@@ -70,6 +69,7 @@ machine is one new file.
 
 ```
 run.sh                 entry point, one stage per argument
+Project.toml, Manifest.toml   the Julia environment of the analysis
 machines/              per-cluster settings
 experiments/           launch scripts, namelist templates (nml/), preparation of
                        the reference state and the shared viscosity files (*.jl),

@@ -41,13 +41,6 @@ doc/refs/*
 # Prebake run logs (regenerable)
 data/reference/*.log
 
-# generated analysis figures
-/analysis/figs/*
-!/analysis/figs/.gitkeep
-
 # coords remap weight cache (written to maps/ in the run directory)
 /maps/*
 !/maps/.gitkeep
-
-# analysis result caches (regenerable via analysis/*.jl)
-*.jld2

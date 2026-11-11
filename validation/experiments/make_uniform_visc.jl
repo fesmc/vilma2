@@ -3,7 +3,7 @@
 # make_uniform_visc.jl — a LATERALLY UNIFORM viscosity field, in both backends'
 # file formats, from one set of numbers.
 #
-#   julia --project=../analysis experiments/make_uniform_visc.jl
+#   julia --project=. experiments/make_uniform_visc.jl
 #
 # WHY. VILMA2 and VILMA1 disagree on the 3-D problem by 12.6 m rms in rsl
 # (21 ka) and 2.70 mm/yr in present-day uplift, from a verified-identical initial

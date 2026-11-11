@@ -1,7 +1,8 @@
 # shellcheck shell=bash
-# julia_env.sh — resolve $JULIA to Julia >= 1.12 (the repository's analysis/
-# environment). Source it. A bare `julia` on a cluster's PATH can be much older,
-# so resolve on the version: $JULIA, juliaup's launcher, then `julia` on PATH.
+# julia_env.sh — resolve $JULIA to Julia >= 1.12, the version validation/Project.toml
+# and Manifest.toml are made for. Source it. A bare `julia` on a cluster's PATH
+# can be much older, so resolve on the version: $JULIA, juliaup's launcher, then
+# `julia` on PATH.
 
 _julia_ok() {                       # $1 = candidate; true if >= 1.12
   local v major minor

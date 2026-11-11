@@ -5,7 +5,7 @@
 # it (`D-V2-3D.l170.fe`, the control: same model head, reference, namelist but
 # for `l_toroidal`). Writes tables/toroidal.md; reads data/published/ only.
 #
-#   julia --project=../analysis analysis/run_toroidal.jl
+#   julia --project=. analysis/run_toroidal.jl
 
 using Printf
 using Statistics

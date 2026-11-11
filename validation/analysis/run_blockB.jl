@@ -3,7 +3,7 @@
 # run_blockB.jl — block B, the lateral-viscosity benchmark (Klemann et al. setup
 # note; model docs/benchmarks/visc3d.qmd, driver tests/bench_visc3d.f90).
 #
-#   julia --project=../analysis analysis/run_blockB.jl
+#   julia --project=. analysis/run_blockB.jl
 #
 # Tests A-i (no structure), B-i (low-viscosity column under the load, at the
 # pole) and C-i (column off the load centre, fully 3-D), each under a Heaviside

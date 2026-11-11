@@ -46,7 +46,7 @@ LMAX=170
 
 say()  { printf '\n== %s\n' "$*"; }
 die()  { printf '\n!! %s\n' "$*" >&2; exit 1; }
-jl()   { resolve_julia || exit 1; "$JULIA" --project="$MODEL/analysis" "$@"; }
+jl()   { resolve_julia || exit 1; "$JULIA" --project="$HERE" "$@"; }   # validation/Project.toml
 
 # ---------------------------------------------------------------- build
 # The VILMA1 binary needs its own objects (-DVILMA_V1), so it is built first
@@ -208,7 +208,7 @@ stage_E() {
 # ---------------------------------------------------------------- reduce, analyse
 # make_reduced.jl is the only script that opens runs/. Re-run it whenever a run
 # is re-made: the figures read data/published/ only. One block: 
-#     julia --project=../analysis analysis/make_reduced.jl A
+#     julia --project=. analysis/make_reduced.jl A        (from validation/)
 stage_reduce()  { say "reduce — runs/ -> data/published/"; jl analysis/make_reduced.jl; }
 
 # script:published input it needs; a script whose input is absent is skipped.

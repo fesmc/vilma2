@@ -2,7 +2,7 @@
 #
 # run_blockE.jl — the two sensitivity axes the pruned list keeps.
 #
-#   julia --project=../analysis analysis/run_blockE.jl
+#   julia --project=. analysis/run_blockE.jl
 #
 #   E1  lmax 64 / 128 / 256, against the production 170 — the numerical
 #       convergence of the headline result, which a reviewer will ask for.
