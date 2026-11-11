@@ -1,9 +1,5 @@
 # VILMA2
 
-> **Under heavy development.** VILMA2 is not yet ready for use in a
-> scientific production capacity. If you want to use VILMA1 for now, please
-> contact Volker Klemann at GFZ.
-
 **VILMA2** is a state-of-the-art but simple and fast **3D solid-Earth model** — a
 visco-elastic deformation model coupled with the sea-level equation — intended
 as an **open-source alternative to VILMA1** within the CLIMBER-X climate model.
@@ -27,32 +23,48 @@ is **off by default and is not a dependency**: it needs an explicit
 
 ## Status
 
-VILMA2 is under heavy development and not yet ready for scientific
-production use (see the note at the top). Implemented and validated so far: the spectral–finite-element solver
-core, viscoelastic time stepping, the self-consistent migrating-coastline
-sea-level equation, rotational feedback (polar motion), and laterally varying
-(3D) viscosity — plus restart, spin-up, online lon-lat→Gauss remapping, and a
-host-coupling API. The toroidal flow driven by lateral viscosity is also
-implemented (optional, off by default) but so far only unit-tested.
+VILMA2 is validated against the published GIA benchmarks and is starting to be
+used for science. It is versioned 0.x: the namelist and the host API may still
+change. Each benchmark is an executable test with a pass/fail exit
+(`make check`, `make check-slow`); the reference build is ifx `-Ofast` on the
+AWI cluster albedo.
 
-Validated against the Spada et al. (2011) and Martinec et al. (2018) community
-benchmarks (radial Love numbers, disc-load response, sea-level equation) and
-Spada test 3/2 (rotation). Cross-code validation of the 3D path is ongoing.
+| Benchmark | Test | Asserted | Measured (albedo, ifx) |
+|---|---|---|---|
+| Love numbers, M3-L70-V01 (Spada et al. 2011) | `test_benchmark_love` | 1 %: elastic h, k at degrees 2–48; fluid at 2–8 | h ≤ 0.08 % to degree 256; k, l exceed 1 % above degrees 96 and 144 |
+| Disc load (Spada et al. 2011) | `test_benchmark_disc` | elastic profile 6 % / 4 % of peak; center uplift 3 % at 1–10 kyr | 4.0 % / 2.8 %; ≤ 0.6 % |
+| Cap load, case A (Martinec et al. 2018) | `test_benchmark_martinec` | 1.5 % (u, horizontal), 3 % (geoid) | 0.5 %, 0.7 %, 1.9 % |
+| Sea-level equation, cases C2, D3, E2, F1 (Martinec et al. 2018) | `test_benchmark_sle` | 30 % (u), 35 % (horizontal), 12 % (geoid, rsl), 8 % (sea surface) of peak | D3, E2, F1 ≤ 7.6 %, rsl ≤ 1.8 %; C2 up to 28 % (unattributed degree-0/1 offset) |
+| Polar motion, Spada test 3/2 | `test_rotation` | 3 % | ≤ 0.9 % |
+| Low-viscosity zone (Weerdesteijn et al. 2023) | `test_benchmark_lvz` | 8 % | 2.6 %, 1.0 % |
+
+The model builds and passes the test suite with ifx on albedo and with gfortran
+(macOS, Ubuntu CI); it builds with ifx on DKRZ levante. Open items: the C2
+sea-level case, the high-degree k and l Love numbers (limited by the radial
+mesh, second order in its spacing), and the 3-D viscosity
+path, which is compared only with VILMA1 and the axisymmetric
+low-viscosity-zone case. The toroidal flow driven by lateral viscosity is
+implemented but **off by default** (`l_toroidal = .false.`) for speed: it makes
+3-D runs 1.6–1.8 times slower. A production deglaciation run with it on is
+planned to quantify its effect. Details:
+[benchmarks](https://fesmc.github.io/vilma2/benchmarks/).
 
 ## Install
 
-Dependencies are [fesm-utils](https://github.com/fesm-org/fesm-utils) (branch
-`dev`, providing FFTW, SHTns, the `fesmutils` helper and the `coords`
-module; the `phase0-kryos` branch that kryos uses contains it) plus a system
-netCDF. Build FFTW and SHTns in fesm-utils first (`make shtns openmp=0|1`,
-and `make fesmutils-static openmp=0|1`). **configme** clones/links the dependencies and
-generates the machine/compiler Makefile:
+Dependencies are [fesm-utils](https://github.com/fesmc/fesm-utils) at branch
+`phase0-kryos` (FFTW, SHTns, the `fesmutils` helper library and the `coords`
+module) plus a system netCDF (C and Fortran). The branch is pinned in
+`.configme/manifest.toml`: VILMA2 needs `coords`' `grid_init_gaussian`, which
+fesm-utils `dev` (v1.4) does not have yet. **configme** clones and builds
+fesm-utils and generates the machine/compiler Makefile:
 
 ```bash
-configme install vilma2                      # resolve machine/compiler, clone deps
-configme install vilma2 -m macbook -c gfortran
+configme install vilma2 -m macbook -c gfortran      # or -m awi_albedo / dkrz_levante -c ifx
 configme install vilma2 --link fesm-utils=/abs/path/to/fesm-utils   # reuse a checkout
 ```
+
+The exact sequence for the macbook, albedo and levante is in
+[Install & run](https://fesmc.github.io/vilma2/getting-started.html).
 
 ## Build
 
@@ -60,9 +72,14 @@ configme install vilma2 --link fesm-utils=/abs/path/to/fesm-utils   # reuse a ch
 make vilma        # -> bin/vilma.x        (standalone forced-run driver)
 make vilma_mkref  # -> bin/vilma_mkref.x  (build a Gauss-grid reference)
 make vilma_remap  # -> bin/vilma_remap.x  (offline lon-lat -> Gauss remap)
-make check            # build + run the test suite
 make vilma-static # -> libvilma/include/libvilma.a and the .mod files
+make check                 # build + run the test suite (about 2 min)
+make openmp=1 check-slow   # full-resolution benchmarks and order tests (about 10 min on 32 threads)
 ```
+
+Both test targets run every test, end with a summary naming the failures and
+exit non-zero if any failed. Setting `VILMA_BENCH_DUMP=<dir>` makes the
+benchmark tests write their comparison tables there.
 
 `make` switches: `debug=0|1|2`, `openmp=0|1` (default 1; build `openmp=1` for the
 threaded degree loop at production resolutions).
@@ -172,3 +189,8 @@ call solid_earth_update(se, h_ice, dt_yr)   ! advance dt_yr [years]; read se%rsl
                                             ! (rsl = se%dz_ss - se%dz_bed: sea-surface and bed change)
 call solid_earth_finalize(se)
 ```
+
+## License
+
+VILMA2 is free software under the GNU General Public License v3.0; see
+[LICENSE](LICENSE).
