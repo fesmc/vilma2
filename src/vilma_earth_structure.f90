@@ -339,7 +339,10 @@ contains
       !! [visc_log10_min, visc_log10_max]. sigma is read from name_visc_sd if that
       !! variable is named, else taken RELATIVE to the field, f_visc_rel*log10(eta)
       !! (so the perturbation tracks the viscosity structure rather than a constant
-      !! floor). The clamp also imposes the viscosity floor on the raw field.
+      !! floor). Then visc_shift_file, if set, adds its dlog10_visc(lon, lat, r) [dex]
+      !! (a shift by region and depth, e.g. per ensemble member), read and
+      !! interpolated as the field. The clamp also imposes the viscosity floor on the
+      !! raw field.
       !!
       !! With visc_3d_structure >= 1 the file is the FesmData Bagge2021_visc.nc
       !! product: the variable and coordinate names are the product's (log10_visc,
@@ -349,7 +352,7 @@ contains
       type(sht_grid),       intent(in)  :: sht
       real(wp),             intent(in)  :: r_node(:)
       real(wp), allocatable, intent(out) :: visc_node(:,:)
-      real(wp), allocatable :: sd_node(:,:)
+      real(wp), allocatable :: sd_node(:,:), shift_node(:,:)
       logical :: fesmdata
       fesmdata = p%visc_3d_structure > 0
       if (fesmdata) then
@@ -366,6 +369,11 @@ contains
             allocate(sd_node, source=abs(visc_node)*p%f_visc_rel)   ! relative sigma [log10 dex]
          end if
          visc_node = visc_node + p%f_visc_sd*sd_node
+      end if
+      if (len_trim(p%visc_shift_file) > 0) then
+         call vilma_read_visc_3d(p%visc_shift_file, sht, r_node, shift_node, varname='dlog10_visc', &
+              lonname='lon', latname='lat', rname='r')
+         visc_node = visc_node + shift_node
       end if
       visc_node = min(max(visc_node, p%visc_log10_min), p%visc_log10_max)
    end subroutine load_visc_3d

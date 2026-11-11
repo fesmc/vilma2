@@ -145,6 +145,8 @@
     name_visc_sd   = ""      ! optional sigma(log10 eta) var; "" => relative sigma
     f_visc_sd      = 0.0     ! perturbation in units of sigma (0 = mean field)
     f_visc_rel     = 0.1     ! relative sigma = f_visc_rel*log10(eta) when no sd var
+    visc_shift_file = ""     ! "" = none; else dlog10_visc(lon, lat, r) [dex, r radius in m] added to the
+                             ! 3-D field after f_visc_sd, before the clamp and the lid rule (needs l_visc_3d)
     visc_log10_min = 19.5    ! floor on log10(eta) after read + perturbation [dex]
     visc_log10_max = 30.0    ! ceiling on log10(eta) after read + perturbation [dex]
     visc3d_lid_depth    = 0.0   ! [m] 0 = off. Maxwell elements lying wholly above this depth whose
