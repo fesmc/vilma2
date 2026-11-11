@@ -127,8 +127,8 @@ contains
       !! sle_host) at the reference and at t0 and t1. They ramp linearly over the interval,
       !! field by field and with the same formula as the ice, so every sub-step solves
       !! with host(t) = host0 + (t−t0)/(t1−t0)·(host1−host0). The ice then is the own
-      !! part's (1−w). The σ_n priming uses host0; the dt = 0 seed uses host1 with ice0
-      !! (like the ice, see KNOWN ISSUE below). Without them the stepper is the host-free one.
+      !! part's (1−w). The σ_n priming uses host0; the dt = 0 solve uses host1 with ice1.
+      !! Without them the stepper is the host-free one.
       type(sle_host), optional, intent(in)    :: host_ref, host0, host1
       !! dIg_out (optional): the grounded-ice increment ΔI_g [m] of the final SLE solve (t1).
       real(wp),       optional, intent(out)   :: dIg_out(:,:)
@@ -164,41 +164,18 @@ contains
       self%n_sle = 0;  self%n_cap_inner = 0;  self%n_cap_coast = 0;  self%n_cap_mem = 0
       self%worst_resid = 0.0_wp;  self%worst_coast_flip = 0
 
-      ! Zero-length interval: no time or memory advance, but still refresh the diagnostic
-      ! fields (rsl, C) so they are consistent with the CURRENT memory + ice load. A
-      ! report-only SLE solve converges the load against the frozen entering memory and
-      ! returns without advancing it. The drive uses solid_earth_update(...,dt=0) to seed
-      ! the entering ice and populate rsl/z_bed/C from a seeded or restored memory state;
-      ! a cross-resolution restart restores only the spectral memory (not the 2-D rsl), so
-      ! without this the caller's rsl would stay zero on the first output sample.
-      !
-      ! KNOWN ISSUE -- the diagnostic is built from ice0, the ice the model is
-      ! already carrying, NOT ice1, the slice the caller just handed in. The caller
-      ! (solid_earth_update) overwrites gg%h_ice with the new ice the moment this
-      ! returns, so after a dt=0 call rsl/C describe the PREVIOUS ice while h_ice
-      ! describes the new one, and update_bsl then combines the new h_ice with the
-      ! old C. Three consequences:
-      !   * solid_earth_update(se, X, 0.0) is not idempotent -- calling it twice
-      !     with the same X gives different rsl/C.
-      !   * the two backends differ at t0. vilma_drive seeds with dt=0 and
-      !     solid_earth_init leaves h_ice = h_ice_eq, so the native seed reports
-      !     the REFERENCE coastline while the VILMA1 path (which sets h_ice before
-      !     its own diagnostics) reports the LGM one. They differ over every cell
-      !     where LGM grounded ice sits on sub-sea-level bed -- Hudson Bay, the
-      !     Barents shelf, West Antarctica -- in both C_ocean and the t0 bsl.
-      !   * it affects only the t0 diagnostic sample, not the transient physics.
-      ! Switching to ice1 is the obviously right expression and was tried; it makes
-      ! solid_earth_spinup stop relaxing (relax_hold's first pass then measures
-      ! ~4e-7 m of bed motion instead of 136 m and exits "converged" immediately,
-      ! leaving 29 m of subsidence where the equilibrium is 239 m). That interaction
-      ! is not understood, and initialization I1 -- which every production
-      ! deglaciation depends on -- runs through this path, so the one-line change is
-      ! NOT safe to make on its own. Fixing it means understanding why a seeded rsl
-      ! suppresses the subsequent viscous advance; test_spinup is the reproducer.
+      ! Zero-length interval: no time or memory advance, but the diagnostic fields (rsl, C,
+      ! and u, N, Δφ) are re-solved for the CURRENT memory under ice1, the ice the caller
+      ! hands in (and host1): a report-only SLE solve converges the load against the frozen
+      ! memory. The caller then holds that same ice, so the state is consistent (rsl and C
+      ! describe the ice h_ice holds), and a second call with the same ice changes nothing
+      ! beyond the SLE tolerance. The driver seeds the start slice this way, the spin-up
+      ! reads the bed of its memory after each pass, and a cross-resolution restart (which
+      ! restores only the spectral memory) gets its 2-D fields back.
       if (span <= 0.0_wp) then
          allocate(ice_now(sht%nphi, sht%nlat), dice_now(sht%nphi, sht%nlat))
-         ice_now  = ice0
-         dice_now = ice0 - ice_ref
+         ice_now  = ice1
+         dice_now = ice1 - ice_ref
          call solve(dice_now, ice_now, sig_last, 0.0_wp, host1, report_only=.true.)
          call tally()
          call hand_back()

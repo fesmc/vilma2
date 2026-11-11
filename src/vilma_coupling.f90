@@ -790,6 +790,14 @@ contains
       !! no time cap (internal pass cap only, for the fast 1-D phase). t_cap>0: a cap
       !! [years] — exit with a WARNING + diagnostics if convergence is not reached.
       !! Logs per pass: wall time, mean internal Δt, sub-steps, bed residual, resid/tol.
+      !!
+      !! The rate. The bed an interval ends with is solved from the memory at the start of
+      !! its LAST sub-step (the explicit scheme freezes the drift there), so it lags the
+      !! memory by one sub-step; a first pass from zero memory in one sub-step ends with the
+      !! elastic bed it started from, and a rate taken from it reads zero. So after every
+      !! pass the bed is re-solved for the memory the pass ended with (a dt = 0 update: no
+      !! advance), and the rate is the mean bed velocity over exactly the memory advance of
+      !! that pass, the first included.
       type(solid_earth), intent(inout) :: self
       real(wp),           intent(in)    :: h_ice_lgm(:,:)
       real(wp),           intent(in)    :: t_cap
@@ -818,6 +826,7 @@ contains
          nsub0 = self%stepper%n_accept
          call cpu_time(wall0)
          call solid_earth_update(self, h_ice_lgm, pass_dt, w, I_g, C, F)
+         call solid_earth_update(self, h_ice_lgm, 0.0_wp, w, I_g, C, F)   ! the bed of the memory reached
          call cpu_time(wall1)
          t_done  = t_done + pass_dt
          nsub    = max(1, self%stepper%n_accept - nsub0)
