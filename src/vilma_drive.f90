@@ -179,6 +179,7 @@ contains
       ! Restarts are written alongside the run output: <rundir>/spinup after the spin-up
       ! and <rundir>/final at the end, where rundir is the directory of file_out.
       rundir = dir_of(c%file_out)
+      call execute_command_line("mkdir -p '"//rundir//"'")   ! the output folder (examples write under runs/)
       call system_clock(pc0, prate)
       se%par = p; call solid_earth_init(se, z_bed_eq, h_ice_eq, time=tyr(k0))   ! reference, memory 0
       if (resume) then                                                        ! resume saved memory + clock
