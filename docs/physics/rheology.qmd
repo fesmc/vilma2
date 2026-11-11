@@ -129,7 +129,7 @@ Three details matter in practice:
 
 - **Only genuinely 3-D elements pay for the grid round trip.** An element is
   treated as 3-D when its lateral spread of $\log_{10}\eta$ exceeds
-  `visc3d_tol` (default $10^{-3}$ dex). Every other Maxwell element collapses
+  `visc_3d_tol` (default $10^{-3}$ dex). Every other Maxwell element collapses
   to its lateral-mean rate and advances on the cheap per-degree spectral path,
   as in VILMA1's 1-D/3-D layer split. A laterally uniform field therefore
   flags no element as 3-D and costs exactly the 1D run.
@@ -182,10 +182,10 @@ in a fixed order. Each stage acts on the result of the previous one.
 4. **Clamp** to [`visc_log10_min`, `visc_log10_max`] (defaults 19.5 and 30.0).
    The floor bounds the fastest relaxation and so the time step (see
    [Stability](#stability)).
-5. **Lid rule** (`visc3d_lid_depth`, default 0, off). The nodal field is first
+5. **Lid rule** (`visc_3d_lid_depth`, default 0, off). The nodal field is first
    averaged to the radial elements (the mean of $\log_{10}\eta$ at the two
-   nodes). In a Maxwell element that lies wholly above `visc3d_lid_depth` [m],
-   every grid point whose $\log_{10}\eta$ exceeds `visc3d_lid_log10max`
+   nodes). In a Maxwell element that lies wholly above `visc_3d_lid_depth` [m],
+   every grid point whose $\log_{10}\eta$ exceeds `visc_3d_lid_log10max`
    (default 22.0) is then set to `visc_log10_max`. Such points relax over
    millions of years, so a held-load spin-up never equilibrates them. The rule
    splits the lid into points that relax within thousands of years and points
@@ -194,7 +194,7 @@ in a fixed order. Each stage acts on the result of the previous one.
    elements, not nodes, because a node at the lid base is shared with the
    element below. `test_visc_lid` asserts that only lid elements above the
    threshold change.
-6. **1-D/3-D split** (`visc3d_tol`, default $10^{-3}$ dex). Elements whose
+6. **1-D/3-D split** (`visc_3d_tol`, default $10^{-3}$ dex). Elements whose
    lateral spread exceeds the tolerance run on the 3-D path, as described
    above. A larger tolerance moves weakly varying elements to the 1-D path.
    This lowers the cost of the memory advance and approximates their lateral

@@ -10,7 +10,7 @@ program bench_visc3d
    !!
    !! The run config carries the &benchv3d group (test, forcing, time_end [years],
    !! restart_in, restart_out) and &vilma overrides of input/vilma_defaults.nml. Only lmax, l_toroidal and
-   !! visc3d_tol are read from &vilma: the earth model, memory scheme, degree-1
+   !! visc_3d_tol are read from &vilma: the earth model, memory scheme, degree-1
    !! frame, grid and the absence of ocean and rotation are fixed by the benchmark.
    !!
    !! Setup, and the readings taken where the note is ambiguous:
@@ -122,7 +122,7 @@ program bench_visc3d
    ve%deg1_cm = .true.                               ! frame is part of the init gains
    call response_init_ve(ve, em, sht, YR)
    ve%toroidal   = par%l_toroidal                    ! both read before the structure is enabled
-   ve%visc3d_tol = par%visc3d_tol
+   ve%visc_3d_tol = par%visc_3d_tol
    call enable_structure(ve, dlog_s, mu_max)
 
    ! Explicit Δt from the Maxwell ceiling at η_c, rounded to divide 100 yr (the

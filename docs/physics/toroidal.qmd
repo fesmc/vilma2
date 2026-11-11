@@ -191,7 +191,7 @@ a step proceeds as follows:
    simply relax.
 
 The toroidal channels are switched on only when some element is genuinely 3-D
-(its lateral $\log_{10}\eta$ spread exceeds `visc3d_tol`) and
+(its lateral $\log_{10}\eta$ spread exceeds `visc_3d_tol`) and
 `l_toroidal = .true.`. The memory arrays then widen from four to six channels
 (about 50 % more memory state). A radially symmetric or laterally uniform run
 keeps four channels and pays nothing. Once on, the channels stay on for the
@@ -209,7 +209,7 @@ discard memory.
 |---|---|---|---|
 | `l_toroidal` | `&vilma` | `.true.` | carry $W$ and $\lambda = 3,4$ once a 3-D element exists |
 | `l_visc_3d` | `&vilma` | `.false.` | load a lateral viscosity field (required for any toroidal flow) |
-| `visc3d_tol` | `&vilma` | $10^{-3}$ dex | lateral spread above which an element is 3-D |
+| `visc_3d_tol` | `&vilma` | $10^{-3}$ dex | lateral spread above which an element is 3-D |
 | `file_hor` | `&ctl` | `""` | write the surface horizontal displacement |
 
 The horizontal-displacement file holds east/north components on the Gauss

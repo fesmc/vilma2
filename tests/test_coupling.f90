@@ -170,13 +170,13 @@ contains
       call make_load_offaxis(h_off)
 
       pr%lmax = LMAX;  pr%nlat = 2*LMAX;  pr%nphi = 4*LMAX
-      pr%rotation  = .false.
+      pr%l_rotation  = .false.
       se_off%par = pr; call solid_earth_init(se_off, z_bed_eq, h_ice_eq)
       do s = 1, NSTEP;  call solid_earth_update(se_off, h_off, dt_couple);  end do
       zoff = se_off%z_bed
       call solid_earth_finalize(se_off)
 
-      pr%rotation = .true.
+      pr%l_rotation = .true.
       se_on%par = pr; call solid_earth_init(se_on, z_bed_eq, h_ice_eq)
       wmass = 0.0_wp
       do s = 1, NSTEP
@@ -212,7 +212,7 @@ contains
       integer  :: e
       call write_synth_visc_fesmdata(VISC)
       pr%lmax = LMAX;  pr%nlat = 2*LMAX;  pr%nphi = 4*LMAX
-      pr%rotation = .true.;  pr%l_visc_3d = .true.;  pr%visc_3d_file = VISC;  pr%visc_3d_structure = 6
+      pr%l_rotation = .true.;  pr%l_visc_3d = .true.;  pr%visc_3d_file = VISC;  pr%visc_3d_structure = 6
       se%par = pr; call solid_earth_init(se, z_bed_eq, h_ice_eq)
       rate  = response_radial_rate(se%resp)
       dmax  = max(maxval(abs(se%rotation%load_ch%MkPerDt - rate)), &
@@ -249,7 +249,7 @@ contains
       allocate(h_off(sht%nphi,sht%nlat))
       call make_load_offaxis(h_off)
       pr%lmax = LMAX;  pr%nlat = 2*LMAX;  pr%nphi = 4*LMAX
-      pr%rotation = .true.;  pr%l_visc_3d = .true.;  pr%visc_3d_file = VISC;  pr%visc_3d_structure = 6
+      pr%l_rotation = .true.;  pr%l_visc_3d = .true.;  pr%visc_3d_file = VISC;  pr%visc_3d_structure = 6
       write(*,'(a)') ''
       do run = 1, 2
          se%par = pr; call solid_earth_init(se, z_bed_eq, h_ice_eq)
@@ -283,7 +283,7 @@ contains
       integer :: pass, nsub(2)
       logical :: flag(2)
       allocate(h(sht%nphi,sht%nlat));  call make_load(h)
-      pr%lmax = LMAX;  pr%nlat = 2*LMAX;  pr%nphi = 4*LMAX;  pr%rotation = .false.
+      pr%lmax = LMAX;  pr%nlat = 2*LMAX;  pr%nphi = 4*LMAX;  pr%l_rotation = .false.
       do pass = 1, 2
          pr%dt_min = merge(100.0_wp, 400.0_wp, pass == 1)*sec_per_year
          se%par = pr; call solid_earth_init(se, z_bed_eq, h_ice_eq)
@@ -310,7 +310,7 @@ contains
       complex(wp) :: m1, m2
       allocate(h_off(sht%nphi,sht%nlat));  call make_load_offaxis(h_off)
       pr%lmax = LMAX;  pr%nlat = 2*LMAX;  pr%nphi = 4*LMAX
-      pr%earth_response = "elastic";  pr%rotation = .true.
+      pr%earth_response = "elastic";  pr%l_rotation = .true.
       se%par = pr; call solid_earth_init(se, z_bed_eq, h_ice_eq)
       call solid_earth_update(se, h_off, dt_couple);  m1 = se%rotation%m
       call solid_earth_update(se, h_off, dt_couple);  m2 = se%rotation%m
@@ -332,7 +332,7 @@ contains
       real(wp), allocatable :: h(:,:)
       integer :: pass
       allocate(h(sht%nphi,sht%nlat));  call make_load(h)
-      pr%lmax = LMAX;  pr%nlat = 2*LMAX;  pr%nphi = 4*LMAX;  pr%rotation = .false.
+      pr%lmax = LMAX;  pr%nlat = 2*LMAX;  pr%nphi = 4*LMAX;  pr%l_rotation = .false.
       write(*,'(a)') ''
       do pass = 1, 2
          if (pass == 2) pr%sle_n_inner = 1

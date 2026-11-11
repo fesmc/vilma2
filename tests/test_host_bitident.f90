@@ -81,7 +81,7 @@ contains
       integer :: nfail
       nfail = 0
       p%lmax = LMAX;  p%nlat = nl;  p%nphi = np
-      p%scheme = scheme;  p%rotation = .true.
+      p%scheme = scheme;  p%l_rotation = .true.
       a%par = p;  b%par = p
       write(*,'(a,a)') ' scheme = ', scheme
 

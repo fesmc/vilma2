@@ -542,7 +542,7 @@ ASPECT/Abaqus themselves differ 1–3% and ASPECT(no self-grav) vs TABOO(self-gr
 
 **Done since.** `visc_3d` loading is wired into the params/driver path (§14d):
 `l_visc_3d`, `visc_3d_file`, `visc_3d_structure`, `f_visc_sd`, `visc_shift_file`,
-`visc3d_lid_depth`, `visc3d_lid_log10max`, `visc3d_tol`. Toroidal flow is
+`visc_3d_lid_depth`, `visc_3d_lid_log10max`, `visc_3d_tol`. Toroidal flow is
 implemented and on by default (`l_toroidal`, `design-toroidal.md`). Restarts
 carry the 3-D memory (`test_restart_3d`).
 
@@ -632,8 +632,8 @@ from the original plan noted):
 
 Since then: `visc_3d_structure` (reads `visc_3d_file` in the fesmdata layout),
 `visc_shift_file` (a regional shift of log10 η, added after `f_visc_sd` and before
-the clamp), the lid rule `visc3d_lid_depth` / `visc3d_lid_log10max`, and
-`visc3d_tol` (elements with a smaller lateral spread take the 1-D path).
+the clamp), the lid rule `visc_3d_lid_depth` / `visc_3d_lid_log10max`, and
+`visc_3d_tol` (elements with a smaller lateral spread take the 1-D path).
 
 Original notes (for reference) follow. They are the plan as written before the
 work; where they say "not yet" or "currently", the list above is the present state.

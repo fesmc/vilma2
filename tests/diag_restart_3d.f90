@@ -53,7 +53,7 @@ program diag_restart_3d
    allocate(rsl(np,nl,k1+k2), dzb(np,nl,k1+k2), sc(4,k1+k2))
 
    p%lmax = lmax;  p%nlat = nl;  p%nphi = np
-   p%rotation = .true.;  p%scheme = trim(scheme)
+   p%l_rotation = .true.;  p%scheme = trim(scheme)
    p%earth_response = "ve";  p%l_visc_3d = .true.;  p%visc_3d_file = trim(visc);  p%visc_3d_structure = 6
    p%pre_spinup_1d = (spin == 1);  p%equil_time_max = 0.0_wp
 

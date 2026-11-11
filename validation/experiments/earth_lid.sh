@@ -1,5 +1,5 @@
 # earth_lid.sh — the lid rule of the deglaciation Earth, in one place. Sourced by
-# run_deglac.sh (VILMA2's visc3d_lid_depth / visc3d_lid_log10max) and run.sh
+# run_deglac.sh (VILMA2's visc_3d_lid_depth / visc_3d_lid_log10max) and run.sh
 # (the same rule written into VILMA1's on-grid viscosity files).
 #
 # Maxwell elements wholly above LID_DEPTH [m] whose log10 eta exceeds

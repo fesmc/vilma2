@@ -243,9 +243,12 @@ function reduce_one_blockD(r, c)
         ds.attrib["comment"] = "Reduced from the full model output: 2-D fields at " *
             "selected epochs only; z_bed omitted and equal to z_bed_eq - rsl; " *
             "diagnostics that need every time level are precomputed as series."
-        for k in ("ne", "ne3d", "visc3d_tol", "l_visc_3d")
+        for k in ("ne", "ne3d", "l_visc_3d")
             haskey(r.ds.attrib, k) && (ds.attrib[k] = r.ds.attrib[k])
         end
+        # visc_3d_tol: named visc3d_tol in runs written before the rename
+        k = findfirst(n -> haskey(r.ds.attrib, n), ("visc_3d_tol", "visc3d_tol"))
+        k === nothing || (ds.attrib["visc_3d_tol"] = r.ds.attrib[("visc_3d_tol", "visc3d_tol")[k]])
         w = wall_s(c.root, c.id); w === nothing || (ds.attrib["elapsed_s"] = w)
         ds.attrib["budget_ref_ocean_frac"] = bud.ref_ocean_frac
 
@@ -563,7 +566,7 @@ function reduce_blockE()
             v = defVar(ds, "E3_label", String, ("e3",)); v[:] = [String(r.label) for r in rows3]
             e3v(n, g, u, l) = (vv = defVar(ds, n, Float64, ("e3",);
                     attrib = ["units" => u, "long_name" => l]); vv[:] = [g(r) for r in rows3])
-            e3v("E3_tol", r -> r.tol, "1", "visc3d_tol, in dex of lateral viscosity spread")
+            e3v("E3_tol", r -> r.tol, "1", "visc_3d_tol, in dex of lateral viscosity spread")
             e3v("E3_ne3d", r -> Float64(r.ne3d), "1", "radial elements advanced as laterally 3-D")
             e3v("E3_ocean_mean", r -> r.ocean_mean, "m", "delivered ocean-mean rsl at present day")
             e3v("E3_rms_rsl", r -> r.rms_rsl, "m", "rms difference from tol = 0, rsl at 21 ka")

@@ -19,7 +19,7 @@
                                ! Keep it equal to the v2 run being compared against.
 
     ! VILMA1 has its own earth structure, sea-level equation and time stepping, so
-    ! `earth`, `scheme`, `earth_response`, the sle_* / dt_* knobs and `rotation`
+    ! `earth`, `scheme`, `earth_response`, the sle_* / dt_* knobs and `l_rotation`
     ! are all IGNORED here. Only the grid above, l_visc_3d and the vilma_v1_* block
     ! below have any effect.
     l_visc_3d    = .false.     ! .true. => VILMA1 reads vilma_v1_visc_3d_file (vg%l_mod=1)

@@ -90,7 +90,7 @@ contains
    subroutine new_par(p)
       type(vilma_param_class), intent(out) :: p
       p%lmax = LMAX;  p%nlat = nl;  p%nphi = np
-      p%rotation = .true.
+      p%l_rotation = .true.
    end subroutine new_par
 
    subroutine step(se, k)

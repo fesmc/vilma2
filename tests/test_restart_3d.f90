@@ -73,7 +73,7 @@ contains
       logical  :: rates_ok, mem_ok, rest_ok
 
       p%lmax = LMAX;  p%nlat = 2*LMAX;  p%nphi = 4*LMAX
-      p%earth_response = "ve";  p%rotation = .true.
+      p%earth_response = "ve";  p%l_rotation = .true.
       p%l_visc_3d = .true.;  p%visc_3d_file = VISC;  p%visc_3d_structure = 6;  p%l_toroidal = .true.
       p%pre_spinup_1d = spin;  p%equil_time_max = 0.0_wp;  p%scheme = scheme
       allocate(rsl(sht%nphi,sht%nlat,K1+K2), dzb(sht%nphi,sht%nlat,K1+K2), dzs(sht%nphi,sht%nlat,K1+K2), &

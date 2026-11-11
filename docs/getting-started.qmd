@@ -217,8 +217,8 @@ A few conventions worth knowing:
   can be shifted by `f_visc_sd` standard deviations (σ from the variable
   `name_visc_sd`, or `f_visc_rel` |log10 η|) and by region and depth with
   `visc_shift_file`. It is then clamped to
-  `visc_log10_min`–`visc_log10_max`, and `visc3d_lid_depth` and
-  `visc3d_lid_log10max` make its top effectively elastic. `visc3d_tol` sets
+  `visc_log10_min`–`visc_log10_max`, and `visc_3d_lid_depth` and
+  `visc_3d_lid_log10max` make its top effectively elastic. `visc_3d_tol` sets
   which elements are treated as genuinely 3-D. The order of these steps is given
   in [Rheology](physics/rheology.qmd#visc3d-input).
 - **Toroidal flow** (`l_toroidal`) is **on by default**: with lateral
@@ -227,8 +227,8 @@ A few conventions worth knowing:
   `l_toroidal = .false.` makes such runs 1.5–1.8 times faster, for quick runs
   that do not depend on local sea level (see
   [Toroidal flow](physics/toroidal.qmd)).
-- **Rotational feedback** (`rotation`) is **on by default** for real-Earth runs.
-  Set `rotation = .false.` for the non-rotating community benchmarks. The
+- **Rotational feedback** (`l_rotation`) is **on by default** for real-Earth runs.
+  Set `l_rotation = .false.` for the non-rotating community benchmarks. The
   secular Love number in the Liouville equation defaults to the model's own
   fluid limit; `rotation_k_s` (> 0) prescribes it and `rotation_c_minus_a` sets
   C − A (default 2.63e35 kg m²).

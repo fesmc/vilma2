@@ -110,7 +110,7 @@ contains
       end do
       h0 = 0.0_wp;  Ig = w*h;  C = 0.0_wp;  F = 0.0_wp
       p%lmax = LMAX;  p%nlat = NL;  p%nphi = NP
-      p%earth_response = "elastic";  p%rotation = .false.
+      p%earth_response = "elastic";  p%l_rotation = .false.
 
       ! the south-first host (south-first host fields: the arrays as laid out by lat_s)
       s%par = p
@@ -153,7 +153,7 @@ contains
       integer  :: i, j, k
 
       p%lmax = LMAX;  p%nlat = NL;  p%nphi = NP
-      p%earth_response = "ve";  p%rotation = .false.
+      p%earth_response = "ve";  p%l_rotation = .false.
       p%l_visc_3d = .true.;  p%visc_3d_file = VISC;  p%visc_3d_structure = 1;  p%l_toroidal = .true.
 
       ! the remap run: the geography on a lon-lat host (latitude ascending)

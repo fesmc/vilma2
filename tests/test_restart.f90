@@ -76,7 +76,7 @@ contains
       dt_yr           = 1.0e3_wp          ! interval per update [years]
       p%lmax = LMAX;  p%nlat = 2*LMAX;  p%nphi = 4*LMAX  ! model builds its own grid from par
       p%earth_response = resp
-      p%rotation      = .true.            ! rotation on: also round-trips the polar
+      p%l_rotation      = .true.            ! rotation on: also round-trips the polar
                                           ! motion m + both channels' memory (rot_*)
       p%l_visc_3d     = visc3d            ! synthetic lateral field: 3-D elements, 6 channels
       p%visc_3d_file  = VISC;  p%visc_3d_structure = 6
@@ -152,7 +152,7 @@ contains
       real(wp) :: d_sph, d_tor
       integer  :: step
       p%lmax = LMAX;  p%nlat = 2*LMAX;  p%nphi = 4*LMAX
-      p%earth_response = "ve";  p%rotation = .true.;  p%l_visc_3d = .true.
+      p%earth_response = "ve";  p%l_rotation = .true.;  p%l_visc_3d = .true.
       p%visc_3d_file = VISC;  p%visc_3d_structure = 6
       p%l_toroidal = .false.
       a%par = p; call solid_earth_init(a, z_bed_eq, h_ice_eq)
@@ -184,7 +184,7 @@ contains
       character(len=400)   :: msg
       logical :: w
       p0%lmax = LMAX;  p0%nlat = 2*LMAX;  p0%nphi = 4*LMAX
-      p0%earth_response = "ve";  p0%rotation = .true.
+      p0%earth_response = "ve";  p0%l_rotation = .true.
       p0%visc_3d_file = VISC;  p0%visc_3d_structure = 6
       write(*,'(a)') ' restart [same Earth]:'
 

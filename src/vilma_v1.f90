@@ -217,10 +217,10 @@ contains
       vg%l_prem     = par%vilma_v1_l_prem
       vg%l_mod      = merge(1, 0, par%l_visc_3d)   ! 0 = 1-D radial, 1 = read 3-D field
       vg%l_toro     = 0        ! toroidal loading is irrelevant for GIA
-      ! Follow par%rotation rather than hardwiring it on: otherwise rotation=.false.
+      ! Follow par%l_rotation rather than hardwiring it on: otherwise l_rotation=.false.
       ! gives a non-rotating VILMA2 against a rotating VILMA1, the highest-order
       ! physics term differing silently in an v2-v1 pair.
-      vg%l_rot      = merge(31, 0, par%rotation)   ! rotational variations in the potential
+      vg%l_rot      = merge(31, 0, par%l_rotation)   ! rotational variations in the potential
       vg%l_grid     = 2        ! loading supplied as a spatial grid
       vg%l_envonly  = 0
       vg%ntime      = 10000000 ! no cap: the driver's window decides

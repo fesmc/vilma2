@@ -6,8 +6,8 @@
 #   julia --project=. experiments/make_vilma1_visc_ongrid.jl \
 #        <densi.inp> <source.nc> <out.nc> [<lid_depth_m> <lid_log10max> <log10_cap>]
 #
-# With the three optional arguments, VILMA2's lid rule (&vilma visc3d_lid_depth,
-# visc3d_lid_log10max; model 3ba3263) is applied per element: an element lying
+# With the three optional arguments, VILMA2's lid rule (&vilma visc_3d_lid_depth,
+# visc_3d_lid_log10max; model 3ba3263) is applied per element: an element lying
 # wholly above lid_depth whose log10 eta exceeds lid_log10max is set to log10_cap.
 # The rule is recorded in the lgvisc attribute `lid_rule`, so a pipeline can tell a
 # file made with it from one made without.

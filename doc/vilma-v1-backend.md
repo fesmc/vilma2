@@ -94,7 +94,7 @@ Then, in the run config's `&vilma` group:
 
 When `solver="v1"`, the `&vilma` settings that describe the *VILMA2*
 solver — `earth`/layer arrays, `scheme`, `earth_response`, the `sle_*` knobs, the
-adaptive-Δt knobs, `rotation`, `equil_*`/`pre_spinup_1d` — are **ignored**. VILMA1
+adaptive-Δt knobs, `l_rotation`, `equil_*`/`pre_spinup_1d` — are **ignored**. VILMA1
 has its own earth structure, its own sea-level equation and its own time
 stepping. Only `lmax`/`nlat`/`nphi` (the coupling and output grid) and
 `l_visc_3d` (which sets VILMA1's `vg%l_mod`) are shared.

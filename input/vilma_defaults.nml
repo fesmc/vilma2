@@ -118,7 +118,7 @@
     cfl        = 1.0           ! explicit (fe) sub-step Maxwell-number ceiling M=mu*dt/eta, in (0, 2)
 
     ! --- rotational feedback (vilma_rotation) ----------------------------
-    rotation = .true.          ! TPW feedback: on for real runs; set .false. for
+    l_rotation = .true.        ! TPW feedback: on for real runs; set .false. for
                                ! the non-rotating community benchmarks
     rotation_k_s = 0.0         ! secular Love number k_s; <= 0 = the model's own
                                ! fluid limit k^T_f (Spada 2011 eq. 11)
@@ -164,10 +164,10 @@
     ! The viscosity, sigma and shift fields must be free of NaN, Inf and fill values: the run stops on one.
     visc_log10_min = 19.5    ! floor on log10(eta) after read + perturbation [dex]
     visc_log10_max = 30.0    ! ceiling on log10(eta) after read + perturbation [dex]
-    visc3d_lid_depth    = 0.0   ! [m] 0 = off. Maxwell elements lying wholly above this depth whose
-    visc3d_lid_log10max = 22.0  ! log10(eta) exceeds visc3d_lid_log10max are set to visc_log10_max
-                                ! (effectively elastic): they relax over Myr, so no spin-up equilibrates them
-    visc3d_tol     = 1.0e-3  ! lateral log10(eta) spread [dex] above which an element is genuinely
+    visc_3d_lid_depth    = 0.0   ! [m] 0 = off. Maxwell elements lying wholly above this depth whose
+    visc_3d_lid_log10max = 22.0  ! log10(eta) exceeds visc_3d_lid_log10max are set to visc_log10_max
+                                 ! (effectively elastic): they relax over Myr, so no spin-up equilibrates them
+    visc_3d_tol    = 1.0e-3  ! lateral log10(eta) spread [dex] above which an element is genuinely
                              ! 3-D (pays the dyadic SHT round-trip); higher => fewer 3-D elements,
                              ! cheaper memory advance, at the cost of approximating weak lateral structure
     l_toroidal     = .true.  ! carry the toroidal field once an element is genuinely 3-D. .false. is ~1.5x

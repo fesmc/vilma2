@@ -146,7 +146,7 @@ converted to SI seconds on load.
   (2nd-order adaptive), advanced by the `vilma_timestep` controller.
 - **Degree-1 frame** — `deg1_frame = "cm"` (default, geocenter motion kept) or
   `"cf"` (Spada disc-benchmark convention).
-- **3D viscosity** — `l_visc_3d`, `visc_3d_file`, `visc3d_tol`; `l_toroidal`
+- **3D viscosity** — `l_visc_3d`, `visc_3d_file`, `visc_3d_tol`; `l_toroidal`
   carries the toroidal flow (on by default; `.false.` is faster). `visc_3d_structure = n` reads
   structure `n` of a FesmData-layout file instead of a lon-lat-r field. The
   default is the FesmData product
@@ -156,7 +156,7 @@ converted to SI seconds on load.
   `/work/ba1442/fesmdata`). No viscosity file is shipped with the model.
 - **Spin-up / restart** — `equil_time_max`, `pre_spinup_1d`, and
   `restart_in_file` (`&ctl`).
-- **Rotation** — `rotation` (TPW feedback): on by default; `.false.` for the
+- **Rotation** — `l_rotation` (TPW feedback): on by default; `.false.` for the
   non-rotating benchmarks.
 - **Backend** — `solver = "v2"` (default) or `"v1"` (see above).
 
