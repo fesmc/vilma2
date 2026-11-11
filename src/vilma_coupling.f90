@@ -59,7 +59,7 @@ module vilma_coupling
    use vilma_precision,       only: wp, is_finite
    use vilma_constants,       only: sec_per_year, pi, kyr
    use vilma_params,          only: vilma_param_class
-   use vilma_sht,             only: sht_grid, sht_grid_init, sht_grid_destroy, &
+   use vilma_sht,             only: sht_grid, sht_grid_init, sht_grid_destroy, sht_grid_area_mean, &
                                  sht_grid_synthesis, sht_grid_surface_integral
    use vilma_earth_structure, only: earth_model, build_earth, load_visc_3d
    use vilma_viscoelastic,    only: scheme_from_name
@@ -763,15 +763,17 @@ contains
       call solid_earth_update(self, h_ice_lgm, 0.0_wp, w, I_g, C, F)   ! seed the entering ice = start (LGM) ice
 
       if (pre_1d) then
-         ! 1-D phase: replace the lateral viscosity with its lateral geometric mean
-         ! (a laterally-uniform field => a 1-D model on the mean radial profile). The
+         ! 1-D phase: replace the lateral viscosity with its lateral geometric mean,
+         ! area-weighted over the sphere (sht_grid_area_mean, as the response's own
+         ! 1-D collapse), a laterally-uniform field => a 1-D model on the mean radial profile. The
          ! Maxwell memory is preserved across the enable, so it seeds the full model.
          if (self%par%l_visc_3d) then
             call load_visc_3d(self%par, self%sht, self%resp%r, visc_node)
             nh = size(visc_node, 1)
             allocate(visc_unif(nh, size(visc_node, 2)))
             do r = 1, size(visc_node, 2)
-               visc_unif(:, r) = sum(visc_node(:, r)) / real(nh, wp)   ! lateral mean of log10(eta)
+               visc_unif(:, r) = sht_grid_area_mean(self%sht, &
+                    reshape(visc_node(:, r), [self%sht%nphi, self%sht%nlat]))   ! lateral mean of log10(eta)
             end do
             call apply_visc_nodes(self, self%sht, visc_unif)
          end if

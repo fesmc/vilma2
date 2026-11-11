@@ -40,7 +40,8 @@ module vilma_response
                                  SCHEME_FE, SCHEME_TRAP, &
                                  NLAM_TOR, ve_strain_constants_tor, dissipative_rhs_tor, &
                                  advance_memory_tor, strain_coeffs_tor
-   use vilma_sht,             only: sht_grid, sht_grid_lmidx, sht_grid_synthesis, sht_grid_analysis
+   use vilma_sht,             only: sht_grid, sht_grid_lmidx, sht_grid_synthesis, sht_grid_analysis, &
+                                    sht_grid_area_mean
    use vilma_tensor_sh,       only: tensor_sh, TLAM_SPH, tensor_sh_init, tensor_sh_thread_cfg, tensor_sh_synth, tensor_sh_analysis, tensor_sh_destroy
    use, intrinsic :: iso_c_binding, only: c_ptr
    implicit none
@@ -1047,7 +1048,7 @@ contains
       !! when its lateral log10(η) spread exceeds visc3d_tol; that subset (e3d) pays
       !! the pseudo-spectral tensor-SH advance. Every other Maxwell element collapses
       !! to a scalar effective rate, that of its lateral mean log10(η) — the mean over
-      !! the sphere, area-weighted (grid_area_mean), not over the grid points, which
+      !! the sphere, area-weighted (sht_grid_area_mean), not over the grid points, which
       !! crowd toward the poles — and advances on the cheap degree-diagonal spectral
       !! path. A laterally-uniform field therefore flags NO element 3-D, so the cost
       !! equals the 1-D run (exactly, not just to SHT round-off).
@@ -1078,7 +1079,7 @@ contains
       self%active1d = .true.;  self%ne3d = 0
       do e = 1, self%ne
          if (self%MkPerDt_rad(e) == 0.0_wp) cycle         ! elastic/fluid: spectral, memory-free
-         self%MkPerDt_mean(e) = self%MkPerDt_rad(e) * 10.0_wp**(-grid_area_mean(sht, pert_elem(:,:,e)))
+         self%MkPerDt_mean(e) = self%MkPerDt_rad(e) * 10.0_wp**(-sht_grid_area_mean(sht, pert_elem(:,:,e)))
          spread = maxval(pert_elem(:,:,e)) - minval(pert_elem(:,:,e))
          if (spread > self%visc3d_tol) then
             self%active1d(e) = .false.;  self%ne3d = self%ne3d + 1   ! genuinely 3-D
@@ -1218,25 +1219,6 @@ contains
       call response_enable_lateral_visc(self, sht, pert)
       deallocate(pert)
    end subroutine response_enable_lateral_visc_from_nodes
-
-   pure real(wp) function grid_area_mean(sht, f) result(mean)
-      !! Mean of a grid field over the sphere: Gauss weights in latitude, uniform in
-      !! longitude. Taken as f(1,1) plus the mean of the deviation from it, so a
-      !! uniform field gives its value exactly.
-      type(sht_grid), intent(in) :: sht
-      real(wp),       intent(in) :: f(:,:)   !! (nphi, nlat)
-      real(wp) :: row
-      integer  :: i, j
-      mean = 0.0_wp
-      do j = 1, sht%nlat
-         row = 0.0_wp
-         do i = 1, sht%nphi
-            row = row + (f(i,j) - f(1,1))
-         end do
-         mean = mean + sht%gauss_w(j)*row
-      end do
-      mean = f(1,1) + mean/(2.0_wp*real(sht%nphi, wp))      ! Σ gauss_w = 2
-   end function grid_area_mean
 
    function response_radial_rate(self) result(rate)
       !! The radial profile of the viscosity the response integrates, as the per-element
