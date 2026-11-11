@@ -1388,26 +1388,32 @@ contains
       complex(wp), allocatable :: c1a(:,:),  c1b(:,:),  c1c(:,:)    ! ε_{n+1} coeffs
       complex(wp), allocatable :: cdel(:,:)                         ! analysed increment
       real(wp),    allocatable :: dt0(:,:,:), den(:,:,:), de1(:,:,:) ! (nphi,nlat,6)
+      real(wp),    allocatable :: wtau(:,:), weps(:,:)               ! (nphi,nlat) rule weights
       type(c_ptr) :: cfg
       integer  :: e, ei, k, lm, nc
 
       if (self%ne3d == 0) return        ! no genuinely-3-D element ⇒ all handled spectrally
       !$omp parallel default(shared) &
-      !$omp   private(e, ei, k, lm, nc, cm0a, cm0b, cm0c, cna, cnb, cnc, c1a, c1b, c1c, cdel, dt0, den, de1, cfg)
+      !$omp   private(e, ei, k, lm, nc, cm0a, cm0b, cm0c, cna, cnb, cnc, c1a, c1b, c1c, cdel, dt0, den, de1, &
+      !$omp           wtau, weps, cfg)
       allocate(cm0a(self%nlam,sht%nlm), cm0b(self%nlam,sht%nlm), cm0c(self%nlam,sht%nlm))
       allocate(cna(self%nlam,sht%nlm),  cnb(self%nlam,sht%nlm),  cnc(self%nlam,sht%nlm))
       allocate(c1a(self%nlam,sht%nlm),  c1b(self%nlam,sht%nlm),  c1c(self%nlam,sht%nlm))
       allocate(cdel(self%nlam,sht%nlm))
       allocate(dt0(sht%nphi,sht%nlat,6), den(sht%nphi,sht%nlat,6), de1(sht%nphi,sht%nlat,6))
+      allocate(wtau(sht%nphi,sht%nlat), weps(sht%nphi,sht%nlat))
       cfg = tensor_sh_thread_cfg(self%tsh)
       !$omp do schedule(dynamic)
       do ei = 1, self%ne3d                                 ! only the genuinely-3-D elements
          e = self%e3d(ei)
          call gather_tensor_coeffs_trap(self, sigma_lm, e, cm0a, cm0b, cm0c, &
                                         cna, cnb, cnc, c1a, c1b, c1c)
-         call advance_shape_tensor_trap(self, sht, e, cm0a, cna, c1a, dt0, den, de1, cdel, cfg)
-         call advance_shape_tensor_trap(self, sht, e, cm0b, cnb, c1b, dt0, den, de1, cdel, cfg)
-         call advance_shape_tensor_trap(self, sht, e, cm0c, cnc, c1c, dt0, den, de1, cdel, cfg)
+         ! the element's weights of the rule, τ⁺ − τ_n = −wtau·τ_n − weps·(ε_n + ε_{n+1})
+         wtau = self%Mk3(:,:,e)            / (1.0_wp + 0.5_wp*self%Mk3(:,:,e))
+         weps = self%mu(e)*self%Mk3(:,:,e) / (1.0_wp + 0.5_wp*self%Mk3(:,:,e))
+         call advance_shape_tensor_trap(self, sht, cm0a, cna, c1a, wtau, weps, dt0, den, de1, cdel, cfg)
+         call advance_shape_tensor_trap(self, sht, cm0b, cnb, c1b, wtau, weps, dt0, den, de1, cdel, cfg)
+         call advance_shape_tensor_trap(self, sht, cm0c, cnc, c1c, wtau, weps, dt0, den, de1, cdel, cfg)
          do k = 1, self%nk                                 ! write updated memory back
             lm = self%k2lm(k)
             nc = size(cm0a,1)
@@ -1417,7 +1423,7 @@ contains
          end do
       end do
       !$omp end do
-      deallocate(cm0a, cm0b, cm0c, cna, cnb, cnc, c1a, c1b, c1c, cdel, dt0, den, de1)
+      deallocate(cm0a, cm0b, cm0c, cna, cnb, cnc, c1a, c1b, c1c, cdel, dt0, den, de1, wtau, weps)
       !$omp end parallel
    end subroutine advance_memory_3d_trap
 
@@ -1497,7 +1503,7 @@ contains
       end do
    end subroutine gather_tensor_coeffs_trap
 
-   subroutine advance_shape_tensor_trap(self, sht, e, c0, eps_n, eps_1, dt0, den, de1, cdel, cfg)
+   subroutine advance_shape_tensor_trap(self, sht, c0, eps_n, eps_1, wtau, weps, dt0, den, de1, cdel, cfg)
       !! One radial shape-coefficient, trapezoidal: reconstruct τ_n, ε_n, ε_{n+1} on the
       !! grid (six dyadic components) and apply the pointwise Crank–Nicolson update
       !! τ⁺ = [(1−M/2)τ_n − μM(ε_n+ε_{n+1})]/(1+M/2) per component with M=Mk3(:,:,e).
@@ -1505,24 +1511,23 @@ contains
       !!
       !! AS AN INCREMENT, for the reason spelled out in advance_shape_tensor:
       !!       τ⁺ − τ_n = −M·[τ_n + μ(ε_n + ε_{n+1})] / (1 + M/2)
-      !! which is the same expression rearranged, and keeps the transform error
+      !!                = −wtau·τ_n − weps·(ε_n + ε_{n+1}),
+      !! wtau = M/(1+M/2), weps = μM/(1+M/2) on the grid (the caller forms them once
+      !! per element), which is the same expression rearranged, and keeps the transform error
       !! proportional to what the step changes rather than to τ itself. Without it the
       !! stiff elements (M ~ 1e-10 for the 1e30 Pa s lid) advance on round-off.
       type(response), intent(in)    :: self
       type(sht_grid),     intent(in)    :: sht
-      integer,            intent(in)    :: e
       complex(wp),        intent(inout) :: c0(:,:)
       complex(wp),        intent(in)    :: eps_n(:,:), eps_1(:,:)
+      real(wp),           intent(in)    :: wtau(:,:), weps(:,:)
       real(wp),           intent(inout) :: dt0(:,:,:), den(:,:,:), de1(:,:,:)
       complex(wp),        intent(inout) :: cdel(:,:)
       type(c_ptr),        intent(in)    :: cfg
-      real(wp), dimension(size(dt0,1),size(dt0,2)) :: wtau, weps
       integer  :: p
       call tensor_sh_synth(self%tsh, sht, c0,    dt0, cfg)
       call tensor_sh_synth(self%tsh, sht, eps_n, den, cfg)
       call tensor_sh_synth(self%tsh, sht, eps_1, de1, cfg)
-      wtau = self%Mk3(:,:,e)            / (1.0_wp + 0.5_wp*self%Mk3(:,:,e))
-      weps = self%mu(e)*self%Mk3(:,:,e) / (1.0_wp + 0.5_wp*self%Mk3(:,:,e))
       do p = 1, 6
          dt0(:,:,p) = -wtau*dt0(:,:,p) - weps*(den(:,:,p) + de1(:,:,p))
       end do
