@@ -12,8 +12,7 @@
 #
 # E2 (forcing cadence) is not here and is not a missing script: the coupling
 # interval is the forcing file's own time axis, not a namelist parameter, so
-# testing 500 yr needs a model or data change rather than a run. See
-# experiments.md §E.
+# testing 500 yr needs a model or data change rather than a run.
 #
 # HOW CONVERGENCE IS MEASURED, AND WHY IT IS NOT SELF-REFERENTIAL. Each axis is
 # measured against its OWN most-resolved member — lmax 256 for E1, tol = 0 for
@@ -114,7 +113,7 @@ function fig_lmax()
         difference of each truncation from the ℓmax $ref_lmax solution, for relative sea
         level at 21 ka and for the present-day uplift rate; fields are compared on the
         coarser grid of each pair. (c) Measured wall clock for the complete 26 kyr run at
-        each truncation, on 64 threads of one Levante node.
+        each truncation, on 64 threads of one node.
         """,
         notes = """
         The reference is the most-resolved member, ℓmax $ref_lmax, not the production
@@ -227,7 +226,7 @@ function fig_tol()
         rheology, on the last deglaciation at ℓmax 170 with the 3-D Bagge et al. (2021)
         field. (a) Number of the model's $nt radial elements promoted to the 3-D treatment
         at each threshold; the dashed line is the total element count. (b) Measured wall
-        clock for the complete 26 kyr run at each threshold, on 64 threads of one Levante
+        clock for the complete 26 kyr run at each threshold, on 64 threads of one
         node. The production default is 10⁻³.
         Against `tol = 0`, where every Maxwell element is promoted, the approximation
         costs nothing measurable: $(acc_phrase) The threshold is therefore plotted
@@ -289,7 +288,7 @@ open(joinpath(tables_dir(), "blockE.md"), "w") do io
                 "the headline result; E3 is `visc3d_tol`, the model's central speed/accuracy ",
                 "approximation. E2 (forcing cadence) was dropped because the coupling ",
                 "interval is the forcing file's own time axis rather than a namelist ",
-                "parameter — see `experiments.md` §E.\n")
+                "parameter.\n")
 
     if ok1 !== nothing
         println(io, "## E1 — spectral truncation\n")

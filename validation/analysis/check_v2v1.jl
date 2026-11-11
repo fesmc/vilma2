@@ -199,9 +199,11 @@ function summary_figure(series)
         title = "Size and composition of the VILMA2 − VILMA1 residual",
         caption = """
         The VILMA2 minus VILMA1 residual in relative sea level through the last
-        deglaciation, for the 3-D viscosity field (red), for the same field with
-        VILMA2's toroidal coupling on (dark red), and for 1Db, its radial mean
-        (blue), all at ℓmax 170 on the identical reference state. (a) Root-mean-square
+        deglaciation, for $(join([lowercase(PAIR_STYLE[tag].lab) == "1db" ? "1Db, the radial mean of the 3-D field (blue)" :
+                                  tag == "3d" ? "the 3-D viscosity field (red)" :
+                                  "the 3-D field with VILMA2's toroidal coupling on (dark red)"
+                                  for (tag, _) in series], ", ")), all at ℓmax 170 on the
+        identical reference state. (a) Root-mean-square
         residual over the global grid. (b) The same, as a percentage of the maximum
         |relative sea level| that VILMA2 produces at that epoch. (c) The degree-0
         (solid) and degree-1 (dash-dotted) content of the residual, from an area-weighted
@@ -210,10 +212,9 @@ function summary_figure(series)
         """,
         notes = """
         Panel (c) is the check that the residual is a solver difference rather than a
-        convention difference. Sessions 24–25 measured degree 1 as roughly half the
-        deglacial residual and 98–99.7 % of the disc-benchmark residual, when
-        VILMA2 ran in its `cf` frame and VILMA1 reported geocenter motion; running
-        both in the `cm` frame removed it: degrees 0 and 1 stay below
+        convention difference. With VILMA2 in its `cf` frame and VILMA1 reporting
+        geocentre motion, degree 1 was about half the deglacial residual; with both
+        in the `cm` frame degrees 0 and 1 stay below
         $(@sprintf("%.2f", d01)) m in every pair, against a peak rms of
         $(join([@sprintf("%.1f m (%s)", maximum(s.rms), PAIR_STYLE[tag].lab)
                 for (tag, s) in series], ", ")). Most of what (a) shows early in the
@@ -317,7 +318,9 @@ open(joinpath(tables_dir(), "v2v1.md"), "w") do io
                 "own LGM reference state (`i_eq = 2`; the 26 ka load held 30 kyr) — with the degree-1 frame ",
                 "matched (`deg1_frame = \"cm\"`). The viscosity field is shared by ",
                 "construction: `experiments/make_vilma1_visc.jl` applies VILMA2's own ",
-                "clamp to VILMA2's own vendored Bagge field, because VILMA1 reads its ",
+                "clamp to the Bagge et al. (2021) file both backends read ",
+                "(`validation/data/input/bagge2021.nc`, lon-lat-r, not the FesmData ",
+                "product that is the model default), because VILMA1 reads its ",
                 "NetCDF directly through `io_nc3in` and none of the native clamping reaches ",
                 "it. `C_ocean` and `bsl` are VILMA2 diagnostics computed the same way ",
                 "for both backends and are therefore not independent between them.\n")
@@ -325,7 +328,7 @@ open(joinpath(tables_dir(), "v2v1.md"), "w") do io
                 "VILMA1 begins at its own reference with no first-step jump and VILMA2 ",
                 "begins at a held-load state of its own Earth model. Neither needs a spin-up. ",
                 "The `i_eq = 1` pairs, and the seven datum-hunting pairs that preceded ",
-                "them, are retired —.§28.\n")
+                "them, are retired.\n")
 
     for p in PAIRS
         f = load_run(p.v2)
@@ -374,6 +377,14 @@ open(joinpath(tables_dir(), "v2v1.md"), "w") do io
         omf, omv = ocean_mean(f, 0.0), ocean_mean(v, 0.0)
         @printf(io, "\n**Ocean-mean rsl at present day**: V2 %.2f m, V1 %.2f m, difference %.2f m.\n",
                 omf, omv, omf - omv)
+        if k !== nothing
+            sr = v2v1[k]; ok = findall(isfinite, sr.rms); i = ok[argmax(sr.rms[ok])]
+            okr = findall(isfinite, sr.rel); j = okr[argmax(sr.rel[okr])]
+            @printf(io, "\n**Peak of the residual series** (`deglac-v2v1-summary.png`, every 1 kyr): rms %.2f m at %.0f ka; rms/signal at most %.1f %% (%.0f ka).\n",
+                    sr.rms[i], -sr.time[i] / 1000, 100 * sr.rel[j], -sr.time[j] / 1000)
+            record!("v2v1", "$(p.tag)_rms_peak_m" => round(sr.rms[i], digits = 2),
+                            "$(p.tag)_rms_peak_ka" => round(-sr.time[i] / 1000, digits = 1))
+        end
 
         println(io, "\n| time | ocean-function cells differing | % of grid |")
         println(io, "|---|---:|---:|")
