@@ -1,0 +1,343 @@
+---
+title: "Tutorial: the deforming Earth"
+subtitle: "A conceptual tour of the physics and numerics behind VILMA2"
+---
+
+VILMA2 computes how the solid Earth and sea level respond to a changing load of
+ice and ocean water. This page introduces the ideas behind the model, one at a
+time, for a reader who is new to glacial isostatic adjustment (GIA) or to this
+code. Each section gives the physical idea, its central equation and a short
+note on where it lives in VILMA2. The detailed derivations, parameters and
+validation are on the linked pages. The page assumes some familiarity with
+linear algebra and partial differential equations, and nothing about the code.
+
+## Refreshers and name origins
+
+Two mathematical ideas recur throughout the model. The first is
+**diagonalization**. A linear operator $L$ is diagonal in a basis of its
+eigenfunctions $\phi_k$, since $L\phi_k = \lambda_k\phi_k$. A field expanded in
+that basis, $f = \sum_k c_k\phi_k$, then transforms coefficient by coefficient,
+$Lf = \sum_k \lambda_k c_k\phi_k$. A coupled problem thus splits into many
+small, independent ones. This is the reason spherical harmonics are used
+horizontally (see [below](#spherical-harmonics-diagonalize-the-laplacian)).
+
+The second is **fixed-point (Picard) iteration**. An equation of the form
+$x = F(x)$ is solved by repeating $x_{k+1} = F(x_k)$ from a first guess. The
+sequence converges when $F$ is a contraction, and it needs only evaluations
+of $F$, not its Jacobian. The sea-level equation and its coupling to rotation
+and to the viscoelastic memory are all solved this way.
+
+Several terms carry the names of their originators. The dimensionless response
+coefficients of a self-gravitating sphere are named after A. E. H. Love, who
+introduced them in *Some Problems of Geodynamics* (1911). The horizontal
+displacement number was added by T. Shida in 1912. The spring-and-damper
+rheology of the mantle is named after J. C. Maxwell, who proposed it in 1867.
+The sea-level equation in its modern form goes back to @FarrellClark1976.
+
+## The mantle as a Maxwell body
+
+On the timescales of glacial cycles the mantle behaves as both a solid and a
+fluid. It responds elastically to a sudden change in load and flows viscously
+under a load that persists. A **Maxwell body**, an elastic spring and a viscous
+damper in series, captures both regimes with one constitutive law. For the
+deviatoric stress $\boldsymbol{\tau}$ and strain $\boldsymbol{\varepsilon}$ it
+reads
+
+$$
+\dot{\boldsymbol{\tau}} + \frac{\mu}{\eta}\,\boldsymbol{\tau}
+\;=\; 2\mu\,\dot{\boldsymbol{\varepsilon}},
+$$
+
+where $\mu$ is the shear modulus and $\eta$ the viscosity. Under a suddenly
+imposed strain the stress jumps to its elastic value and then decays on the
+**Maxwell time**
+
+$$
+\tau_M \;=\; \frac{\eta}{\mu}.
+$$
+
+For the upper mantle of the benchmark earth model M3–L70–V01
+($\eta = 10^{21}$ Pa s, $\mu \approx 7\times10^{10}$ Pa), $\tau_M$ is about
+450 yr. A load that changes faster than this sees a largely elastic mantle,
+while a load held for many Maxwell times sees a fluid one. Glacial cycles span
+both regimes, so both must be represented in the same simulation.
+
+The real mantle is not a single Maxwell body. It is a stack of layers, each
+with its own density, shear modulus and viscosity, beneath an elastic
+lithosphere and above a fluid core. The relaxation of the surface is therefore
+not set by one Maxwell time. It is set by the whole structure, including the
+buoyancy of the displaced material, and it typically spans hundreds to many
+thousands of years. Viscosity may also vary laterally, for example between
+cratons and tectonically active regions. This lateral structure is the main
+reason a time-domain method was chosen for VILMA2.
+
+::: {.callout-tip title="In VILMA2"}
+The layered structure is built in `vilma_earth_structure` and selected by
+`earth`: `"M3-L70-V01"` (default), `"PREM"` (density and shear modulus from
+incompressible PREM on a given layer geometry) or `"custom"` (the layer arrays
+`r_bot`, `r_top`, `rho`, `mu`, `eta`, `rheology`). An elastic layer
+(`rheology = 0`) is exactly elastic, and a fluid layer (`rheology = 2`) carries
+no shear stress. Lateral viscosity is off by default (`l_visc_3d = .false.`).
+When it is on, a $\log_{10}\eta$ field is read from `visc_3d_file`, by default
+the @Bagge2021 field of the FesmData store, and clamped to
+`visc_log10_min`–`visc_log10_max` (19.5 to 30). The model does not ship a
+viscosity file. See [Rheology](physics/rheology.qmd), and
+[the 3-D viscosity input chain](physics/rheology.qmd#visc3d-input) for the
+order in which the field is built.
+:::
+
+## Spherical harmonics diagonalize the Laplacian
+
+Spherical harmonics are the natural basis for fields on a sphere. Any
+square-integrable field on the surface can be expanded as
+
+$$
+f(\theta,\phi) \;=\; \sum_{\ell=0}^{\infty}\sum_{m=-\ell}^{\ell} f_{\ell m}\,Y_{\ell m}(\theta,\phi),
+$$
+
+where the degree $\ell$ sets the angular scale of a pattern and the order $m$
+distributes its nodal lines between latitude and longitude. Zonal harmonics
+($m = 0$) vary only with latitude, while sectoral harmonics ($|m| = \ell$) vary
+only with longitude.
+
+The use of this basis follows from one property. The spherical harmonics are
+the eigenfunctions of the angular part of the Laplacian,
+
+$$
+\nabla_1^2\,Y_{\ell m} \;=\; -\,\ell(\ell+1)\,Y_{\ell m}.
+$$
+
+The Laplacian is thus diagonal in this basis, as described above. For a
+radially symmetric Earth the field equations of a loaded, self-gravitating
+sphere (momentum balance, Poisson's equation and incompressibility) decouple
+degree by degree. Each degree $\ell$ reduces to an independent radial problem,
+and the order $m$ enters only through the load coefficients. The operator of
+a degree is therefore the same for all its orders.
+
+In practice the expansion is truncated at a maximum degree $\ell_\max$. The
+shortest resolved half-wavelength is about $\pi a/\ell_\max$, where $a$ is the
+radius of the Earth. This gives roughly 310 km at $\ell_\max = 64$ and 120 km
+at $\ell_\max = 170$, the resolution of VILMA1 in CLIMBER-X. The number of
+coefficients grows as $(\ell_\max+1)^2$, so the cost rises steeply with
+resolution.
+
+::: {.callout-tip title="In VILMA2"}
+`vilma_sht` wraps the SHTns library [@Schaeffer2013] and FFTW for the
+transforms between the Gauss–Legendre grid and spectral space. The harmonics
+are real and fully normalized, without the Condon–Shortley phase. The
+truncation is set by `lmax` (64 in `input/vilma_defaults.nml`, while a host must
+set it itself), and the grid by `nlat` and `nphi` (0 gives the de-aliased defaults
+$2\ell_\max+2$ and $4\ell_\max$). SHTns is initialized without its per-grid
+algorithm tuning. This is fixed in `vilma_sht` at compile time and is not a
+run-time option. See [Spectral reduction](discretization/spectral.qmd) and
+[Radial finite elements](discretization/radial-fe.qmd).
+:::
+
+## Load Love numbers, one response per degree
+
+For a radially symmetric Earth the response to a surface load depends only on
+the degree of the load, not on its order. A load coefficient $\sigma_{\ell m}$
+therefore produces a vertical displacement, a horizontal displacement and a
+perturbation of the gravitational potential that are fixed multiples of it.
+These multiples are the **load Love numbers** $h_\ell$, $l_\ell$ and $k_\ell$,
+respectively. Following @Farrell1972 they are defined relative to the
+potential of the load itself, $\varphi^L = 4\pi G a\,\sigma/(2\ell+1)$:
+
+$$
+h_\ell = \frac{g_0\,U(a)}{\varphi^{L}}, \qquad
+l_\ell = \frac{g_0\,V(a)}{\varphi^{L}}, \qquad
+k_\ell = -\frac{F(a)}{\varphi^{L}} - 1,
+$$
+
+where $U(a)$ and $V(a)$ are the radial and horizontal displacement at the
+surface, $F(a)$ is the incremental potential there and $g_0$ is surface
+gravity. The term $-1$ in $k_\ell$ removes the direct potential of the load, so
+that $k_\ell$ describes only the deformation.
+
+For a viscoelastic Earth the Love numbers become functions of time. A load
+applied at $t = 0$ produces an instantaneous elastic response, which then
+relaxes toward the fluid limit as the mantle flows. For a homogeneous fluid
+sphere this limit is known exactly, $h_\ell \to -(2\ell+1)/3$ and
+$k_\ell \to -1$, which makes it a useful test of any GIA code.
+
+Classical normal-mode codes write this time dependence as an elastic term
+plus a finite sum of exponentially decaying modes [@Peltier1974]. The modes
+are found once per degree, and the response to an arbitrary load history then
+follows by convolution. This is efficient for a radially symmetric Earth.
+However, it cannot represent lateral viscosity, which couples the degrees and
+removes the per-degree response on which the method rests.
+
+VILMA2 therefore does not compute modes. It solves the radial problem of each
+degree directly in time, following @Martinec2000, so the Love numbers are not
+inputs to the model. They are diagnostics that emerge from it: the first step
+gives the elastic response, and a load held long enough gives the fluid limit.
+The same per-degree solve then serves the 1-D and the 3-D case.
+
+::: {.callout-tip title="In VILMA2"}
+The radial problem of each degree is discretized with finite elements in
+`vilma_radial_fe`, which also holds the Love-number extraction
+(`loading_love`, `tidal_love`). The operator of each degree is factored once
+by the banded solver in `vilma_band` and reused at every step. `vilma_response`
+wraps the per-degree solves as a response operator, selected by
+`earth_response`: `"ve"` (viscoelastic, default), `"elastic"` or `"null"`. The
+elastic $h_\ell$ of M3–L70–V01 matches the reference table to within 0.08 % up
+to degree 256 (see [Love numbers](benchmarks/love-numbers.qmd)).
+:::
+
+## The sea-level equation and its fingerprint
+
+Sea-level change caused by a melting ice sheet is not uniform. The meltwater
+raises the global mean, but the loss of ice mass also lowers the geoid near the
+ice sheet and lets the bed rebound there. Relative sea level therefore falls
+near a shrinking ice sheet and rises by more than the mean far from it. This
+spatial pattern is the sea-level **fingerprint** of the ice sheet.
+
+The **sea-level equation** computes this pattern self-consistently. With the
+ocean function $C$ (1 over ocean, 0 over land and grounded ice), the
+relative sea-level change $S$ is
+
+$$
+S \;=\; C\cdot\bigl(N - u + \Delta\phi\bigr),
+$$
+
+where $N$ is the geoid change, $u$ the vertical displacement of the bed and
+$\Delta\phi$ a spatially uniform term. The Earth responds to the total surface
+load,
+
+$$
+L \;=\; \rho_{\text{ice}}\,\Delta I \;+\; \rho_{\text{water}}\,C\cdot S,
+$$
+
+with $\Delta I$ the change in grounded ice thickness. The uniform term
+$\Delta\phi$ is chosen such that the ocean gains exactly the mass the ice
+loses. Since $S$ appears in its own load, the equation is implicit. It is
+solved by fixed-point iteration: a guess of $S$ gives the load, the load gives
+$N$ and $u$, and these give an updated $S$.
+
+Two refinements matter for realistic geometries. First, the coastline
+migrates. As sea level changes, land floods or emerges and grounded ice may
+float, so the ocean function itself must be updated. Second, a newly flooded
+cell does not fill instantly to the full sea-level change, and loading it as
+if it did puts a spurious step at the shoreline. The first refinement follows
+@KMM2005, and the second follows @Martinec2018.
+
+::: {.callout-tip title="In VILMA2"}
+`vilma_sle` solves the equation in the pseudo-spectral form of @KMM2005: the
+response is applied in spectral space, and the product with the ocean function
+is formed on the grid. An inner loop iterates $S$ at a fixed coastline
+(`sle_n_inner` = 20, `sle_tol` = $10^{-7}$), and an outer loop migrates the
+coastline (`sle_n_outer` = 3). The coastline migrates by default
+(`sle_fixed_ocean = .false.`), and newly flooded cells are loaded by their
+actual water column (`sle_subgrid = .true.`). Ocean mass is conserved by
+construction. The densities default to `rho_ice` = 917 and `rho_water` =
+1000 kg m$^{-3}$. Against the @Martinec2018 cases D3, E2 and F1 the model
+agrees to within about 8 % of peak in every field. Case C2 shows an offset that
+is not yet attributed. See [Sea-level equation](physics/sea-level.qmd) and its
+[benchmark](benchmarks/sea-level.qmd).
+:::
+
+## Off-axis mass drives the rotation pole
+
+A redistribution of surface mass changes the inertia tensor of the Earth and
+thereby moves its rotation axis. Mass placed away from the poles and the
+equator perturbs the off-diagonal products of inertia, and the pole drifts in
+response. This **true polar wander** changes the centrifugal potential, which
+acts as a further load on the Earth and on the ocean. This feedback has no
+global mean. Instead, it shifts sea level in a characteristic degree-2,
+order-1 pattern.
+
+On GIA timescales the Chandler wobble can be neglected. The polar motion
+$\mathbf{m}$ then follows the quasi-static linearized Liouville equation
+[@MartinecHagedoorn2014],
+
+$$
+\Bigl[\,1 - \tfrac{k^{T}(t)}{k_{s}}\,\Bigr] * \mathbf{m}(t) \;=\; \frac{I(t)}{C-A},
+$$
+
+where $*$ is a convolution in time, $I$ is the inertia perturbation including
+the deformation of the Earth, $k^T$ is the degree-2 tidal Love number, $k_s$
+the secular (fluid-limit) Love number and $C-A$ the difference between the
+polar and equatorial moments of inertia. The centrifugal potential of the
+displaced pole,
+
+$$
+\Lambda \;=\; -\Omega^{2}a^{2}\sin\theta\cos\theta\,(m_1\cos\phi + m_2\sin\phi),
+$$
+
+is a degree-2, order-1 field. It enters the sea-level equation as one more
+contribution to the sea surface, so no separate solver is needed.
+
+::: {.callout-tip title="In VILMA2"}
+`vilma_rotation` carries two degree-2 viscoelastic channels (one forced by the
+load, one by the centrifugal potential) on the same radial operator as the load
+response. The rotation and the sea level are iterated to a common fixed point
+inside `vilma_sle`. Rotation is on by default (`rotation = .true.`) and is
+switched off for the non-rotating community benchmarks. `rotation_k_s` = 0
+(default) uses the model's own fluid limit for $k_s$, and `rotation_c_minus_a`
+sets $C-A$ (default $2.63\times10^{35}$ kg m$^2$). The polar motion matches
+Spada test 3/2 to within 0.9 %. See [Rotation](physics/rotation.qmd) and its
+[benchmark](benchmarks/rotation.qmd).
+:::
+
+## Explicit memory and time stepping
+
+VILMA2 advances the Maxwell rheology explicitly in time. The total stress at a
+step is the elastic stress of the current strain plus a **memory stress**
+$\boldsymbol{\tau}^V$ that carries the relaxation history. In the default
+scheme it is updated as
+
+$$
+\boldsymbol{\tau}^{V,i} \;=\; (1-M)\,\boldsymbol{\tau}^{V,i-1}
+\;-\; 2\mu M\,\boldsymbol{\varepsilon}^{\,i},
+\qquad
+M \;=\; \frac{\mu\,\Delta t}{\eta},
+$$
+
+where $i$ is the step index and $M$ is the Maxwell number of the step
+[@Martinec2000]. The memory stress enters only the right-hand side of the field
+equations. The left-hand operator is therefore independent of time, of the
+time step and of viscosity. It is factored once per degree, and each step
+costs a back-substitution.
+
+This choice has two consequences. First, lateral viscosity changes only the
+scalar $M$, which multiplies known fields pointwise. The memory advance is
+then done on the grid and transformed back to spectral space, while the solve
+stays decoupled by degree. Second, the scheme is only conditionally stable.
+The step must satisfy $\Delta t < 2\eta_{\min}/\mu$, so the lowest viscosity
+present sets the step. At the default floor of $10^{19.5}$ Pa s and
+$\mu \approx 7\times10^{10}$ Pa the limit $M \le 1$ is about 15 yr. The
+coupling interval of a host model is thus split into shorter sub-steps, with
+the ice load interpolated linearly across the interval.
+
+A second, implicit scheme is available. The trapezoidal (Crank–Nicolson)
+update is second-order accurate and A-stable, so its step is limited by
+accuracy rather than stability. Its step size is chosen adaptively, by
+comparing one full step with two half steps. Since the end-of-step strain
+depends on the end-of-step memory, each step is iterated together with the
+sea-level equation.
+
+::: {.callout-tip title="In VILMA2"}
+The memory scheme is selected by `scheme`: `"fe"` (explicit, default), with
+equal sub-steps at $M \le$ `cfl` (default 1), or `"trap"` (trapezoidal,
+adaptive), with the tolerances `rtol` = $10^{-4}$ and `atol` = $10^{-3}$. The
+sub-step controller is `vilma_timestep`, the per-degree Maxwell kernel is in
+`vilma_viscoelastic`, and the field driver is in `vilma_response`. A host
+advances the model with `solid_earth_update(se, h_ice, dt_yr)` from
+`vilma_coupling`, which passes the coupling interval in years. With lateral
+viscosity the toroidal field is carried by default (`l_toroidal = .true.`).
+A deglaciation at $\ell_\max = 170$ with 3-D viscosity then takes about
+2.7 min of wall time per kyr on 64 threads (see
+[Toroidal flow](physics/toroidal.qmd)). A restarted run reproduces an
+uninterrupted one bit for bit. See [Rheology](physics/rheology.qmd#memory-time-schemes)
+and [Time stepping](discretization/time-stepping.qmd).
+:::
+
+## Where to go next
+
+The [Install & run](getting-started.qmd) page describes how to build the
+model, configure it through the `&vilma` and `&ctl` namelists and run the
+standalone driver. Every `&vilma` parameter and its default is listed in
+`input/vilma_defaults.nml`. The [Physics](physics/governing-equations.qmd) and
+[Discretization](discretization/spectral.qmd) pages give the full formulation
+behind each section above, and the [Benchmarks](benchmarks/index.qmd) show how
+well each part reproduces published reference solutions.

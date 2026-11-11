@@ -1,8 +1,6 @@
 project:
   type: website
   output-dir: _site
-  resources:
-    - tutorial/**
 
 website:
   title: "VILMA2"
@@ -21,6 +19,8 @@ website:
         file: index.qmd
       - text: "Install & run"
         file: getting-started.qmd
+      - text: "Tutorial"
+        file: tutorial.qmd
       - text: "Physics"
         menu:
           - physics/governing-equations.qmd
@@ -52,6 +52,7 @@ website:
         contents:
           - index.qmd
           - getting-started.qmd
+          - tutorial.qmd
           - implementation.qmd
       - section: "Physics"
         contents:
