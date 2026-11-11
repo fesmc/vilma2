@@ -109,7 +109,7 @@ contains
       real(wp) :: t_read = 0.0_wp, t_upd = 0.0_wp, t_wrt = 0.0_wp
       real(wp) :: t_dr, t_mm                      ! PROFILE: solid_earth_update sub-phases
       real(wp) :: rest, t_sle, t_grid, t_oth      ! PROFILE: the "rest" bucket, opened up
-      integer  :: nstep = 0
+      integer  :: nstep = 0, nout
 
       ! --- configuration --------------------------------------------------------
       ! &vilma: cfg_file overlaid on the physics defaults. &ctl: from cfg_file alone
@@ -219,9 +219,18 @@ contains
 
       ! The diagnostic output list. Polar motion is appended only when the
       ! rotation solver is actually integrating it -- see ROT_OUT_VARS above.
-      out_names = [character(len=9) :: OUT_VARS]
-      if (.not. se%use_vilma_v1) out_names = [out_names, [character(len=9) :: DZ_OUT_VARS], SLE_OUT_VARS]
-      if (se%rotation%enabled)   out_names = [out_names, [character(len=9) :: ROT_OUT_VARS]]
+      ! (filled by hand: a reallocating constructor of mixed-length strings is not
+      ! reliable in every compiler)
+      nout = size(OUT_VARS)
+      if (.not. se%use_vilma_v1) nout = nout + size(DZ_OUT_VARS) + size(SLE_OUT_VARS)
+      if (se%rotation%enabled)   nout = nout + size(ROT_OUT_VARS)
+      allocate(out_names(nout))
+      nout = 0
+      call add_names(OUT_VARS)
+      if (.not. se%use_vilma_v1) then
+         call add_names(DZ_OUT_VARS);  call add_names(SLE_OUT_VARS)
+      end if
+      if (se%rotation%enabled) call add_names(ROT_OUT_VARS)
 
       ! --- march the transient --------------------------------------------------
       ! the model clock is at the window start: set at init, held by the spin-up, and
@@ -366,6 +375,16 @@ contains
          write(*,'(a,a)') ' vilma: wrote restart ', trim(rundir)//'/final/vilma_restart.nc'
       end if
       call solid_earth_finalize(se);  call sht_grid_destroy(sht)
+
+   contains
+
+      subroutine add_names(names)
+         character(len=*), intent(in) :: names(:)
+         integer :: q
+         do q = 1, size(names)
+            nout = nout + 1;  out_names(nout) = names(q)
+         end do
+      end subroutine add_names
    end subroutine vilma_run
 
    pure function dir_of(path) result(d)
