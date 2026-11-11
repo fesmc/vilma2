@@ -352,9 +352,13 @@ function fig_sle_benchmark(cases; show_case = "D3")
     # clean monotone staircase.
     ax5 = Axis(fig[2, 2], xlabel = "time [kyr]", yscale = log10,
                ylabel = "running max |ocean-mass residual|")
+    # E2 and F1 end within 0.4 m of each other, so each case also gets its own
+    # dash pattern and the later ones are drawn thinner, on top.
+    styles = [:solid, :dash, :dot, :dashdot]
     for (i, (case, h)) in enumerate(hist)
         col = Makie.wong_colors()[i]
-        lines!(ax4, h[:, 2], h[:, 4], color = col, linewidth = 2, label = case)
+        lines!(ax4, h[:, 2], h[:, 4], color = col, linewidth = 3.0 - 0.5 * (i - 1),
+               linestyle = styles[mod1(i, length(styles))], label = case)
         # Floor at 1e-18: the first steps are exactly zero, which a log axis
         # would otherwise stretch to meaninglessness.
         lines!(ax5, h[:, 2], max.(accumulate(max, abs.(h[:, 5])), 1e-18), color = col,
