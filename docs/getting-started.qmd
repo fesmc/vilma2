@@ -176,7 +176,10 @@ carries the full `&ctl` group plus only the `&vilma` parameters it overrides
 
 ```bash
 ./bin/vilma.x examples/deglac_lgm.nml    # default: vilma.nml
+./bin/vilma.x run.nml my_defaults.nml    # optional second argument: another defaults file
 ```
+
+`vilma_remap.x` and `vilma_mkref.x` take the same optional second argument.
 
 A few conventions worth knowing:
 
@@ -232,8 +235,19 @@ A few conventions worth knowing:
   secular Love number in the Liouville equation defaults to the model's own
   fluid limit; `rotation_k_s` (> 0) prescribes it and `rotation_c_minus_a` sets
   C − A (default 2.63e35 kg m²).
+- **Forcing.** The ice-thickness forcing is a lon-lat field (global or
+  regional) on a time axis in years (`kyr` is converted; ages and other units
+  stop the run) that must be strictly ascending. A regional source is remapped
+  with its mass conserved and no ice outside it; latitudes may be ascending or
+  descending. Missing, non-finite or out-of-range values stop the run (put
+  zero where there is no ice).
 - **Output.** `file_out` receives the diagnostic surface fields at every
-  forcing slice, and `file_hor` (optional) the horizontal surface displacement.
+  forcing slice, including the convergence of the sea-level solve
+  (`sle_resid`, the worst relative inner residual of the interval, and
+  `sle_n_cap`, the number of solves that ended at an iteration cap; the model
+  also warns once per interval when a cap is hit). The folder of `file_out` is
+  created if needed. `file_hor` (optional) receives the horizontal surface
+  displacement.
   The variables and their output precision are listed in
   [`input/vilma-variables.md`](https://github.com/fesmc/vilma2/blob/main/input/vilma-variables.md).
   Diagnostics are rounded to that precision. `write_lossless = .true.`
@@ -245,7 +259,12 @@ A few conventions worth knowing:
   resumes from such a file: the model is initialized at the reference and the
   saved state is restored, so a resumed run continues the original one bit for
   bit. A restart from a lower resolution is interpolated up to the model grid.
-  A restart from a different radial mesh is refused. Restarts of the default
+  The run resumes at the restart's time: a `time_init` that selects another
+  start stops it, unless `restart_time_reset = .true.` (`&ctl`), which takes the
+  restart as the state at the start of the window. A restart from another
+  radial mesh is refused. A restart from another viscosity (radial profile or
+  3-D field, both stamped in the file) is refused unless
+  `restart_other_visc = .true.` (`&ctl`), which uses its memory as a seed. Restarts of the default
   PREM model written before the depth-based mesh rule (220 instead of 219
   elements) are therefore refused; `mesh_depth = 80e3, 670e3` rebuilds the old
   mesh exactly. What the restart carries and what is checked on read is
@@ -279,7 +298,8 @@ numerics pages describe most of them in context. The remaining ones are:
 | | `name_lon`, `name_lat` | longitude and latitude axes of the forcing [deg] |
 | | `time_init`, `time_end` | run window [yr]; default the first and the last forcing slice |
 | | `remap_input` | `.true.` (default): remap lon-lat input online; `.false.`: input already on the Gauss grid |
-| `&ctl` Gauss-grid reference (`remap_input = .false.`) | `file_ref`, `name_zbed_eq`, `name_hice_ref` | reference file and its bed and ice variables |
+| `&ctl` Gauss-grid reference (`remap_input = .false.`) | `file_ref`, `name_zbed_eq` | reference file and its bed variable |
+| `&ctl` restart | `restart_in_file`, `restart_time_reset`, `restart_other_visc` | see above |
 | `&ctl` output | `file_out`, `file_hor`, `write_lossless` | see above |
 
 ## The drivers
@@ -353,8 +373,8 @@ and keeps all spherical-harmonic work inside (see
 use vilma
 type(solid_earth) :: se
 call vilma_par_load(se%par, "vilma.nml")             ! configuration lives in se%par
-call solid_earth_init(se, z_bed_eq, h_ice_eq, grid=host_grid)  ! builds the Gauss grid + remap
-call solid_earth_spinup(se, h_ice_lgm)                ! optional LGM-memory spin-up
+call solid_earth_init(se, z_bed_eq, h_ice_eq, grid=host_grid, time=t0)  ! Gauss grid + remap; clock at t0 [yr]
+call solid_earth_spinup(se, h_ice_lgm)                ! optional LGM-memory spin-up (holds the clock)
 do
    call solid_earth_update(se, h_ice, dt_yr)          ! advance dt_yr [years]
    ! ... read se%rsl, se%z_bed, se%dz_bed, se%dz_ss, se%C on the host grid ...
@@ -362,6 +382,15 @@ do
 end do
 call solid_earth_finalize(se)                         ! frees the grid too
 ```
+
+`use vilma` is the only module a host needs: it exports the parameter record,
+`solid_earth` and its life cycle, the checks and the restart routines, and
+nothing internal. `h_ice` is the whole ice column; the model applies its own
+flotation rule to it. The model keeps its own clock: `solid_earth_init` sets it
+(`time`, default 0), each update advances it, and `solid_earth_set_time`
+relabels it without changing the state. A host never writes `se%time`. A
+negative `dt_yr` stops the run; `dt_yr = 0` re-solves the surface fields under
+the ice passed in.
 
 `grid` (a coords lon-lat grid) is optional: omit it when the fields are already
 on the model's Gauss grid in the SHTns layout (rows north first). A `grid` that
@@ -390,8 +419,7 @@ ok = solid_earth_host_check(w, I_g, C, F, msg)                            ! admi
 Inside $w$ the sea-level solve uses these terms. On $1 - w$ it applies its own
 flotation and coastline rule, and `h_ice`, `h_ice_eq` are the ice of that part
 (cells with $w = 1$ ignore them). The terms are all or none and fixed for the
-run. They cannot be combined with `solver = "v1"`, `sle_fixed_ocean` or
-`h_ice_init`, and $F$ enters only through the sub-grid term (`sle_subgrid`).
+run. They cannot be combined with `solver = "v1"` or `sle_fixed_ocean`, and $F$ enters only through the sub-grid term (`sle_subgrid`).
 Without them, or with $w \equiv 0$, a run is bit-identical to one without. The
 terms are part of the restart. Details are in the
 [sea-level equation](physics/sea-level.qmd) page and in

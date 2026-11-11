@@ -117,8 +117,8 @@ ok = solid_earth_host_check(w, I_g, C, F, msg)                            ! admi
 
 Inside `w` the sea-level solve uses them; on `1 − w` it applies its own flotation and coastline
 rule, and `h_ice`, `h_ice_eq` are then the ice of that part (an area mean; cells with `w = 1`
-ignore them). All or none, fixed for the run; not with `solver = "v1"`, `sle_fixed_ocean` or
-`h_ice_init`; `F` enters only through the subgrid term (`sle_subgrid`). Without them, or with
+ignore them). All or none, fixed for the run; not with `solver = "v1"` or `sle_fixed_ocean`;
+`F` enters only through the subgrid term (`sle_subgrid`). Without them, or with
 `w ≡ 0`, a run is bit-identical to one without. Fields on the Gauss grid pass through; a global
 lon-lat host (`grid`) is remapped by the model, a regional one is refused. The terms are part of
 the restart. Details: [doc/design.md §15](doc/design.md).
@@ -184,11 +184,18 @@ behind a single `use vilma`:
 use vilma
 type(solid_earth) :: se
 call vilma_par_load(se%par, "vilma.nml")
-call solid_earth_init(se, z_bed_eq, h_ice_eq, grid=host_grid)  ! Gauss grid + remap
+call solid_earth_init(se, z_bed_eq, h_ice_eq, grid=host_grid, time=t0)  ! Gauss grid + remap; clock [yr]
 call solid_earth_update(se, h_ice, dt_yr)   ! advance dt_yr [years]; read se%rsl, se%z_bed
                                             ! (rsl = se%dz_ss - se%dz_bed: sea-surface and bed change)
 call solid_earth_finalize(se)
 ```
+
+`use vilma` is the only module a host uses (the contract, no internals). `h_ice` is the whole
+ice column; the model applies its own flotation. The model owns its clock: `solid_earth_init`
+sets it (`time`, default 0), updates advance it, `solid_earth_set_time` relabels it; no caller
+writes `se%time`. A standalone run resumes a restart at the restart's time (`&ctl
+restart_time_reset` overrides), and a restart from another mesh or viscosity is refused
+(`&ctl restart_other_visc` accepts it as a seed).
 
 ## License
 

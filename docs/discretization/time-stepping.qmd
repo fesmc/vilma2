@@ -127,10 +127,19 @@ host-resolved terms, the host reference. They are written once and compared
 with the initialized model on read. A mismatch stops the run. A file with
 host-resolved terms cannot be read into a run without them, nor the reverse.
 
-The read does not check everything. The radial mesh and the channel count
-must match, but nothing ties the memory to the viscosity field or the
-parameters that produced it. The user must restart with the same earth
-structure and viscosity input.
+A restart also records the Earth its memory belongs to: checksums of the
+radial mesh (`mesh_checksum`), of the radial viscosity (`visc_radial_checksum`)
+and of the 3-D field (`visc_3d_checksum`). A restart from another mesh is
+refused. A restart from another viscosity is refused too, unless
+`restart_other_visc = .true.` (`&ctl`): its memory then seeds the run (e.g. a
+1-D spin-up for a 3-D run) rather than continuing it. Other parameters (the
+time scheme, the sea-level settings) are not checked.
+
+A run resumes at the restart's time. The driver starts the forcing window at
+that time, and a `time_init` that selects another start stops the run, so a
+restart cannot replay the forcing by mistake. `restart_time_reset = .true.`
+(`&ctl`) instead takes the restart's state as the state at the start of the
+window, whatever time the file carries.
 
 `test_restart` asserts that a restarted run reproduces an uninterrupted one
 **bit for bit**, with rotation on, for a radially symmetric Earth and for a
@@ -190,8 +199,15 @@ both off by default:
   cheap, because no element is on the 3-D path. It is independent of
   `equil_time_max`.
 
+The rate of each pass is measured over exactly that pass's memory advance.
 The criterion is a global mean. It bounds the mean bed velocity, not the
-velocity at every point. Elements with very high viscosity do not equilibrate
+velocity at every point, and it is not a measure of how far the relaxation has
+gone. In a test with a held cap load on a 500 kyr relaxation, the default
+`equil_rate_tol` of $10^{-3}$ m/yr stops at about 83 % of the full relaxation.
+The default thus gives a reference that is close to, but not at, isostatic
+equilibrium. For a fully relaxed reference, lower `equil_rate_tol` (by an
+order of magnitude or more) and raise `equil_time_max` accordingly, at the cost
+of a longer spin-up. Elements with very high viscosity do not equilibrate
 within any practical cap, which is what the
 [lid rule](../physics/rheology.qmd#visc3d-input) addresses. `test_spinup`
 asserts that the spin-up relaxes the held load well beyond a single cold
@@ -199,11 +215,12 @@ step, and that the state after it is near-stationary. The spin-up is not
 available with `solver = "v1"`.
 
 A zero-length update (`dt = 0`) advances neither time nor memory. It solves
-the SLE against the current memory and refreshes the surface fields. The
-spin-up begins with one, and a run without spin-up (a restarted run included)
-begins with one, to seed the start-slice ice. In this call the relative sea level and the ocean function are those
-of the ice the model carried before the call, not of the ice just passed in.
-This affects the first output sample only, not the transient that follows.
+the sea-level equation under the ice it is handed, against the current memory,
+and refreshes the surface fields, so relative sea level, the ocean function and
+`h_ice` describe the same ice. It is idempotent: a second call with the same
+ice changes nothing. The spin-up begins with one, and a run without spin-up (a
+restarted run included) begins with one, to seed the start-slice ice. A
+negative `dt` stops the run.
 
 ::: {.callout-tip title="Where this lives in the code"}
 `vilma_viscoelastic` (1D stepper + shared kernel), `vilma_response` (`ve_response`

@@ -280,7 +280,7 @@ Degrees ≥ 2 are unaffected.
    — the geocenter degree-1 response is carried in the field driver.)
 1. **`vilma_coupling` wiring — DONE.** The CLIMBER-X contract is wired: `ve_response`
    member; the host fills `se%par`, then
-   `solid_earth_init(se, z_bed_eq, h_ice_eq [, grid, h_ice_init, w, I_g, C])` /
+   `solid_earth_init(se, z_bed_eq, h_ice_eq [, grid, w, I_g, C, time])` /
    `solid_earth_update(se, h_ice, dt_yr [, w, I_g, C, F])`. The model builds and owns
    its Gauss grid (`se%sht`, from `par%lmax/nlat/nphi`) and, when `grid` is given, the
    host↔Gauss remap; `w, I_g, C, F` are the host-resolved terms of §15. The update
@@ -720,8 +720,8 @@ argument of `solid_earth_init`. The host's reference terms must describe the sam
 **Ramp.** The terms ramp linearly over an update interval, field by field and with the same
 formula as the ice (`stepper_advance`: `host_now = host0 + frac·(host1 − host0)`), `w` included.
 The previous update's terms are the ramp start (`gg%host%last`; the reference at the first
-update); the σ_n priming uses them, the `dt = 0` seed uses the new terms with the ice the model
-carries (the KNOWN ISSUE of §10 stays as it is).
+update); the σ_n priming uses them, and the `dt = 0` seed solves with the new terms and the
+new ice (idempotent).
 
 **Grids.** A host on the Gauss grid (kryos) passes straight through. A global lon-lat host is
 remapped: `w` and `C` conservatively without the mass factor (`to_gauss_frac`), `I_g` with it, `F`
@@ -730,8 +730,7 @@ stops at init. Round-off beyond `[0,1]` and `[0,w]` (1e-9) is clipped on every p
 excursions and NaN stop.
 
 **Rules.** The terms come all or none (`w, I_g, C` at init; `w, I_g, C, F` at update and in the
-spin-up) and their presence is fixed for the run. Not with `solver = "v1"`, `sle_fixed_ocean` or
-`h_ice_init`. `solid_earth_host_check` (public) tests finiteness, `−tol ≤ w ≤ 1+tol`,
+spin-up) and their presence is fixed for the run. Not with `solver = "v1"` or `sle_fixed_ocean`. `solid_earth_host_check` (public) tests finiteness, `−tol ≤ w ≤ 1+tol`,
 `I_g ≥ 0`, `−tol ≤ C ≤ w+tol`, and `I_g = F = 0` where `w = 0`; the coupling runs it at init
 and at every update. A host with several regions checks the sums. The `bsl_ive` of the update is
 the integral of the solve's own `ΔI_g` (`gg%dIg`), host columns included.
