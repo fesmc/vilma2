@@ -1,0 +1,1368 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.11.9">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>Tutorial: the deforming Earth – VILMA2</title>
+<style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: 1.5em;}
+div.column{flex: auto;}
+@media screen {
+div.columns{gap: min(4vw, 1.5em);}
+div.column{overflow-x: auto;}
+}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for citations */
+div.csl-bib-body { }
+div.csl-entry {
+  clear: both;
+}
+.hanging-indent div.csl-entry {
+  margin-left:2em;
+  text-indent:-2em;
+}
+div.csl-left-margin {
+  min-width:2em;
+  float:left;
+}
+div.csl-right-inline {
+  margin-left:2em;
+  padding-left:1em;
+}
+div.csl-indent {
+  margin-left: 2em;
+}</style>
+
+
+<script src="site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="site_libs/quarto-nav/headroom.min.js"></script>
+<script src="site_libs/clipboard/clipboard.min.js"></script>
+<script src="site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="site_libs/quarto-search/fuse.min.js"></script>
+<script src="site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="./">
+<link href="./implementation.html" rel="next">
+<link href="./getting-started.html" rel="prev">
+<script src="site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="site_libs/quarto-html/scrollable-regions/scrollable-regions.js" type="module"></script>
+<script src="site_libs/quarto-html/popper.min.js"></script>
+<script src="site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="site_libs/quarto-html/anchor.min.js"></script>
+<link href="site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-63b5708e65d6cd79cd7618c58d0c21e7.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-text-highlighting-styles">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-dark-447e42e69aaa9833c0ba1b986f430b20.css" rel="stylesheet" class="quarto-color-scheme quarto-color-alternate" id="quarto-text-highlighting-styles">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-63b5708e65d6cd79cd7618c58d0c21e7.css" rel="stylesheet" class="quarto-color-scheme-extra" id="quarto-text-highlighting-styles">
+<script src="site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="site_libs/bootstrap/bootstrap-3a1610f0a8f0b9b7bc4c1e6d49db0d8a.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
+<link href="site_libs/bootstrap/bootstrap-dark-f829436f7c543b6c5fa77b733bfa68fa.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
+<link href="site_libs/bootstrap/bootstrap-3a1610f0a8f0b9b7bc4c1e6d49db0d8a.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+
+  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
+  <script defer="" src="https://cdn.jsdelivr.net/npm/mathjax@4/tex-chtml.js" type="text/javascript"></script>
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN" && texText && texText.data) {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
+
+</head>
+
+<body class="nav-sidebar floating nav-fixed quarto-light"><a id="quarto-skip-link" class="visually-hidden-focusable" href="#quarto-document-content">Skip to main content</a><script id="quarto-html-before-body" type="application/javascript">
+    const toggleBodyColorMode = (bsSheetEl) => {
+      const mode = bsSheetEl.getAttribute("data-mode");
+      const bodyEl = window.document.querySelector("body");
+      if (mode === "dark") {
+        bodyEl.classList.add("quarto-dark");
+        bodyEl.classList.remove("quarto-light");
+      } else {
+        bodyEl.classList.add("quarto-light");
+        bodyEl.classList.remove("quarto-dark");
+      }
+    }
+    const toggleBodyColorPrimary = () => {
+      const bsSheetEl = window.document.querySelector("link#quarto-bootstrap:not([rel=disabled-stylesheet])");
+      if (bsSheetEl) {
+        toggleBodyColorMode(bsSheetEl);
+      }
+    }
+    const setColorSchemeToggle = (alternate) => {
+      const toggles = window.document.querySelectorAll('.quarto-color-scheme-toggle');
+      for (let i=0; i < toggles.length; i++) {
+        const toggle = toggles[i];
+        if (toggle) {
+          toggle.setAttribute("aria-checked", alternate ? "true" : "false");
+          if (alternate) {
+            toggle.classList.add("alternate");
+          } else {
+            toggle.classList.remove("alternate");
+          }
+        }
+      }
+    };
+    const toggleColorMode = (alternate) => {
+      // Switch the stylesheets
+      const primaryStylesheets = window.document.querySelectorAll('link.quarto-color-scheme:not(.quarto-color-alternate)');
+      const alternateStylesheets = window.document.querySelectorAll('link.quarto-color-scheme.quarto-color-alternate');
+      manageTransitions('#quarto-margin-sidebar .nav-link', false);
+      if (alternate) {
+        // note: dark is layered on light, we don't disable primary!
+        enableStylesheet(alternateStylesheets);
+        for (const sheetNode of alternateStylesheets) {
+          if (sheetNode.id === "quarto-bootstrap") {
+            toggleBodyColorMode(sheetNode);
+          }
+        }
+      } else {
+        disableStylesheet(alternateStylesheets);
+        enableStylesheet(primaryStylesheets)
+        toggleBodyColorPrimary();
+      }
+      manageTransitions('#quarto-margin-sidebar .nav-link', true);
+      // Switch the toggles
+      setColorSchemeToggle(alternate)
+    }
+    // Hack to workaround the fact that safari doesn't
+    // properly recolor the scrollbar when toggling (#1455).
+    // Not run on load: stylesheets are set before first paint there, and
+    // scrolling would undo the scroll to a URL fragment (#14973).
+    // The one pixel nudge keeps the reader where they were.
+    const refreshSafariScrollbar = () => {
+      if (navigator.userAgent.indexOf('Safari') > 0 && navigator.userAgent.indexOf('Chrome') == -1) {
+        manageTransitions("body", false);
+        const scrollY = window.scrollY;
+        window.scrollTo(0, scrollY > 0 ? scrollY - 1 : 1);
+        setTimeout(() => {
+          window.scrollTo(0, scrollY);
+          manageTransitions("body", true);
+        }, 40);
+      }
+    }
+    const disableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        stylesheet.rel = 'disabled-stylesheet';
+      }
+    }
+    const enableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        if(stylesheet.rel !== 'stylesheet') { // for Chrome, which will still FOUC without this check
+          stylesheet.rel = 'stylesheet';
+        }
+      }
+    }
+    const manageTransitions = (selector, allowTransitions) => {
+      const els = window.document.querySelectorAll(selector);
+      for (let i=0; i < els.length; i++) {
+        const el = els[i];
+        if (allowTransitions) {
+          el.classList.remove('notransition');
+        } else {
+          el.classList.add('notransition');
+        }
+      }
+    }
+    const isFileUrl = () => {
+      return window.location.protocol === 'file:';
+    }
+    const hasAlternateSentinel = () => {
+      let styleSentinel = getColorSchemeSentinel();
+      if (styleSentinel !== null) {
+        return styleSentinel === "alternate";
+      } else {
+        return false;
+      }
+    }
+    const setStyleSentinel = (alternate) => {
+      const value = alternate ? "alternate" : "default";
+      if (!isFileUrl()) {
+        window.localStorage.setItem("quarto-color-scheme", value);
+      } else {
+        localAlternateSentinel = value;
+      }
+    }
+    const getColorSchemeSentinel = () => {
+      if (!isFileUrl()) {
+        const storageValue = window.localStorage.getItem("quarto-color-scheme");
+        return storageValue != null ? storageValue : localAlternateSentinel;
+      } else {
+        return localAlternateSentinel;
+      }
+    }
+    const toggleGiscusIfUsed = (isAlternate, darkModeDefault) => {
+      const baseTheme = document.querySelector('#giscus-base-theme')?.value ?? 'light';
+      const alternateTheme = document.querySelector('#giscus-alt-theme')?.value ?? 'dark';
+      let newTheme = '';
+      if(authorPrefersDark) {
+        newTheme = isAlternate ? baseTheme : alternateTheme;
+      } else {
+        newTheme = isAlternate ? alternateTheme : baseTheme;
+      }
+      const changeGiscusTheme = () => {
+        // From: https://github.com/giscus/giscus/issues/336
+        const sendMessage = (message) => {
+          const iframe = document.querySelector('iframe.giscus-frame');
+          if (!iframe) return;
+          iframe.contentWindow.postMessage({ giscus: message }, 'https://giscus.app');
+        }
+        sendMessage({
+          setConfig: {
+            theme: newTheme
+          }
+        });
+      }
+      const isGiscussLoaded = window.document.querySelector('iframe.giscus-frame') !== null;
+      if (isGiscussLoaded) {
+        changeGiscusTheme();
+      }
+    };
+    const authorPrefersDark = false;
+    const darkModeDefault = authorPrefersDark;
+      document.querySelector('link#quarto-text-highlighting-styles.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+      document.querySelector('link#quarto-bootstrap.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+    let localAlternateSentinel = darkModeDefault ? 'alternate' : 'default';
+    // Dark / light mode switch
+    window.quartoToggleColorScheme = () => {
+      // Read the current dark / light value
+      let toAlternate = !hasAlternateSentinel();
+      toggleColorMode(toAlternate);
+      refreshSafariScrollbar();
+      setStyleSentinel(toAlternate);
+      toggleGiscusIfUsed(toAlternate, darkModeDefault);
+      window.dispatchEvent(new Event('resize'));
+    };
+    // Switch to dark mode if need be
+    if (hasAlternateSentinel()) {
+      toggleColorMode(true);
+    } else {
+      toggleColorMode(false);
+    }
+  </script>
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark" aria-label="Site">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a class="navbar-brand" href="./index.html">
+    <span class="navbar-title">VILMA2</span>
+    </a>
+  </div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll me-auto">
+  <li class="nav-item">
+    <a class="nav-link active" href="./index.html" aria-current="page"> 
+<span class="menu-text">Overview</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="./getting-started.html"> 
+<span class="menu-text">Install &amp; run</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="./tutorial.html"> 
+<span class="menu-text">Tutorial</span></a>
+  </li>  
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-physics" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Physics</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-physics">    
+        <li>
+    <a class="dropdown-item" href="./physics/governing-equations.html">
+ <span class="dropdown-text">Governing equations</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./physics/rheology.html">
+ <span class="dropdown-text">Maxwell rheology and the memory stress</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./physics/toroidal.html">
+ <span class="dropdown-text">Toroidal flow under lateral viscosity</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./physics/sea-level.html">
+ <span class="dropdown-text">The sea-level equation</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./physics/rotation.html">
+ <span class="dropdown-text">Rotational feedback (polar motion)</span></a>
+  </li>  
+    </ul>
+  </li>
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-discretization" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Discretization</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-discretization">    
+        <li>
+    <a class="dropdown-item" href="./discretization/spectral.html">
+ <span class="dropdown-text">Spectral reduction and the SH transform</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./discretization/radial-fe.html">
+ <span class="dropdown-text">Radial finite elements and the per-degree operator</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./discretization/time-stepping.html">
+ <span class="dropdown-text">Time stepping and the field driver</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./discretization/solver.html">
+ <span class="dropdown-text">The banded direct solver and performance</span></a>
+  </li>  
+    </ul>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link" href="./benchmarks/index.html"> 
+<span class="menu-text">Benchmarks</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="./implementation.html"> 
+<span class="menu-text">Implementation</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="./references.html"> 
+<span class="menu-text">References</span></a>
+  </li>  
+</ul>
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://github.com/fesmc/vilma2"> <i class="bi bi-github" role="img" aria-label="GitHub">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+</ul>
+          </div> <!-- /navcollapse -->
+            <div class="quarto-navbar-tools">
+  <button type="button" role="switch" aria-checked="false" class="quarto-color-scheme-toggle quarto-navigation-tool  px-1" onclick="window.quartoToggleColorScheme(); return false;" title="Toggle dark mode" aria-label="Toggle dark mode"><i class="bi"></i></button>
+</div>
+            <div id="quarto-search" class="" title="Search"></div>
+      </div> <!-- /container-fluid -->
+    </nav>
+  <nav class="quarto-secondary-nav" aria-label="Toolbar">
+    <div class="container-fluid d-flex">
+      <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+        <i class="bi bi-layout-text-sidebar-reverse"></i>
+      </button>
+        <nav class="quarto-page-breadcrumbs" aria-label="Breadcrumbs"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="./index.html">Getting started</a></li><li class="breadcrumb-item"><a href="./tutorial.html">Tutorial: the deforming Earth</a></li></ol></nav>
+        <a class="flex-grow-1" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
+        </a>
+    </div>
+  </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+  <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal quarto-sidebar-collapse-item sidebar-navigation floating overflow-auto" aria-label="Section">
+    <div class="sidebar-menu-container"> 
+    <ul class="list-unstyled mt-1">
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <button type="button" class="sidebar-item-text sidebar-item-toggle sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" aria-controls="quarto-sidebar-section-1" aria-expanded="true">
+ <span class="menu-text" id="quarto-sidebar-section-1-label">Getting started</span><i class="bi bi-chevron-right" aria-hidden="true"></i></button>
+      </div>
+      <ul id="quarto-sidebar-section-1" aria-labelledby="quarto-sidebar-section-1-label" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./index.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">VILMA2</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./getting-started.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Installation and running</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./tutorial.html" class="sidebar-item-text sidebar-link active">
+ <span class="menu-text">Tutorial: the deforming Earth</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./implementation.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Implementation and attribution</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <button type="button" class="sidebar-item-text sidebar-item-toggle sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" aria-controls="quarto-sidebar-section-2" aria-expanded="true">
+ <span class="menu-text" id="quarto-sidebar-section-2-label">Physics</span><i class="bi bi-chevron-right" aria-hidden="true"></i></button>
+      </div>
+      <ul id="quarto-sidebar-section-2" aria-labelledby="quarto-sidebar-section-2-label" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./physics/governing-equations.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Governing equations</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./physics/rheology.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Maxwell rheology and the memory stress</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./physics/toroidal.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Toroidal flow under lateral viscosity</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./physics/sea-level.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">The sea-level equation</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./physics/rotation.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Rotational feedback (polar motion)</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <button type="button" class="sidebar-item-text sidebar-item-toggle sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" aria-controls="quarto-sidebar-section-3" aria-expanded="true">
+ <span class="menu-text" id="quarto-sidebar-section-3-label">Discretization</span><i class="bi bi-chevron-right" aria-hidden="true"></i></button>
+      </div>
+      <ul id="quarto-sidebar-section-3" aria-labelledby="quarto-sidebar-section-3-label" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./discretization/spectral.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Spectral reduction and the SH transform</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./discretization/radial-fe.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Radial finite elements and the per-degree operator</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./discretization/time-stepping.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Time stepping and the field driver</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./discretization/solver.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">The banded direct solver and performance</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <button type="button" class="sidebar-item-text sidebar-item-toggle sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" aria-controls="quarto-sidebar-section-4" aria-expanded="true">
+ <span class="menu-text" id="quarto-sidebar-section-4-label">Benchmarks</span><i class="bi bi-chevron-right" aria-hidden="true"></i></button>
+      </div>
+      <ul id="quarto-sidebar-section-4" aria-labelledby="quarto-sidebar-section-4-label" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./benchmarks/index.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Benchmarks</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./benchmarks/love-numbers.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Benchmark: Love numbers</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./benchmarks/disc.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Benchmark: disc-load response</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./benchmarks/sea-level.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Benchmark: the sea-level equation</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./benchmarks/rotation.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Benchmark: rotation (polar motion)</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./benchmarks/lvz.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Benchmark: low-viscosity zone (lateral viscosity)</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./references.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">References</span></a>
+  </div>
+</li>
+    </ul>
+    </div>
+</nav>
+<div id="quarto-sidebar-glass" class="quarto-sidebar-collapse-item" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item"></div>
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" aria-labelledby="toc-title" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#refreshers-and-name-origins" id="toc-refreshers-and-name-origins" class="nav-link active" data-scroll-target="#refreshers-and-name-origins">Refreshers and name origins</a></li>
+  <li><a href="#the-mantle-as-a-maxwell-body" id="toc-the-mantle-as-a-maxwell-body" class="nav-link" data-scroll-target="#the-mantle-as-a-maxwell-body">The mantle as a Maxwell body</a></li>
+  <li><a href="#spherical-harmonics-diagonalize-the-laplacian" id="toc-spherical-harmonics-diagonalize-the-laplacian" class="nav-link" data-scroll-target="#spherical-harmonics-diagonalize-the-laplacian">Spherical harmonics diagonalize the Laplacian</a></li>
+  <li><a href="#load-love-numbers-one-response-per-degree" id="toc-load-love-numbers-one-response-per-degree" class="nav-link" data-scroll-target="#load-love-numbers-one-response-per-degree">Load Love numbers, one response per degree</a></li>
+  <li><a href="#the-sea-level-equation-and-its-fingerprint" id="toc-the-sea-level-equation-and-its-fingerprint" class="nav-link" data-scroll-target="#the-sea-level-equation-and-its-fingerprint">The sea-level equation and its fingerprint</a></li>
+  <li><a href="#off-axis-mass-drives-the-rotation-pole" id="toc-off-axis-mass-drives-the-rotation-pole" class="nav-link" data-scroll-target="#off-axis-mass-drives-the-rotation-pole">Off-axis mass drives the rotation pole</a></li>
+  <li><a href="#explicit-memory-and-time-stepping" id="toc-explicit-memory-and-time-stepping" class="nav-link" data-scroll-target="#explicit-memory-and-time-stepping">Explicit memory and time stepping</a></li>
+  <li><a href="#where-to-go-next" id="toc-where-to-go-next" class="nav-link" data-scroll-target="#where-to-go-next">Where to go next</a></li>
+  </ul>
+<div class="toc-actions"><ul><li><a href="https://github.com/fesmc/vilma2/blob/main/tutorial.qmd" class="toc-action"><i class="bi bi-github"></i>View source</a></li><li><a href="https://github.com/fesmc/vilma2/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content" tabindex="-1">
+
+
+<header id="title-block-header" class="quarto-title-block default"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="Breadcrumbs"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="./index.html">Getting started</a></li><li class="breadcrumb-item"><a href="./tutorial.html">Tutorial: the deforming Earth</a></li></ol></nav>
+<div class="quarto-title">
+<h1 class="title">Tutorial: the deforming Earth</h1>
+<p class="subtitle lead">A conceptual tour of the physics and numerics behind VILMA2</p>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<p>VILMA2 computes how the solid Earth and sea level respond to a changing load of ice and ocean water. This page introduces the ideas behind the model, one at a time, for a reader who is new to glacial isostatic adjustment (GIA) or to this code. Each section gives the physical idea, its central equation and a short note on where it lives in VILMA2. The detailed derivations, parameters and validation are on the linked pages. The page assumes some familiarity with linear algebra and partial differential equations, and nothing about the code.</p>
+<section id="refreshers-and-name-origins" class="level2">
+<h2 class="anchored" data-anchor-id="refreshers-and-name-origins">Refreshers and name origins</h2>
+<p>Two mathematical ideas recur throughout the model. The first is <strong>diagonalization</strong>. A linear operator <span class="math inline">\(L\)</span> is diagonal in a basis of its eigenfunctions <span class="math inline">\(\phi_k\)</span>, since <span class="math inline">\(L\phi_k = \lambda_k\phi_k\)</span>. A field expanded in that basis, <span class="math inline">\(f = \sum_k c_k\phi_k\)</span>, then transforms coefficient by coefficient, <span class="math inline">\(Lf = \sum_k \lambda_k c_k\phi_k\)</span>. A coupled problem thus splits into many small, independent ones. This is the reason spherical harmonics are used horizontally (see <a href="#spherical-harmonics-diagonalize-the-laplacian">below</a>).</p>
+<p>The second is <strong>fixed-point (Picard) iteration</strong>. An equation of the form <span class="math inline">\(x = F(x)\)</span> is solved by repeating <span class="math inline">\(x_{k+1} = F(x_k)\)</span> from a first guess. The sequence converges when <span class="math inline">\(F\)</span> is a contraction, and it needs only evaluations of <span class="math inline">\(F\)</span>, not its Jacobian. The sea-level equation and its coupling to rotation and to the viscoelastic memory are all solved this way.</p>
+<p>Several terms carry the names of their originators. The dimensionless response coefficients of a self-gravitating sphere are named after A. E. H. Love, who introduced them in <em>Some Problems of Geodynamics</em> (1911). The horizontal displacement number was added by T. Shida in 1912. The spring-and-damper rheology of the mantle is named after J. C. Maxwell, who proposed it in 1867. The sea-level equation in its modern form goes back to <span class="citation" data-cites="FarrellClark1976">Farrell and Clark (<a href="#ref-FarrellClark1976" role="doc-biblioref">1976</a>)</span>.</p>
+</section>
+<section id="the-mantle-as-a-maxwell-body" class="level2">
+<h2 class="anchored" data-anchor-id="the-mantle-as-a-maxwell-body">The mantle as a Maxwell body</h2>
+<p>On the timescales of glacial cycles the mantle behaves as both a solid and a fluid. It responds elastically to a sudden change in load and flows viscously under a load that persists. A <strong>Maxwell body</strong>, an elastic spring and a viscous damper in series, captures both regimes with one constitutive law. For the deviatoric stress <span class="math inline">\(\boldsymbol{\tau}\)</span> and strain <span class="math inline">\(\boldsymbol{\varepsilon}\)</span> it reads</p>
+<p><span class="math display">\[
+\dot{\boldsymbol{\tau}} + \frac{\mu}{\eta}\,\boldsymbol{\tau}
+\;=\; 2\mu\,\dot{\boldsymbol{\varepsilon}},
+\]</span></p>
+<p>where <span class="math inline">\(\mu\)</span> is the shear modulus and <span class="math inline">\(\eta\)</span> the viscosity. Under a suddenly imposed strain the stress jumps to its elastic value and then decays on the <strong>Maxwell time</strong></p>
+<p><span class="math display">\[
+\tau_M \;=\; \frac{\eta}{\mu}.
+\]</span></p>
+<p>For the upper mantle of the benchmark earth model M3–L70–V01 (<span class="math inline">\(\eta = 10^{21}\)</span> Pa s, <span class="math inline">\(\mu \approx 7\times10^{10}\)</span> Pa), <span class="math inline">\(\tau_M\)</span> is about 450 yr. A load that changes faster than this sees a largely elastic mantle, while a load held for many Maxwell times sees a fluid one. Glacial cycles span both regimes, so both must be represented in the same simulation.</p>
+<p>The real mantle is not a single Maxwell body. It is a stack of layers, each with its own density, shear modulus and viscosity, beneath an elastic lithosphere and above a fluid core. The relaxation of the surface is therefore not set by one Maxwell time. It is set by the whole structure, including the buoyancy of the displaced material, and it typically spans hundreds to many thousands of years. Viscosity may also vary laterally, for example between cratons and tectonically active regions. This lateral structure is the main reason a time-domain method was chosen for VILMA2.</p>
+<div class="callout callout-style-default callout-tip callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>In VILMA2
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>The layered structure is built in <code>vilma_earth_structure</code> and selected by <code>earth</code>: <code>"M3-L70-V01"</code> (default), <code>"PREM"</code> (density and shear modulus from incompressible PREM on a given layer geometry) or <code>"custom"</code> (the layer arrays <code>r_bot</code>, <code>r_top</code>, <code>rho</code>, <code>mu</code>, <code>eta</code>, <code>rheology</code>). An elastic layer (<code>rheology = 0</code>) is exactly elastic, and a fluid layer (<code>rheology = 2</code>) carries no shear stress. Lateral viscosity is off by default (<code>l_visc_3d = .false.</code>). When it is on, a <span class="math inline">\(\log_{10}\eta\)</span> field is read from <code>visc_3d_file</code>, by default the <span class="citation" data-cites="Bagge2021">Bagge et al. (<a href="#ref-Bagge2021" role="doc-biblioref">2021</a>)</span> field of the FesmData store, and clamped to <code>visc_log10_min</code>–<code>visc_log10_max</code> (19.5 to 30). The model does not ship a viscosity file. See <a href="./physics/rheology.html">Rheology</a>, and <a href="./physics/rheology.html#visc3d-input">the 3-D viscosity input chain</a> for the order in which the field is built.</p>
+</div>
+</div>
+</section>
+<section id="spherical-harmonics-diagonalize-the-laplacian" class="level2">
+<h2 class="anchored" data-anchor-id="spherical-harmonics-diagonalize-the-laplacian">Spherical harmonics diagonalize the Laplacian</h2>
+<p>Spherical harmonics are the natural basis for fields on a sphere. Any square-integrable field on the surface can be expanded as</p>
+<p><span class="math display">\[
+f(\theta,\phi) \;=\; \sum_{\ell=0}^{\infty}\sum_{m=-\ell}^{\ell} f_{\ell m}\,Y_{\ell m}(\theta,\phi),
+\]</span></p>
+<p>where the degree <span class="math inline">\(\ell\)</span> sets the angular scale of a pattern and the order <span class="math inline">\(m\)</span> distributes its nodal lines between latitude and longitude. Zonal harmonics (<span class="math inline">\(m = 0\)</span>) vary only with latitude, while sectoral harmonics (<span class="math inline">\(|m| = \ell\)</span>) vary only with longitude.</p>
+<p>The use of this basis follows from one property. The spherical harmonics are the eigenfunctions of the angular part of the Laplacian,</p>
+<p><span class="math display">\[
+\nabla_1^2\,Y_{\ell m} \;=\; -\,\ell(\ell+1)\,Y_{\ell m}.
+\]</span></p>
+<p>The Laplacian is thus diagonal in this basis, as described above. For a radially symmetric Earth the field equations of a loaded, self-gravitating sphere (momentum balance, Poisson’s equation and incompressibility) decouple degree by degree. Each degree <span class="math inline">\(\ell\)</span> reduces to an independent radial problem, and the order <span class="math inline">\(m\)</span> enters only through the load coefficients. The operator of a degree is therefore the same for all its orders.</p>
+<p>In practice the expansion is truncated at a maximum degree <span class="math inline">\(\ell_\max\)</span>. The shortest resolved half-wavelength is about <span class="math inline">\(\pi a/\ell_\max\)</span>, where <span class="math inline">\(a\)</span> is the radius of the Earth. This gives roughly 310 km at <span class="math inline">\(\ell_\max = 64\)</span> and 120 km at <span class="math inline">\(\ell_\max = 170\)</span>, the resolution of VILMA1 in CLIMBER-X. The number of coefficients grows as <span class="math inline">\((\ell_\max+1)^2\)</span>, so the cost rises steeply with resolution.</p>
+<div class="callout callout-style-default callout-tip callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>In VILMA2
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p><code>vilma_sht</code> wraps the SHTns library <span class="citation" data-cites="Schaeffer2013">(<a href="#ref-Schaeffer2013" role="doc-biblioref">Schaeffer 2013</a>)</span> and FFTW for the transforms between the Gauss–Legendre grid and spectral space. The harmonics are real and fully normalized, without the Condon–Shortley phase. The truncation is set by <code>lmax</code> (64 in <code>input/vilma_defaults.nml</code>, while a host must set it itself), and the grid by <code>nlat</code> and <code>nphi</code> (0 gives the de-aliased defaults <span class="math inline">\(2\ell_\max+2\)</span> and <span class="math inline">\(4\ell_\max\)</span>). SHTns is initialized without its per-grid algorithm tuning. This is fixed in <code>vilma_sht</code> at compile time and is not a run-time option. See <a href="./discretization/spectral.html">Spectral reduction</a> and <a href="./discretization/radial-fe.html">Radial finite elements</a>.</p>
+</div>
+</div>
+</section>
+<section id="load-love-numbers-one-response-per-degree" class="level2">
+<h2 class="anchored" data-anchor-id="load-love-numbers-one-response-per-degree">Load Love numbers, one response per degree</h2>
+<p>For a radially symmetric Earth the response to a surface load depends only on the degree of the load, not on its order. A load coefficient <span class="math inline">\(\sigma_{\ell m}\)</span> therefore produces a vertical displacement, a horizontal displacement and a perturbation of the gravitational potential that are fixed multiples of it. These multiples are the <strong>load Love numbers</strong> <span class="math inline">\(h_\ell\)</span>, <span class="math inline">\(l_\ell\)</span> and <span class="math inline">\(k_\ell\)</span>, respectively. Following <span class="citation" data-cites="Farrell1972">Farrell (<a href="#ref-Farrell1972" role="doc-biblioref">1972</a>)</span> they are defined relative to the potential of the load itself, <span class="math inline">\(\varphi^L = 4\pi G a\,\sigma/(2\ell+1)\)</span>:</p>
+<p><span class="math display">\[
+h_\ell = \frac{g_0\,U(a)}{\varphi^{L}}, \qquad
+l_\ell = \frac{g_0\,V(a)}{\varphi^{L}}, \qquad
+k_\ell = -\frac{F(a)}{\varphi^{L}} - 1,
+\]</span></p>
+<p>where <span class="math inline">\(U(a)\)</span> and <span class="math inline">\(V(a)\)</span> are the radial and horizontal displacement at the surface, <span class="math inline">\(F(a)\)</span> is the incremental potential there and <span class="math inline">\(g_0\)</span> is surface gravity. The term <span class="math inline">\(-1\)</span> in <span class="math inline">\(k_\ell\)</span> removes the direct potential of the load, so that <span class="math inline">\(k_\ell\)</span> describes only the deformation.</p>
+<p>For a viscoelastic Earth the Love numbers become functions of time. A load applied at <span class="math inline">\(t = 0\)</span> produces an instantaneous elastic response, which then relaxes toward the fluid limit as the mantle flows. For a homogeneous fluid sphere this limit is known exactly, <span class="math inline">\(h_\ell \to -(2\ell+1)/3\)</span> and <span class="math inline">\(k_\ell \to -1\)</span>, which makes it a useful test of any GIA code.</p>
+<p>Classical normal-mode codes write this time dependence as an elastic term plus a finite sum of exponentially decaying modes <span class="citation" data-cites="Peltier1974">(<a href="#ref-Peltier1974" role="doc-biblioref">Peltier 1974</a>)</span>. The modes are found once per degree, and the response to an arbitrary load history then follows by convolution. This is efficient for a radially symmetric Earth. However, it cannot represent lateral viscosity, which couples the degrees and removes the per-degree response on which the method rests.</p>
+<p>VILMA2 therefore does not compute modes. It solves the radial problem of each degree directly in time, following <span class="citation" data-cites="Martinec2000">Martinec (<a href="#ref-Martinec2000" role="doc-biblioref">2000</a>)</span>, so the Love numbers are not inputs to the model. They are diagnostics that emerge from it: the first step gives the elastic response, and a load held long enough gives the fluid limit. The same per-degree solve then serves the 1-D and the 3-D case.</p>
+<div class="callout callout-style-default callout-tip callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>In VILMA2
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>The radial problem of each degree is discretized with finite elements in <code>vilma_radial_fe</code>, which also holds the Love-number extraction (<code>loading_love</code>, <code>tidal_love</code>). The operator of each degree is factored once by the banded solver in <code>vilma_band</code> and reused at every step. <code>vilma_response</code> wraps the per-degree solves as a response operator, selected by <code>earth_response</code>: <code>"ve"</code> (viscoelastic, default), <code>"elastic"</code> or <code>"null"</code>. The elastic <span class="math inline">\(h_\ell\)</span> of M3–L70–V01 matches the reference table to within 0.08 % up to degree 256 (see <a href="./benchmarks/love-numbers.html">Love numbers</a>).</p>
+</div>
+</div>
+</section>
+<section id="the-sea-level-equation-and-its-fingerprint" class="level2">
+<h2 class="anchored" data-anchor-id="the-sea-level-equation-and-its-fingerprint">The sea-level equation and its fingerprint</h2>
+<p>Sea-level change caused by a melting ice sheet is not uniform. The meltwater raises the global mean, but the loss of ice mass also lowers the geoid near the ice sheet and lets the bed rebound there. Relative sea level therefore falls near a shrinking ice sheet and rises by more than the mean far from it. This spatial pattern is the sea-level <strong>fingerprint</strong> of the ice sheet.</p>
+<p>The <strong>sea-level equation</strong> computes this pattern self-consistently. With the ocean function <span class="math inline">\(C\)</span> (1 over ocean, 0 over land and grounded ice), the relative sea-level change <span class="math inline">\(S\)</span> is</p>
+<p><span class="math display">\[
+S \;=\; C\cdot\bigl(N - u + \Delta\phi\bigr),
+\]</span></p>
+<p>where <span class="math inline">\(N\)</span> is the geoid change, <span class="math inline">\(u\)</span> the vertical displacement of the bed and <span class="math inline">\(\Delta\phi\)</span> a spatially uniform term. The Earth responds to the total surface load,</p>
+<p><span class="math display">\[
+L \;=\; \rho_{\text{ice}}\,\Delta I \;+\; \rho_{\text{water}}\,C\cdot S,
+\]</span></p>
+<p>with <span class="math inline">\(\Delta I\)</span> the change in grounded ice thickness. The uniform term <span class="math inline">\(\Delta\phi\)</span> is chosen such that the ocean gains exactly the mass the ice loses. Since <span class="math inline">\(S\)</span> appears in its own load, the equation is implicit. It is solved by fixed-point iteration: a guess of <span class="math inline">\(S\)</span> gives the load, the load gives <span class="math inline">\(N\)</span> and <span class="math inline">\(u\)</span>, and these give an updated <span class="math inline">\(S\)</span>.</p>
+<p>Two refinements matter for realistic geometries. First, the coastline migrates. As sea level changes, land floods or emerges and grounded ice may float, so the ocean function itself must be updated. Second, a newly flooded cell does not fill instantly to the full sea-level change, and loading it as if it did puts a spurious step at the shoreline. The first refinement follows <span class="citation" data-cites="KMM2005">Kendall et al. (<a href="#ref-KMM2005" role="doc-biblioref">2005</a>)</span>, and the second follows <span class="citation" data-cites="Martinec2018">Martinec et al. (<a href="#ref-Martinec2018" role="doc-biblioref">2018</a>)</span>.</p>
+<div class="callout callout-style-default callout-tip callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>In VILMA2
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p><code>vilma_sle</code> solves the equation in the pseudo-spectral form of <span class="citation" data-cites="KMM2005">Kendall et al. (<a href="#ref-KMM2005" role="doc-biblioref">2005</a>)</span>: the response is applied in spectral space, and the product with the ocean function is formed on the grid. An inner loop iterates <span class="math inline">\(S\)</span> at a fixed coastline (<code>sle_n_inner</code> = 20, <code>sle_tol</code> = <span class="math inline">\(10^{-7}\)</span>), and an outer loop migrates the coastline (<code>sle_n_outer</code> = 3). The coastline migrates by default (<code>sle_fixed_ocean = .false.</code>), and newly flooded cells are loaded by their actual water column (<code>sle_subgrid = .true.</code>). Ocean mass is conserved by construction. The densities default to <code>rho_ice</code> = 917 and <code>rho_water</code> = 1000 kg m<span class="math inline">\(^{-3}\)</span>. Against the <span class="citation" data-cites="Martinec2018">Martinec et al. (<a href="#ref-Martinec2018" role="doc-biblioref">2018</a>)</span> cases D3, E2 and F1 the model agrees to within about 8 % of peak in every field. Case C2 shows an offset that is not yet attributed. See <a href="./physics/sea-level.html">Sea-level equation</a> and its <a href="./benchmarks/sea-level.html">benchmark</a>.</p>
+</div>
+</div>
+</section>
+<section id="off-axis-mass-drives-the-rotation-pole" class="level2">
+<h2 class="anchored" data-anchor-id="off-axis-mass-drives-the-rotation-pole">Off-axis mass drives the rotation pole</h2>
+<p>A redistribution of surface mass changes the inertia tensor of the Earth and thereby moves its rotation axis. Mass placed away from the poles and the equator perturbs the off-diagonal products of inertia, and the pole drifts in response. This <strong>true polar wander</strong> changes the centrifugal potential, which acts as a further load on the Earth and on the ocean. This feedback has no global mean. Instead, it shifts sea level in a characteristic degree-2, order-1 pattern.</p>
+<p>On GIA timescales the Chandler wobble can be neglected. The polar motion <span class="math inline">\(\mathbf{m}\)</span> then follows the quasi-static linearized Liouville equation <span class="citation" data-cites="MartinecHagedoorn2014">(<a href="#ref-MartinecHagedoorn2014" role="doc-biblioref">Martinec and Hagedoorn 2014</a>)</span>,</p>
+<p><span class="math display">\[
+\Bigl[\,1 - \tfrac{k^{T}(t)}{k_{s}}\,\Bigr] * \mathbf{m}(t) \;=\; \frac{I(t)}{C-A},
+\]</span></p>
+<p>where <span class="math inline">\(*\)</span> is a convolution in time, <span class="math inline">\(I\)</span> is the inertia perturbation including the deformation of the Earth, <span class="math inline">\(k^T\)</span> is the degree-2 tidal Love number, <span class="math inline">\(k_s\)</span> the secular (fluid-limit) Love number and <span class="math inline">\(C-A\)</span> the difference between the polar and equatorial moments of inertia. The centrifugal potential of the displaced pole,</p>
+<p><span class="math display">\[
+\Lambda \;=\; -\Omega^{2}a^{2}\sin\theta\cos\theta\,(m_1\cos\phi + m_2\sin\phi),
+\]</span></p>
+<p>is a degree-2, order-1 field. It enters the sea-level equation as one more contribution to the sea surface, so no separate solver is needed.</p>
+<div class="callout callout-style-default callout-tip callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>In VILMA2
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p><code>vilma_rotation</code> carries two degree-2 viscoelastic channels (one forced by the load, one by the centrifugal potential) on the same radial operator as the load response. The rotation and the sea level are iterated to a common fixed point inside <code>vilma_sle</code>. Rotation is on by default (<code>rotation = .true.</code>) and is switched off for the non-rotating community benchmarks. <code>rotation_k_s</code> = 0 (default) uses the model’s own fluid limit for <span class="math inline">\(k_s\)</span>, and <code>rotation_c_minus_a</code> sets <span class="math inline">\(C-A\)</span> (default <span class="math inline">\(2.63\times10^{35}\)</span> kg m<span class="math inline">\(^2\)</span>). The polar motion matches Spada test 3/2 to within 0.9 %. See <a href="./physics/rotation.html">Rotation</a> and its <a href="./benchmarks/rotation.html">benchmark</a>.</p>
+</div>
+</div>
+</section>
+<section id="explicit-memory-and-time-stepping" class="level2">
+<h2 class="anchored" data-anchor-id="explicit-memory-and-time-stepping">Explicit memory and time stepping</h2>
+<p>VILMA2 advances the Maxwell rheology explicitly in time. The total stress at a step is the elastic stress of the current strain plus a <strong>memory stress</strong> <span class="math inline">\(\boldsymbol{\tau}^V\)</span> that carries the relaxation history. In the default scheme it is updated as</p>
+<p><span class="math display">\[
+\boldsymbol{\tau}^{V,i} \;=\; (1-M)\,\boldsymbol{\tau}^{V,i-1}
+\;-\; 2\mu M\,\boldsymbol{\varepsilon}^{\,i},
+\qquad
+M \;=\; \frac{\mu\,\Delta t}{\eta},
+\]</span></p>
+<p>where <span class="math inline">\(i\)</span> is the step index and <span class="math inline">\(M\)</span> is the Maxwell number of the step <span class="citation" data-cites="Martinec2000">(<a href="#ref-Martinec2000" role="doc-biblioref">Martinec 2000</a>)</span>. The memory stress enters only the right-hand side of the field equations. The left-hand operator is therefore independent of time, of the time step and of viscosity. It is factored once per degree, and each step costs a back-substitution.</p>
+<p>This choice has two consequences. First, lateral viscosity changes only the scalar <span class="math inline">\(M\)</span>, which multiplies known fields pointwise. The memory advance is then done on the grid and transformed back to spectral space, while the solve stays decoupled by degree. Second, the scheme is only conditionally stable. The step must satisfy <span class="math inline">\(\Delta t &lt; 2\eta_{\min}/\mu\)</span>, so the lowest viscosity present sets the step. At the default floor of <span class="math inline">\(10^{19.5}\)</span> Pa s and <span class="math inline">\(\mu \approx 7\times10^{10}\)</span> Pa the limit <span class="math inline">\(M \le 1\)</span> is about 15 yr. The coupling interval of a host model is thus split into shorter sub-steps, with the ice load interpolated linearly across the interval.</p>
+<p>A second, implicit scheme is available. The trapezoidal (Crank–Nicolson) update is second-order accurate and A-stable, so its step is limited by accuracy rather than stability. Its step size is chosen adaptively, by comparing one full step with two half steps. Since the end-of-step strain depends on the end-of-step memory, each step is iterated together with the sea-level equation.</p>
+<div class="callout callout-style-default callout-tip callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>In VILMA2
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>The memory scheme is selected by <code>scheme</code>: <code>"fe"</code> (explicit, default), with equal sub-steps at <span class="math inline">\(M \le\)</span> <code>cfl</code> (default 1), or <code>"trap"</code> (trapezoidal, adaptive), with the tolerances <code>rtol</code> = <span class="math inline">\(10^{-4}\)</span> and <code>atol</code> = <span class="math inline">\(10^{-3}\)</span>. The sub-step controller is <code>vilma_timestep</code>, the per-degree Maxwell kernel is in <code>vilma_viscoelastic</code>, and the field driver is in <code>vilma_response</code>. A host advances the model with <code>solid_earth_update(se, h_ice, dt_yr)</code> from <code>vilma_coupling</code>, which passes the coupling interval in years. With lateral viscosity the toroidal field is carried by default (<code>l_toroidal = .true.</code>). A deglaciation at <span class="math inline">\(\ell_\max = 170\)</span> with 3-D viscosity then takes about 2.7 min of wall time per kyr on 64 threads (see <a href="./physics/toroidal.html">Toroidal flow</a>). A restarted run reproduces an uninterrupted one bit for bit. See <a href="./physics/rheology.html#memory-time-schemes">Rheology</a> and <a href="./discretization/time-stepping.html">Time stepping</a>.</p>
+</div>
+</div>
+</section>
+<section id="where-to-go-next" class="level2">
+<h2 class="anchored" data-anchor-id="where-to-go-next">Where to go next</h2>
+<p>The <a href="./getting-started.html">Install &amp; run</a> page describes how to build the model, configure it through the <code>&amp;vilma</code> and <code>&amp;ctl</code> namelists and run the standalone driver. Every <code>&amp;vilma</code> parameter and its default is listed in <code>input/vilma_defaults.nml</code>. The <a href="./physics/governing-equations.html">Physics</a> and <a href="./discretization/spectral.html">Discretization</a> pages give the full formulation behind each section above, and the <a href="./benchmarks/index.html">Benchmarks</a> show how well each part reproduces published reference solutions.</p>
+
+
+
+</section>
+
+<a onclick="window.scrollTo(0, 0); return false;" role="button" id="quarto-back-to-top"><i class="bi bi-arrow-up"></i> Back to top</a><div id="quarto-appendix" class="default"><section class="quarto-appendix-contents" role="doc-bibliography" id="quarto-bibliography"><h2 class="anchored quarto-appendix-heading">References</h2><div id="refs" class="references csl-bib-body hanging-indent" role="list">
+<div id="ref-Bagge2021" class="csl-entry" role="listitem">
+Bagge, M., V. Klemann, B. Steinberger, M. Latinović, and M. Thomas. 2021. <span>“Glacial-Isostatic Adjustment Models Using Geodynamically Constrained <span>3D</span> Earth Structures.”</span> <em>Geochemistry, Geophysics, Geosystems</em> 22 (11): e2021GC009853. <a href="https://doi.org/10.1029/2021GC009853">https://doi.org/10.1029/2021GC009853</a>.
+</div>
+<div id="ref-Farrell1972" class="csl-entry" role="listitem">
+Farrell, W. E. 1972. <span>“Deformation of the Earth by Surface Loads.”</span> <em>Reviews of Geophysics</em> 10 (3): 761–97. <a href="https://doi.org/10.1029/RG010i003p00761">https://doi.org/10.1029/RG010i003p00761</a>.
+</div>
+<div id="ref-FarrellClark1976" class="csl-entry" role="listitem">
+Farrell, W. E., and J. A. Clark. 1976. <span>“On Postglacial Sea Level.”</span> <em>Geophysical Journal of the Royal Astronomical Society</em> 46 (3): 647–67. <a href="https://doi.org/10.1111/j.1365-246X.1976.tb01252.x">https://doi.org/10.1111/j.1365-246X.1976.tb01252.x</a>.
+</div>
+<div id="ref-KMM2005" class="csl-entry" role="listitem">
+Kendall, R. A., J. X. Mitrovica, and G. A. Milne. 2005. <span>“On Post-Glacial Sea Level – <span>II</span>. Numerical Formulation and Comparative Results on Spherically Symmetric Models.”</span> <em>Geophysical Journal International</em> 161 (3): 679–706. <a href="https://doi.org/10.1111/j.1365-246X.2005.02553.x">https://doi.org/10.1111/j.1365-246X.2005.02553.x</a>.
+</div>
+<div id="ref-Martinec2000" class="csl-entry" role="listitem">
+Martinec, Z. 2000. <span>“Spectral–Finite Element Approach to Three-Dimensional Viscoelastic Relaxation in a Spherical Earth.”</span> <em>Geophysical Journal International</em> 142 (1): 117–41. <a href="https://doi.org/10.1046/j.1365-246x.2000.00138.x">https://doi.org/10.1046/j.1365-246x.2000.00138.x</a>.
+</div>
+<div id="ref-MartinecHagedoorn2014" class="csl-entry" role="listitem">
+Martinec, Z., and J. Hagedoorn. 2014. <span>“The Rotational Feedback on Linear-Momentum Balance in Glacial Isostatic Adjustment.”</span> <em>Geophysical Journal International</em> 199 (3): 1823–46. <a href="https://doi.org/10.1093/gji/ggu369">https://doi.org/10.1093/gji/ggu369</a>.
+</div>
+<div id="ref-Martinec2018" class="csl-entry" role="listitem">
+Martinec, Z., V. Klemann, W. van der Wal, et al. 2018. <span>“A Benchmark Study of Numerical Implementations of the Sea Level Equation in <span>GIA</span> Modelling.”</span> <em>Geophysical Journal International</em> 215 (1): 389–414. <a href="https://doi.org/10.1093/gji/ggy280">https://doi.org/10.1093/gji/ggy280</a>.
+</div>
+<div id="ref-Peltier1974" class="csl-entry" role="listitem">
+Peltier, W. R. 1974. <span>“The Impulse Response of a <span>Maxwell</span> <span>Earth</span>.”</span> <em>Reviews of Geophysics</em> 12 (4): 649–69. <a href="https://doi.org/10.1029/RG012i004p00649">https://doi.org/10.1029/RG012i004p00649</a>.
+</div>
+<div id="ref-Schaeffer2013" class="csl-entry" role="listitem">
+Schaeffer, N. 2013. <span>“Efficient Spherical Harmonic Transforms Aimed at Pseudospectral Numerical Simulations.”</span> <em>Geochemistry, Geophysics, Geosystems</em> 14 (3): 751–58. <a href="https://doi.org/10.1002/ggge.20071">https://doi.org/10.1002/ggge.20071</a>.
+</div>
+</div></section></div></main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    // Ensure there is a toggle, if there isn't float one in the top right
+    if (window.document.querySelector('.quarto-color-scheme-toggle') === null) {
+      const toggle = window.document.createElement('button');
+      toggle.type = "button";
+      toggle.setAttribute("role", "switch");
+      toggle.setAttribute("aria-checked", "false");
+      toggle.classList.add('top-right');
+      toggle.classList.add('quarto-color-scheme-toggle');
+      toggle.setAttribute("aria-label", "Toggle dark mode");
+      toggle.onclick = function() { try { window.quartoToggleColorScheme(); } catch {} return false; };
+      const i = window.document.createElement("i");
+      i.classList.add('bi');
+      toggle.appendChild(i);
+      // Put the toggle in a landmark of its own, so that landmark navigation
+      // can reach it.
+      //
+      // The container is always a fresh direct child of body, and the toggle is
+      // never moved into page furniture that the theme or the author controls.
+      // The toggle is positioned against the page, so any ancestor that
+      // establishes a containing block captures it: a positioned element or a
+      // grid for position: absolute, and transform, filter, will-change or
+      // contain for position: fixed. A direct child of body has none of these
+      // to inherit, and the shift when one appears is silent and visual.
+      //
+      // ARIA says a document should have at most one banner, and axe reports a
+      // duplicate whether or not the banners carry distinct labels. So use a
+      // header when the page has no banner yet, and a named region otherwise.
+      //
+      // A header is a banner wherever it sits, unless it is inside sectioning
+      // content, so this cannot just look at the children of body: a custom
+      // page layout wraps the title block header in a plain div. An explicit
+      // role="banner" always counts.
+      const sectioning = 'article, aside, main, nav, section, [role="article"], [role="complementary"], [role="main"], [role="navigation"], [role="region"]';
+      const hasBanner = Array.from(
+        window.document.querySelectorAll('header:not([role]), [role="banner"]')
+      ).some(function(el) {
+        return el.hasAttribute("role") || el.closest(sectioning) === null;
+      });
+      const container = window.document.createElement(hasBanner ? "div" : "header");
+      if (hasBanner) {
+        container.setAttribute("role", "region");
+        container.setAttribute("aria-label", "Toggle dark mode");
+      }
+      container.classList.add('quarto-color-scheme-toggle-container');
+      container.appendChild(toggle);
+      window.document.body.appendChild(container);
+    }
+    setColorSchemeToggle(hasAlternateSentinel())
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp("https:\/\/fesmc\.github\.io\/vilma2\/");
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+      window.quartoDecorateExternalLinks = function (root) {
+     var links = (root || window.document).querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+          if (!link.classList.contains('no-external-icon')) {
+          }
+        }
+      }
+      };
+      window.quartoDecorateExternalLinks(window.document);
+    // Esc closes the popup (WCAG 1.4.13) and focus leaving both trigger and
+    // popup closes it (WCAG 2.4.11); tippy handles neither for interactive popups.
+    const hideOnEscAndFocusOut = {
+      name: 'hideOnEscAndFocusOut',
+      defaultValue: true,
+      fn(instance) {
+        const dismiss = () => {
+          // A show scheduled by the trigger delay would otherwise reopen it
+          instance.clearDelayTimeouts();
+          instance.hide();
+        };
+        const onKeyDown = (event) => {
+          if (event.key !== 'Escape') {
+            return;
+          }
+          // Keep Esc from also reaching page handlers (e.g. reveal.js overview),
+          // except an open reveal.js slide menu, which Esc should close too.
+          // The menu handles keys only when its keyboard option is on.
+          const menuHandlesEsc = window.Reveal?.getPlugin?.('menu')?.isOpen() &&
+            window.Reveal.getConfig().menu?.keyboard !== false;
+          if (!menuHandlesEsc) {
+            event.stopPropagation();
+          }
+          if (instance.popper.contains(window.document.activeElement)) {
+            // Disabled while refocusing so the focus trigger does not reopen it
+            instance.disable();
+            instance.reference.focus();
+            instance.enable();
+          }
+          dismiss();
+        };
+        const onFocusOut = (event) => {
+          const target = event.relatedTarget;
+          if (target && !instance.reference.contains(target) &&
+              !instance.popper.contains(target)) {
+            dismiss();
+          }
+        };
+        // On the trigger too: a click trigger (code-annotations: select) has no
+        // blur handling. Attached for the instance's lifetime so leaving the
+        // trigger also cancels a show still pending on the trigger delay.
+        instance.reference.addEventListener('focusout', onFocusOut);
+        return {
+          onShow() {
+            window.document.addEventListener('keydown', onKeyDown, true);
+            instance.popper.addEventListener('focusout', onFocusOut);
+          },
+          onHide() {
+            window.document.removeEventListener('keydown', onKeyDown, true);
+            instance.popper.removeEventListener('focusout', onFocusOut);
+          },
+          onDestroy() {
+            instance.reference.removeEventListener('focusout', onFocusOut);
+          },
+        };
+      },
+    };
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+        plugins: [hideOnEscAndFocusOut],
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          // Each band is positioned against its own containing block, which is
+          // not the offsetParent of the lines, so place it from client rects.
+          const placeBand = (band, firstEl, lastEl, codeBlock) => {
+            const container = band.offsetParent;
+            if (container === null) {
+              return;
+            }
+            const containerRect = container.getBoundingClientRect();
+            // Reveal.js scales slides with a transform, so convert client
+            // pixels back to the CSS pixels of the container.
+            const scale = containerRect.height / container.offsetHeight || 1;
+            const firstRect = firstEl.getBoundingClientRect();
+            const lastRect = lastEl.getBoundingClientRect();
+            const top = (firstRect.top - containerRect.top) / scale - container.clientTop + container.scrollTop;
+            const height = (lastRect.bottom - firstRect.top) / scale;
+            band.style.top = top - 2 + "px";
+            band.style.height = height + 4 + "px";
+            if (codeBlock) {
+              // Without the copy button wrapper, the containing block is wider
+              // than the code block, so span the code block explicitly.
+              const blockRect = codeBlock.getBoundingClientRect();
+              band.style.left = (blockRect.left - containerRect.left) / scale - container.clientLeft + container.scrollLeft + "px";
+              band.style.width = blockRect.width / scale + "px";
+            }
+          };
+          if (lineIds.length > 0) {
+            const el = window.document.getElementById(lineIds[0]);
+            const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+            const parent = el.parentElement.parentElement;
+            // cook up a div (if necessary) and position it
+            let div = window.document.getElementById("code-annotation-line-highlight");
+            if (div === null) {
+              div = window.document.createElement("div");
+              div.setAttribute("id", "code-annotation-line-highlight");
+              div.style.position = 'absolute';
+              parent.appendChild(div);
+            }
+            placeBand(div, el, lastEl, parent.closest("div.sourceCode") || parent);
+            let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+            if (gutterDiv === null) {
+              gutterDiv = window.document.createElement("div");
+              gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+              gutterDiv.style.position = 'absolute';
+              const codeCell = window.document.getElementById(targetCell);
+              const gutter = codeCell.querySelector('.code-annotation-gutter');
+              gutter.appendChild(gutterDiv);
+            }
+            placeBand(gutterDiv, el, lastEl);
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+  <script type="application/javascript">
+  window.quartoScrollableRegionsLabels = {"code":"Scrollable code","output":"Scrollable output"};
+  </script>
+<nav class="page-navigation" aria-label="Page">
+  <div class="nav-page nav-page-previous">
+      <a href="./getting-started.html" class="pagination-link" aria-label="Installation and running">
+        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text">Installation and running</span>
+      </a>          
+  </div>
+  <div class="nav-page nav-page-next">
+      <a href="./implementation.html" class="pagination-link" aria-label="Implementation and attribution">
+        <span class="nav-page-text">Implementation and attribution</span> <i class="bi bi-arrow-right-short"></i>
+      </a>
+  </div>
+</nav>
+</div> <!-- /content -->
+
+
+
+
+<footer class="footer"><div class="nav-footer"><div class="nav-footer-center"><div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/fesmc/vilma2/blob/main/tutorial.qmd" class="toc-action"><i class="bi bi-github"></i>View source</a></li><li><a href="https://github.com/fesmc/vilma2/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div></div></footer></body></html>
