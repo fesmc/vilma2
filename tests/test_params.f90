@@ -5,8 +5,8 @@ program test_params
    !! convention. Checks
    !! (1) scalar / string / logical overrides, (2) the YEARS->seconds conversion
    !! of the time fields, (3) custom per-layer earth assembly, (4) the named
-   !! built-in path (defaults), and (5) an un-overridden value falling through to
-   !! the defaults file.
+   !! built-in path (defaults), (5) an un-overridden value falling through to
+   !! the defaults file, (6) path expansion, and (7) an unknown key stopping the load.
    use vilma_precision,       only: wp
    use vilma_constants,       only: sec_per_year
    use vilma_params,          only: vilma_param_class, vilma_par_load, expand_path, scheme_name_valid, cfl_valid
@@ -14,15 +14,31 @@ program test_params
    implicit none
 
    character(len=*), parameter :: NML  = "libvilma/include/test_params.nml"
+   character(len=*), parameter :: NML_BAD = "libvilma/include/test_params_bad.nml"
    character(len=*), parameter :: DEFS = "input/vilma_defaults.nml"   ! shipped complete &vilma defaults
    type(vilma_param_class) :: p, pdef, pfile
    type(earth_model)    :: em, emdef
-   integer :: u
+   integer :: u, ex
+   character(len=256) :: arg, exe
    logical :: ok
    character(len=512) :: home
    real(wp) :: tol
 
    ok = .true.;  tol = 1.0e-6_wp
+
+   ! a child run: load a user file with a key the defaults do not declare; reaching
+   ! the end is the failure (exit status 0)
+   call get_command_argument(1, arg)
+   if (trim(arg) == "unknown-key") then
+      open(newunit=u, file=NML_BAD, status="replace", action="write")
+      write(u,'(a)') "&vilma"
+      write(u,'(a)') "    lmax = 32"
+      write(u,'(a)') "    no_such_parameter = 1"
+      write(u,'(a)') "/"
+      close(u)
+      call vilma_par_load(p, NML_BAD, defaults_file=DEFS)
+      stop 0
+   end if
 
    ! --- write a SPARSE user file (custom 2-layer earth) overriding the defaults -
    open(newunit=u, file=NML, status="replace", action="write")
@@ -104,6 +120,11 @@ program test_params
    call check_str("expand rel",    trim(expand_path("input/y.nc")),   "input/y.nc")
    call check_str("expand abs",    trim(expand_path("/data/y.nc")),   "/data/y.nc")
    call check_str("expand empty",  trim(expand_path("")),             "")
+
+   ! --- (7) a key the defaults file does not declare stops the load (child process) ---
+   call get_command_argument(0, exe)
+   call execute_command_line(trim(exe)//' unknown-key > /dev/null 2>&1', exitstat=ex)
+   call check_log("unknown key stops", ex /= 0, .true.)
 
    write(*,'(a)') ''
    if (ok) then

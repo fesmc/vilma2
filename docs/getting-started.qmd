@@ -158,7 +158,8 @@ and are loaded automatically. A run configuration such as
 default) or
 [`examples/deglac_lgm.nml`](https://github.com/fesmc/vilma2/blob/main/examples/deglac_lgm.nml)
 carries the full `&ctl` group plus only the `&vilma` parameters it overrides
-(the yelmo `defaults_file` convention):
+(the yelmo `defaults_file` convention). A `&vilma` key the defaults file does
+not declare, such as a typo or a renamed parameter, stops the run:
 
 ```bash
 ./bin/vilma.x examples/deglac_lgm.nml    # default: vilma.nml

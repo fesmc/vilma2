@@ -249,8 +249,9 @@ contains
       !! overlaid on a complete `defaults_file` (yelmo convention): every parameter
       !! must exist in the defaults file, but the user `filename` may set only the
       !! subset it wants to override. If `defaults_file` is omitted, `filename` IS
-      !! its own defaults — so it must then be complete. Override `group` to read a
-      !! differently-named namelist.
+      !! its own defaults — so it must then be complete. A key of the user group that
+      !! the defaults file does not declare (a typo or a renamed parameter) stops the
+      !! run. Override `group` to read a differently-named namelist.
       type(vilma_param_class), intent(inout) :: p
       character(len=*),     intent(in)    :: filename
       character(len=*),     intent(in), optional :: defaults_file
@@ -263,6 +264,7 @@ contains
       g  = "vilma";      if (present(group))         g  = group
       df = filename;    if (present(defaults_file)) df = defaults_file
       call nml_set_verbose(.false.)             ! vilma_par_print echoes a concise summary instead
+      if (present(defaults_file)) call nml_validate(filename, df, g)   ! unknown keys stop
 
       ! solver backend ("v2" | "v1"); validated in solid_earth_init
       call nml_read(filename, g, "solver",    p%solver,    defaults_file=df)
