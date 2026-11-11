@@ -699,6 +699,8 @@ contains
       !! commit re-uses the same solver against the trial τ_{n+1} (see solve_drift).
       type(response), intent(inout) :: self
       type(sht_grid),     intent(in)    :: sht
+      if (self%scheme /= SCHEME_FE .and. self%scheme /= SCHEME_TRAP) &
+         error stop 'vilma_response: scheme must be SCHEME_FE or SCHEME_TRAP'
       if (self%nlam > NLAM) then
          call solve_drift(self, sht, self%dUn_re, self%dUn_im, self%dVn_re, self%dVn_im, &
                           self%dWn_re, self%dWn_im)

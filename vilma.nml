@@ -63,7 +63,7 @@
     lmax           = 64        ! maximum spherical-harmonic degree
     nlat           = 0         ! Gauss latitudes (0 => default = lmax+2)
     nphi           = 0         ! longitudes      (0 => default)
-    scheme         = "fe"      ! fe (1st-order, default) | trap (2nd-order adaptive) | etd1 | be
+    scheme         = "fe"      ! fe (1st-order, default) | trap (2nd-order adaptive)
     cfl            = 1.0       ! explicit (fe) sub-step Maxwell-number ceiling M=mu*dt/eta
     rtol           = 1.0e-4    ! relative local-error tolerance (adaptive schemes)
     rotation       = .true.    ! TPW rotational feedback (off for non-rotating benchmarks)

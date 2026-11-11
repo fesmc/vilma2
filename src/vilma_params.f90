@@ -19,6 +19,7 @@ module vilma_params
    private
 
    public :: vilma_param_class, vilma_par_load, vilma_par_print, expand_path
+   public :: scheme_name_valid
    public :: MAX_LAYER
 
    integer, parameter :: MAX_LAYER = 16   !! cap on custom earth-structure layers
@@ -63,7 +64,7 @@ module vilma_params
       integer  :: rheology(MAX_LAYER) = 1      !! custom: 0=elastic 1=Maxwell 2=fluid
 
       ! --- viscoelastic memory scheme (vilma_response / vilma_viscoelastic) ------------
-      character(len=8) :: scheme = "fe"        !! fe | etd1 | trap | be
+      character(len=8) :: scheme = "fe"        !! fe | trap (scheme_name_valid)
       integer  :: max_couple_iter = 20         !! SLE<->memory co-convergence cap (implicit schemes)
 
       ! --- response kind selector (vilma_response) ----------------------------------
@@ -265,6 +266,8 @@ contains
 
       ! memory scheme
       call nml_read(filename, g, "scheme",          p%scheme,          defaults_file=df)
+      if (.not. scheme_name_valid(p%scheme)) &
+         error stop 'vilma_params: scheme must be "fe" or "trap"'
       call nml_read(filename, g, "max_couple_iter", p%max_couple_iter, defaults_file=df)
 
       ! response kind selector
@@ -352,6 +355,14 @@ contains
       call nml_read(filename, g, "vilma_v1_nsub",         p%vilma_v1_nsub,         defaults_file=df)
       if (p%vilma_v1_nsub < 1) error stop 'vilma_params: vilma_v1_nsub must be >= 1'
    end subroutine vilma_par_load
+
+   pure logical function scheme_name_valid(name) result(valid)
+      !! Whether `name` is a memory scheme the model runs: "fe" (forward Euler,
+      !! explicit sub-stepping) or "trap" (trapezoidal, adaptive). The kernel's
+      !! other rules (ETD1, backward Euler) are not implemented in the field driver.
+      character(len=*), intent(in) :: name
+      valid = (trim(name) == "fe" .or. trim(name) == "trap")
+   end function scheme_name_valid
 
    function expand_path(path) result(out)
       !! Expand a leading `~/` or `$HOME/` in a file path using the HOME

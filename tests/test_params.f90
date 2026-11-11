@@ -9,7 +9,7 @@ program test_params
    !! the defaults file.
    use vilma_precision,       only: wp
    use vilma_constants,       only: sec_per_year
-   use vilma_params,          only: vilma_param_class, vilma_par_load, expand_path
+   use vilma_params,          only: vilma_param_class, vilma_par_load, expand_path, scheme_name_valid
    use vilma_earth_structure, only: earth_n_layers, earth_model, build_earth, RHEOL_MAXWELL, RHEOL_FLUID
    implicit none
 
@@ -36,7 +36,7 @@ program test_params
    write(u,'(a)') "    mu       = 1.0e11, 0.0"
    write(u,'(a)') "    eta      = 1.0e21, 0.0"
    write(u,'(a)') "    rheology = 1, 2"
-   write(u,'(a)') '    scheme       = "be"'
+   write(u,'(a)') '    scheme       = "trap"'
    write(u,'(a)') "    sle_n_outer  = 5"
    write(u,'(a)') "    sle_subgrid  = .false."
    write(u,'(a)') "    equil_time_max = 2000.0"
@@ -52,7 +52,12 @@ program test_params
    call check_int("lmax",        p%lmax,        32)
    call check_str("earth",       trim(p%earth), "custom")
    call check_int("n_layer",     p%n_layer,     2)
-   call check_str("scheme",      trim(p%scheme), "be")
+   call check_str("scheme",      trim(p%scheme), "trap")
+   ! the schemes the model runs; the kernel-only rules are not a valid setting
+   call check_log("scheme fe valid",    scheme_name_valid("fe"),   .true.)
+   call check_log("scheme trap valid",  scheme_name_valid("trap"), .true.)
+   call check_log("scheme etd1 valid",  scheme_name_valid("etd1"), .false.)
+   call check_log("scheme be valid",    scheme_name_valid("be"),   .false.)
    call check_int("sle_n_outer", p%sle_n_outer, 5)
    call check_log("sle_subgrid", p%sle_subgrid, .false.)
    call check_log("rotation",    p%rotation,    .true.)

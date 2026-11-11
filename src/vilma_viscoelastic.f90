@@ -250,14 +250,18 @@ contains
    end function scheme_order
 
    pure integer function scheme_from_name(name) result(scheme)
-      !! Map a namelist scheme string to its SCHEME_* code (see vilma_params).
+      !! Map the model's `scheme` setting (vilma_params) to its SCHEME_* code. The
+      !! field driver (vilma_response) and the stepper implement forward Euler and
+      !! the trapezoidal rule; ETD1 and backward Euler exist in the per-degree
+      !! kernel only (ve_degree, advance_memory), as the evidence of test_etd1 and
+      !! test_couple_order, and are not a setting of the model.
       character(len=*), intent(in) :: name
       select case (trim(name))
       case ("fe");   scheme = SCHEME_FE
-      case ("etd1"); scheme = SCHEME_ETD1
       case ("trap"); scheme = SCHEME_TRAP
-      case ("be");   scheme = SCHEME_BE
-      case default;  error stop 'scheme_from_name: unknown memory scheme (use fe|etd1|trap|be)'
+      case default
+         error stop 'scheme_from_name: scheme must be "fe" or "trap" '// &
+                    '(etd1 and be exist only in the per-degree kernel, ve_degree)'
       end select
    end function scheme_from_name
 
