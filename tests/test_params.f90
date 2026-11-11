@@ -31,7 +31,7 @@ program test_params
    write(u,'(a)') '    earth   = "custom"'
    write(u,'(a)') "    n_layer = 2"
    write(u,'(a)') "    r_bot    = 5701.0e3, 0.0"
-   write(u,'(a)') "    r_top    = 6371.0e3, 3480.0e3"
+   write(u,'(a)') "    r_top    = 6371.0e3, 5701.0e3"
    write(u,'(a)') "    rho      = 4000.0, 10000.0"
    write(u,'(a)') "    mu       = 1.0e11, 0.0"
    write(u,'(a)') "    eta      = 1.0e21, 0.0"

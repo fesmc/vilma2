@@ -24,7 +24,7 @@ module vilma_response
    !! rigid (U→0, 1+k→1) and fluid (U→−(2j+1)/3·φ^L/g, 1+k→0) limits.
    use vilma_precision,       only: wp, i8
    use vilma_constants,       only: pi, grav_G
-   use vilma_earth_structure, only: earth_gravity_at, earth_model, RHEOL_MAXWELL
+   use vilma_earth_structure, only: earth_gravity_at, earth_model, earth_layer_has_memory
    use vilma_radial_fe,       only: radial_operator_load_rhs, radial_operator_solve_vec, radial_operator_destroy, radial_operator_solve, radial_operator_assemble, radial_mesh_build, radial_mesh, radial_operator, &
                                  idx_u, idx_v, idx_f, ndof_of, &
                                  toroidal_operator, toroidal_operator_assemble, toroidal_operator_solve_vec, &
@@ -588,16 +588,13 @@ contains
          lay = mesh%elem_layer(e)
          self%mu(e) = earth%layers(lay)%mu
          eta_e      = earth%layers(lay)%eta
-         ! Only genuinely Maxwell layers carry memory. Classify by RHEOLOGY, not by
-         ! eta>0: the elastic lithosphere is stored with eta=huge, which would give a
-         ! tiny-but-NONZERO rate μ/huge≈3e-298 — close enough to be inert in the 1-D
-         ! advance (Mk rounds away) but not exactly 0, which muddies the "no memory"
-         ! test. Setting it (and the inviscid core) to exactly 0 makes MkPerDt==0 the
-         ! universal "this element has no Maxwell memory" predicate, used to skip
-         ! elastic/fluid elements in the advance and to leave them untouched by a
-         ! loaded 3D viscosity field. (Observably identical: a μ/huge rate only ever
-         ! produced ~1e-267 memory, below ULP in every force/uplift.)
-         if (earth%layers(lay)%rheology == RHEOL_MAXWELL) then
+         ! Only Maxwell layers carry memory (earth_layer_has_memory: the rheology
+         ! flag, not eta > 0 — an elastic lithosphere stored with eta = huge would
+         ! have the tiny but nonzero rate μ/huge). Every other element gets a rate of
+         ! exactly 0, which makes MkPerDt_rad == 0 the predicate "this element has no
+         ! Maxwell memory" inside the response: such elements are skipped in the
+         ! advance and left untouched by a loaded 3-D viscosity field.
+         if (earth_layer_has_memory(earth%layers(lay))) then
             self%Mk(e)      = self%mu(e)*dt/eta_e     ! M=μΔt/η; set_dt rescales from MkPerDt
             self%MkPerDt(e) = self%mu(e)/eta_e        ! Δt-invariant rate μ/η
          else

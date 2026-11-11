@@ -11,7 +11,7 @@ module vilma_earth_structure
    !! log10-viscosity on the Gauss-Legendre spatial grid per radial node — how
    !! VILMA1 injects lateral heterogeneity (Albrecht et al. 2024). 1D runs leave it
    !! unallocated; the same solver path reduces to the spherically symmetric case.
-   use vilma_precision, only: wp
+   use vilma_precision, only: wp, is_finite
    use vilma_constants, only: pi, grav_G
    use vilma_params,    only: vilma_param_class, MAX_LAYER
    use vilma_sht,       only: sht_grid
@@ -28,6 +28,7 @@ module vilma_earth_structure
    integer, parameter, public :: RHEOL_FLUID   = 2   !! inviscid fluid (mu = 0)
 
    public :: earth_layer, earth_model, build_M3L70V01, build_earth, prem_rho_mu
+   public :: earth_check, earth_validate, earth_layer_has_memory
    public :: vilma_read_visc_3d, load_visc_3d
    public :: earth_n_layers, earth_rho_at, earth_mu_at, earth_eta_at, earth_mass_below, earth_total_mass, earth_gravity_at, earth_moi, earth_is_3d
 
@@ -37,8 +38,8 @@ module vilma_earth_structure
       real(wp) :: r_top = 0.0_wp   !! outer radius [m]
       real(wp) :: rho   = 0.0_wp   !! density [kg m^-3]
       real(wp) :: mu    = 0.0_wp   !! shear modulus / rigidity [Pa]
-      real(wp) :: eta   = 0.0_wp   !! viscosity [Pa s] (huge for elastic, 0 fluid)
-      integer  :: rheology = RHEOL_MAXWELL
+      real(wp) :: eta   = 0.0_wp   !! viscosity [Pa s]; used for a Maxwell layer only
+      integer  :: rheology = RHEOL_MAXWELL   !! what the layer is; see earth_layer_has_memory
    end type earth_layer
 
    type :: earth_model
@@ -64,6 +65,7 @@ contains
       !! assembled verbatim from the per-layer arrays (surface-first), or "PREM"
       !! — the same layer geometry/viscosity arrays, but with density and shear
       !! modulus auto-filled from the incompressible-PREM profile (see build_layered).
+      !! The model is validated here (earth_validate), where the layers enter.
       type(vilma_param_class), intent(in) :: p
       type(earth_model) :: em
 
@@ -77,12 +79,100 @@ contains
       case default
          error stop 'build_earth: unknown earth model "'//trim(p%earth)//'"'
       end select
+      call earth_validate(em)
    end function build_earth
+
+   pure logical function earth_layer_has_memory(layer) result(mem)
+      !! Whether a layer carries Maxwell memory (relaxes viscously). The rheology
+      !! flag decides, nothing else: an elastic layer has none whatever its eta
+      !! holds, a fluid layer has no shear stress at all. Every consumer (the field
+      !! driver, the per-degree stepper, the rotation channels) classifies its
+      !! elements with this function; a valid model (earth_check) has mu > 0 and
+      !! eta > 0 where it is .true., so the rate mu/eta is finite and positive.
+      type(earth_layer), intent(in) :: layer
+      mem = (layer%rheology == RHEOL_MAXWELL)
+   end function earth_layer_has_memory
+
+   function earth_check(self) result(msg)
+      !! What is wrong with a layered model, as a message naming the layer (index 1
+      !! = surface), or '' for a valid one. Valid means:
+      !!   geometry  surface-first, r_top(1) = r_earth, every r_top > r_bot, layers
+      !!             contiguous (r_bot(k) = r_top(k+1), to 1 m), innermost r_bot = 0
+      !!             — what radial_mesh_build assumes;
+      !!   density   rho > 0;
+      !!   rheology  Maxwell: mu > 0 and eta > 0; elastic: mu > 0 (eta not used);
+      !!             fluid: mu = 0 (eta not used).
+      !! A Maxwell layer with eta left at 0 would give an infinite rate, and a fluid
+      !! layer with mu > 0 would be assembled as elastic.
+      type(earth_model), intent(in) :: self
+      character(len=:), allocatable :: msg
+      character(len=16) :: ck
+      integer :: k, n
+      msg = ''
+      n = earth_n_layers(self)
+      if (n < 1) then
+         msg = 'the model has no layers';  return
+      end if
+      do k = 1, n
+         write(ck,'(i0)') k
+         associate (L => self%layers(k))
+            if (.not. (is_finite(L%r_bot) .and. is_finite(L%r_top) .and. is_finite(L%rho) &
+                       .and. is_finite(L%mu))) then
+               msg = 'layer '//trim(ck)//': r_bot, r_top, rho or mu is not finite'
+            else if (L%r_bot < 0.0_wp .or. L%r_top <= L%r_bot) then
+               msg = 'layer '//trim(ck)//': needs r_top > r_bot >= 0 (layers are surface-first)'
+            else if (L%rho <= 0.0_wp) then
+               msg = 'layer '//trim(ck)//': rho must be > 0'
+            else
+               select case (L%rheology)
+               case (RHEOL_MAXWELL)
+                  if (L%mu <= 0.0_wp) then
+                     msg = 'layer '//trim(ck)//': a Maxwell layer (rheology = 1) needs mu > 0'
+                  else if (.not. is_finite(L%eta) .or. L%eta <= 0.0_wp) then
+                     msg = 'layer '//trim(ck)//': a Maxwell layer (rheology = 1) needs eta > 0'
+                  end if
+               case (RHEOL_ELASTIC)
+                  if (L%mu <= 0.0_wp) &
+                     msg = 'layer '//trim(ck)//': an elastic layer (rheology = 0) needs mu > 0'
+               case (RHEOL_FLUID)
+                  if (L%mu /= 0.0_wp) &
+                     msg = 'layer '//trim(ck)//': a fluid layer (rheology = 2) needs mu = 0'
+               case default
+                  msg = 'layer '//trim(ck)//': rheology must be 0 (elastic), 1 (Maxwell) or 2 (fluid)'
+               end select
+            end if
+         end associate
+         if (len(msg) > 0) return
+         if (k < n) then
+            if (abs(self%layers(k)%r_bot - self%layers(k+1)%r_top) > 1.0_wp) then
+               msg = 'layer '//trim(ck)//': r_bot must equal r_top of the layer below (contiguous, surface-first)'
+               return
+            end if
+         end if
+      end do
+      if (abs(self%layers(1)%r_top - self%r_earth) > 1.0_wp) then
+         msg = 'layer 1: r_top must equal r_earth (layers are surface-first)'
+      else if (self%layers(n)%r_bot /= 0.0_wp) then
+         write(ck,'(i0)') n
+         msg = 'layer '//trim(ck)//': the innermost layer must reach r = 0'
+      end if
+   end function earth_check
+
+   subroutine earth_validate(self)
+      !! Stop, naming the layer, if the model is not valid (earth_check).
+      type(earth_model), intent(in) :: self
+      character(len=:), allocatable :: msg
+      msg = earth_check(self)
+      if (len(msg) == 0) return
+      write(*,'(a)') ' earth model "'//self%name//'": '//msg
+      error stop 'vilma_earth_structure: invalid earth model (see message above)'
+   end subroutine earth_validate
 
    function build_layered(p, use_prem) result(em)
       !! Assemble a layered model from the surface-first parameter arrays
       !! (n_layer, r_bot, r_top, eta, rheology). With use_prem=.false. ("custom")
-      !! every property — including rho and mu — is taken verbatim from the arrays.
+      !! every property — including rho and mu — is taken from the arrays as given;
+      !! build_earth then validates the result (earth_check).
       !! With use_prem=.true. ("PREM") the per-layer density and shear modulus are
       !! instead the r^2-weighted (mass-consistent) shell average of the
       !! incompressible-PREM profile over each layer (prem_shell_avg), so the rho/mu

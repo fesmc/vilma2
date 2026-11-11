@@ -12,14 +12,17 @@ program test_earth
    !! real Earth's total mass and MOI factor to <1% and surface gravity to ~9.8 —
    !! this is the mass-consistency check the volume-average buys over midpoint
    !! sampling. The pointwise prem_rho_mu evaluator is checked at the surface crust.
+   !!
+   !! Validation: earth_check accepts that model and names the layer of each defect
+   !! put into it (Maxwell without eta, fluid with mu, a gap, the wrong order, ...).
    use vilma_precision,       only: wp
    use vilma_constants,       only: m_earth
    use vilma_params,          only: vilma_param_class
    use vilma_earth_structure, only: earth_moi, earth_total_mass, earth_gravity_at, earth_n_layers, &
-                                 earth_model, build_M3L70V01, build_earth, prem_rho_mu
+                                 earth_model, build_M3L70V01, build_earth, prem_rho_mu, earth_check
    implicit none
 
-   type(earth_model)    :: em
+   type(earth_model)    :: em, bad
    type(vilma_param_class) :: p
    integer  :: i
    logical  :: ok
@@ -93,10 +96,45 @@ program test_earth
    if (abs(rho_c - 2600.0_wp) > 1.0e-6_wp .or. &
        abs(mu_c - 3200.0_wp**2*2600.0_wp) > 1.0_wp) ok = .false.
 
+   ! === validation of a layered model (earth_check) ===========================
+   ! The 11-layer PREM model is valid; each defect below must be named with its layer.
+   call expect_invalid('valid model',                  em, '')
+   bad = em;  bad%layers(3)%eta = 0.0_wp                       ! Maxwell, eta unset
+   call expect_invalid('Maxwell layer with eta = 0',   bad, 'layer 3')
+   bad = em;  bad%layers(11)%mu = 1.0e11_wp                    ! fluid with a shear modulus
+   call expect_invalid('fluid layer with mu > 0',      bad, 'layer 11')
+   bad = em;  bad%layers(1)%mu = 0.0_wp                        ! elastic without one
+   call expect_invalid('elastic layer with mu = 0',    bad, 'layer 1')
+   bad = em;  bad%layers(4)%rho = 0.0_wp
+   call expect_invalid('layer with rho = 0',           bad, 'layer 4')
+   bad = em;  bad%layers(5)%r_bot = bad%layers(5)%r_bot + 10.0e3_wp   ! a 10 km gap
+   call expect_invalid('gap between layers',           bad, 'layer 5')
+   bad = em;  bad%layers = bad%layers(11:1:-1)                 ! bottom-first
+   call expect_invalid('layers ordered bottom-first',  bad, 'layer 1')
+   bad = em;  bad%layers(2)%rheology = 7
+   call expect_invalid('unknown rheology flag',        bad, 'layer 2')
+
    if (ok) then
       print '(/,a)', ' PASS: M3-L70-V01 and PREM Earth-structure consistency checks'
    else
       print '(/,a)', ' FAIL: Earth-structure consistency check exceeded tolerance'
       error stop 1
    end if
+contains
+
+   subroutine expect_invalid(label, model, layer)
+      !! earth_check(model) must name `layer` ('' = the model must be valid).
+      character(len=*),  intent(in) :: label, layer
+      type(earth_model), intent(in) :: model
+      character(len=:), allocatable :: msg
+      msg = earth_check(model)
+      if (len(layer) == 0) then
+         print '(a,a,a)', ' earth_check, ', label, ': "'//msg//'"'
+         if (len(msg) /= 0) ok = .false.
+      else
+         print '(a,a,a)', ' earth_check, ', label, ': "'//msg//'"'
+         if (index(msg, layer//':') /= 1) ok = .false.
+      end if
+   end subroutine expect_invalid
+
 end program test_earth
