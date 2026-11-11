@@ -18,8 +18,7 @@ program dump_reference
                                  radial_operator_assemble, radial_operator_solve_vec, &
                                  radial_operator_load_rhs, radial_operator_tidal_rhs, &
                                  radial_operator_destroy, build_dense_operator, uniq_weight, &
-                                 shell_Rk, loading_love, tidal_love, idx_u, idx_v, idx_f, ndof_of, &
-                                 radial_fe_finalize
+                                 shell_Rk, loading_love, tidal_love, idx_u, idx_v, idx_f, ndof_of
    use vilma_viscoelastic,    only: ve_degree, ve_init, ve_step, ve_destroy, NLAM, SCHEME_FE, SCHEME_TRAP
    use vilma_sht,             only: sht_grid, sht_grid_init, sht_grid_destroy, sht_grid_lmidx, &
                                  sht_grid_synthesis, sht_grid_analysis, sht_grid_sph_synthesis, &
@@ -98,7 +97,6 @@ program dump_reference
    if (want(10)) call dump_visc3d(trim(outdir)//"/visc3d.nc")
    if (want(11)) call dump_martinec_sle(trim(outdir)//"/martinec_sle.nc")
 
-   call radial_fe_finalize()
    write(*,'(a)') ' dump_reference: done'
 
 contains

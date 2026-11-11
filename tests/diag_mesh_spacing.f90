@@ -28,7 +28,7 @@ program diag_mesh_spacing
    use vilma_earth_structure, only: earth_model, earth_layer, build_M3L70V01, build_earth, &
                                     RHEOL_MAXWELL, RHEOL_FLUID
    use vilma_radial_fe,       only: radial_operator_solve, radial_operator_assemble, radial_mesh_build, &
-                                    radial_mesh, radial_operator, loading_love, radial_fe_finalize
+                                    radial_mesh, radial_operator, loading_love
    use vilma_response,        only: response, response_init_ve, response_apply, response_begin_step, &
                                     response_commit_step, response_enable_lateral_visc, response_destroy
    use vilma_sht,             only: sht_grid, sht_grid_init, sht_grid_eval_point, sht_grid_lmidx
@@ -70,7 +70,6 @@ program diag_mesh_spacing
          call disc_run(e, LVZ_CYL,  70.0_wp*km, 170.0_wp*km, 200.0_wp*YR, u)
          write(*,'(f10.2,i6,2f12.4)') SCALES(is), ne_of(e), uref(1), u(1)
       end do
-      call radial_fe_finalize()
       stop
    end if
 
@@ -96,7 +95,6 @@ program diag_mesh_spacing
    end do
 
    if (trim(arg) == 'love') then
-      call radial_fe_finalize()
       stop
    end if
 
@@ -143,7 +141,6 @@ program diag_mesh_spacing
    do is = 1, 3
       call scaled_run(e, 'element depth', SCALES(is), LVZ_NONE)
    end do
-   call radial_fe_finalize()
 
 contains
 

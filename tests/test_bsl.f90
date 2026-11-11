@@ -19,7 +19,6 @@ program test_bsl
    use vilma_precision, only: wp
    use vilma_constants, only: pi
    use vilma_params,    only: vilma_param_class
-   use vilma_radial_fe, only: radial_fe_finalize
    use vilma_sht,       only: sht_grid, sht_grid_init, sht_grid_destroy, sht_grid_surface_integral
    use vilma_coupling,  only: solid_earth, solid_earth_init, solid_earth_update, solid_earth_finalize
    implicit none
@@ -117,9 +116,7 @@ program test_bsl
       write(*,'(a)') ' PASS: bsl is the ocean mean of C*rsl; bsl_ive is the ice-volume equivalent'
    else
       write(*,'(a)') ' FAIL: bsl / bsl_ive'
-      call radial_fe_finalize()
       error stop 1
    end if
-   call radial_fe_finalize()
 
 end program test_bsl

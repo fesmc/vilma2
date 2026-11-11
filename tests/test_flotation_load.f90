@@ -16,7 +16,6 @@ program test_flotation_load
    use vilma_precision,       only: wp
    use vilma_constants,       only: pi, rho_ice, rho_water
    use vilma_earth_structure, only: earth_model, build_M3L70V01
-   use vilma_radial_fe,       only: radial_fe_finalize
    use vilma_response,        only: response_destroy, response, response_init_elastic, response_init_ve, response_init_null
    use vilma_sht,             only: sht_grid, sht_grid_init, sht_grid_destroy
    use vilma_sle,             only: sle_solve, sle_solver, sle_result, sle_result_grids
@@ -83,9 +82,9 @@ program test_flotation_load
       write(*,'(a)') ' PASS: floating ice does not load the bed; grounded ice does'
    else
       write(*,'(a)') ' FAIL: grounded-ice load masking incorrect'
-      call response_destroy(resp);  call sht_grid_destroy(sht);  call radial_fe_finalize();  error stop 1
+      call response_destroy(resp);  call sht_grid_destroy(sht);  error stop 1
    end if
-   call response_destroy(resp);  call sht_grid_destroy(sht);  call radial_fe_finalize()
+   call response_destroy(resp);  call sht_grid_destroy(sht)
 
 contains
 

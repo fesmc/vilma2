@@ -18,7 +18,7 @@ program test_ve_response
    use vilma_precision,       only: wp, i8, is_finite
    use vilma_constants,       only: kyr
    use vilma_earth_structure, only: earth_model, build_M3L70V01
-   use vilma_radial_fe,       only: radial_mesh_build, radial_mesh, radial_fe_finalize
+   use vilma_radial_fe,       only: radial_mesh_build, radial_mesh
    use vilma_viscoelastic,    only: ve_destroy, ve_step, ve_init, ve_degree, SCHEME_FE, SCHEME_TRAP
    use vilma_response,        only: response_commit_step, response_apply, response_begin_step, response_destroy, response, response_init_elastic, response_init_ve, response_init_null, &
                                     response_memory_norm, response_coarse_fine_error, response_stash_coarse
@@ -65,11 +65,9 @@ program test_ve_response
       write(*,'(a)') '       Maxwell stepper through the per-(l,m) memory path'
    else
       write(*,'(a)') ' FAIL: ve_response validation did not all pass'
-      call radial_fe_finalize()
       error stop 1
    end if
    call sht_grid_destroy(sht)
-   call radial_fe_finalize()
 
 contains
 

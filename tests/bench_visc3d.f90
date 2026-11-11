@@ -49,7 +49,6 @@ program bench_visc3d
    use vilma_precision,       only: wp
    use vilma_constants,       only: pi, kyr, sec_per_year
    use vilma_earth_structure, only: earth_model, earth_layer, build_M3L70V01, RHEOL_MAXWELL
-   use vilma_radial_fe,       only: radial_fe_finalize
    use vilma_response,        only: response, response_init_ve, response_apply, response_horizontal, &
                                     response_horizontal_toroidal, response_begin_step, response_commit_step, &
                                     response_enable_lateral_visc, response_set_dt, response_destroy
@@ -204,7 +203,7 @@ program bench_visc3d
       write(*,'(3a,f8.2,a)') '   wrote restart ', trim(restart_out), ' at t=', real(nstep,wp)*dt/kyr, ' kyr'
    end if
 
-   call response_destroy(ve);  call sht_grid_destroy(sht);  call radial_fe_finalize()
+   call response_destroy(ve);  call sht_grid_destroy(sht)
 
 contains
 

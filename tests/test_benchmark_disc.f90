@@ -22,7 +22,7 @@ program test_benchmark_disc
    use vilma_precision,       only: wp
    use vilma_constants,       only: pi, kyr
    use vilma_earth_structure, only: earth_gravity_at, earth_model, build_M3L70V01
-   use vilma_radial_fe,       only: radial_mesh_build, radial_mesh, radial_fe_finalize
+   use vilma_radial_fe,       only: radial_mesh_build, radial_mesh
    use vilma_viscoelastic,    only: ve_destroy, ve_step, ve_init, ve_degree
    use vilma_response,        only: response_destroy, response, response_init_elastic, response_init_ve, response_init_null
    implicit none
@@ -65,9 +65,8 @@ program test_benchmark_disc
       write(*,'(a)') ' PASS: Spada-2011 disc u/N profile + VE centre transient match'
    else
       write(*,'(a)') ' FAIL: disc benchmark validation did not all pass'
-      call radial_fe_finalize();  error stop 1
+      error stop 1
    end if
-   call radial_fe_finalize()
 
 contains
 

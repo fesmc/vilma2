@@ -15,7 +15,6 @@ program test_drive
    use vilma_constants,       only: rad2deg, pi
    use vilma_sht,             only: sht_grid, sht_grid_init, sht_grid_destroy
    use vilma_drive,           only: vilma_run, forcing_window, forcing_time_ok, input_field_ok
-   use vilma_radial_fe,       only: radial_fe_finalize
    use ncio,               only: nc_create, nc_write_dim, nc_write, nc_read, nc_size
    implicit none
 
@@ -169,10 +168,8 @@ program test_drive
       write(*,'(a)') '       and writes a sensible subsiding/draw-down output'
    else
       write(*,'(a)') ' FAIL: standalone driver did not all pass'
-      call radial_fe_finalize()
       error stop 1
    end if
-   call radial_fe_finalize()
 
 contains
 

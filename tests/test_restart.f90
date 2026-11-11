@@ -22,7 +22,6 @@ program test_restart
    use vilma_precision,       only: wp
    use vilma_constants,       only: pi, sec_per_year
    use vilma_params,          only: vilma_param_class
-   use vilma_radial_fe,       only: radial_fe_finalize
    use vilma_sht,             only: sht_grid, sht_grid_init, sht_grid_destroy
    use vilma_coupling,        only: solid_earth_finalize, solid_earth_update, solid_earth_init, solid_earth
    use vilma_io,              only: vilma_restart_write, vilma_restart_read, vilma_restart_compatible
@@ -55,10 +54,8 @@ program test_restart
       write(*,'(a)') '       and stores several snapshots in one file (RESP_VE, 4 and 6 channels)'
    else
       write(*,'(a)') ' FAIL: restart round-trip did not all pass'
-      call radial_fe_finalize()
       error stop 1
    end if
-   call radial_fe_finalize()
 
 contains
 

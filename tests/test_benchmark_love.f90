@@ -21,8 +21,7 @@ program test_benchmark_love
    !!     See doc/formulation.md "Elastic low-degree discrepancy (FIXED)".
    use vilma_precision,       only: wp
    use vilma_earth_structure, only: earth_model, build_M3L70V01, RHEOL_FLUID
-   use vilma_radial_fe,       only: radial_operator_solve, radial_operator_assemble, radial_mesh_build, radial_mesh, radial_operator, loading_love, &
-                                 radial_fe_finalize
+   use vilma_radial_fe,       only: radial_operator_solve, radial_operator_assemble, radial_mesh_build, radial_mesh, radial_operator, loading_love
    implicit none
    character(*), parameter :: REF = 'data/benchmarks/love_M3-L70-V01/mod_M3-L70-V01'
    integer, parameter :: NMAX = 256
@@ -119,9 +118,8 @@ program test_benchmark_love
       write(*,'(a)') ' PASS: elastic AND fluid M3-L70-V01 Love numbers match the benchmark (<1%)'
    else
       write(*,'(a)') ' FAIL: benchmark Love-number validation did not all pass'
-      call radial_fe_finalize();  error stop 1
+      error stop 1
    end if
-   call radial_fe_finalize()
 
 contains
 

@@ -23,7 +23,6 @@ program test_toroidal
    use vilma_precision,       only: wp
    use vilma_constants,       only: kyr
    use vilma_earth_structure, only: earth_model, build_M3L70V01
-   use vilma_radial_fe,       only: radial_fe_finalize
    use vilma_response,        only: response, response_init_ve, response_enable_lateral_visc, &
                                  response_begin_step, response_apply, response_commit_step, &
                                  response_horizontal_toroidal, response_destroy
@@ -119,10 +118,10 @@ program test_toroidal
       write(*,'(a)') '       symmetry, scaling and axisymmetric null it must have'
    else
       write(*,'(a)') ' FAIL: toroidal validation did not all pass'
-      call sht_grid_destroy(sht);  call radial_fe_finalize()
+      call sht_grid_destroy(sht)
       error stop 1
    end if
-   call sht_grid_destroy(sht);  call radial_fe_finalize()
+   call sht_grid_destroy(sht)
 
 contains
 

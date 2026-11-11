@@ -11,7 +11,6 @@ program test_visc_lid
    !! arguments, every element keeps the field.
    use vilma_precision,       only: wp
    use vilma_earth_structure, only: earth_model, build_M3L70V01, RHEOL_MAXWELL
-   use vilma_radial_fe,       only: radial_fe_finalize
    use vilma_response,        only: response, response_init_ve, response_destroy, &
                                     response_enable_lateral_visc_from_nodes
    use vilma_sht,             only: sht_grid, sht_grid_init
@@ -53,7 +52,6 @@ program test_visc_lid
    call check(.false., nlid)
    call response_destroy(ve)
 
-   call radial_fe_finalize()
    if (.not. ok) error stop 'test_visc_lid FAILED'
    write(*,'(a,i0,a)') ' PASS: lid rule caps only lid elements above the threshold (', nlid, &
         ' lid elements)'

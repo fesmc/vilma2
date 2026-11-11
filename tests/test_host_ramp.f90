@@ -17,7 +17,6 @@ program test_host_ramp
    use vilma_precision,       only: wp
    use vilma_constants,       only: pi, sec_per_year
    use vilma_earth_structure, only: earth_model, earth_layer, build_M3L70V01, RHEOL_MAXWELL
-   use vilma_radial_fe,       only: radial_fe_finalize
    use vilma_response,        only: response_destroy, response_prime_sigma, response_memory_norm, response, &
                                     response_init_elastic, response_init_ve
    use vilma_viscoelastic,    only: SCHEME_TRAP
@@ -56,10 +55,8 @@ program test_host_ramp
    call sht_grid_destroy(sht)
    if (ok) then
       write(*,'(a)') ' PASS: host terms ramp with the ice, seed at host1 and prime at host0'
-      call radial_fe_finalize()
    else
       write(*,'(a)') ' FAIL: host terms in the stepper'
-      call radial_fe_finalize()
       error stop 1
    end if
 

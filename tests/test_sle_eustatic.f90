@@ -16,7 +16,6 @@ program test_sle_eustatic
    use vilma_precision,       only: wp
    use vilma_constants,       only: pi, kyr, rho_ice, rho_water
    use vilma_earth_structure, only: earth_model, build_M3L70V01
-   use vilma_radial_fe,       only: radial_fe_finalize
    use vilma_response,        only: response_destroy, response, response_init_elastic, response_init_ve, response_init_null
    use vilma_sht,             only: sht_grid_destroy, sht_grid_eval_point, sht_grid_analysis, sht_grid_surface_integral, sht_grid_init, sht_grid
    use vilma_sle,             only: sle_solve, sle_solver, sle_result, sle_result_grids
@@ -87,5 +86,5 @@ program test_sle_eustatic
    write(*,'(a,f12.5)')  '   sea-surface (N+dphi) at S pole [m]  = ', ss_south
    write(*,'(a,f12.5)')  '   (barystatic for comparison) [m]     = ', bary
 
-   call response_destroy(resp);  call sht_grid_destroy(sht);  call radial_fe_finalize()
+   call response_destroy(resp);  call sht_grid_destroy(sht)
 end program test_sle_eustatic

@@ -33,7 +33,6 @@ program test_visc_load
    use vilma_earth_structure, only: earth_model, build_M3L70V01, vilma_read_visc_3d, load_visc_3d, &
                                     visc_values_valid
    use vilma_params,          only: vilma_param_class
-   use vilma_radial_fe,       only: radial_fe_finalize
    use vilma_response,        only: response_enable_lateral_visc_from_nodes, response_destroy, response, response_init_elastic, response_init_ve, response_init_null
    use vilma_sht,             only: sht_grid, sht_grid_init
    use ncio
@@ -73,7 +72,6 @@ program test_visc_load
    end if
 
    call response_destroy(ve)
-   call radial_fe_finalize()
    if (.not. ok) error stop 'test_visc_load FAILED'
    write(*,'(a)') ' test_visc_load PASSED'
 

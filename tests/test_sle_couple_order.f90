@@ -29,7 +29,6 @@ program test_sle_couple_order
    use vilma_precision,       only: wp
    use vilma_constants,       only: kyr, pi, grav_G, rho_ice, rho_water, sec_per_year
    use vilma_earth_structure, only: earth_model, earth_layer, RHEOL_MAXWELL
-   use vilma_radial_fe,       only: radial_fe_finalize
    use vilma_response,        only: response_destroy, response, response_init_elastic, response_init_ve, response_init_null
    use vilma_viscoelastic,    only: SCHEME_TRAP
    use vilma_sht,             only: sht_grid_destroy, sht_grid_init, sht_grid
@@ -120,9 +119,9 @@ program test_sle_couple_order
       write(*,'(a)') '       order through the field driver for a fast-evolving load (§3c 3b).'
    else
       write(*,'(a)') ' FAIL: SLE coupling-order characterization did not all pass'
-      call sht_grid_destroy(sht);  call radial_fe_finalize();  error stop 1
+      call sht_grid_destroy(sht);  error stop 1
    end if
-   call sht_grid_destroy(sht);  call radial_fe_finalize()
+   call sht_grid_destroy(sht)
 
 contains
 

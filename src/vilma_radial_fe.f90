@@ -33,7 +33,7 @@ module vilma_radial_fe
    private
 
    public :: radial_mesh, radial_operator, toroidal_operator
-   public :: loading_love, tidal_love, radial_fe_finalize
+   public :: loading_love, tidal_love
    ! Assembly building blocks (public so the unit tests can inspect them).
    public :: build_dense_operator, shell_Rk, uniq_weight
    public :: build_toroidal_operator, toroidal_dead_nodes, rotation_weights
@@ -941,10 +941,5 @@ contains
       l =  g*V_a/phi_t
       k = -F_a/phi_t - 1.0_wp
    end subroutine tidal_love
-
-   subroutine radial_fe_finalize()
-      !! No-op kept for API compatibility (callers invoke it at program end). The
-      !! banded-LU solver has no global runtime to release; LIS is no longer used.
-   end subroutine radial_fe_finalize
 
 end module vilma_radial_fe

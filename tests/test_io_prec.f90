@@ -16,7 +16,6 @@ program test_io_prec
    use vilma_constants,       only: pi
    use vilma_params,          only: vilma_param_class
    use vilma_control,         only: vilma_ctl_class, vilma_ctl_load
-   use vilma_radial_fe,       only: radial_fe_finalize
    use vilma_sht,             only: sht_grid, sht_grid_init, sht_grid_destroy
    use vilma_coupling,        only: solid_earth_finalize, solid_earth_update, solid_earth_init, solid_earth
    use vilma_io,              only: vilma_restart_write, vilma_restart_read, vilma_write_step, &
@@ -142,10 +141,8 @@ program test_io_prec
       write(*,'(a)') '       restarts exact, rounded files smaller'
    else
       write(*,'(a)') ' FAIL: output precision did not all pass'
-      call radial_fe_finalize()
       error stop 1
    end if
-   call radial_fe_finalize()
 
 contains
 

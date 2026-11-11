@@ -8,7 +8,6 @@ program test_couple_remap
    use vilma_precision, only: wp
    use vilma_constants, only: pi, sec_per_year
    use vilma_params,    only: vilma_param_class
-   use vilma_radial_fe, only: radial_fe_finalize
    use vilma_coupling,  only: solid_earth, solid_earth_init, solid_earth_update, solid_earth_finalize
    use coords,       only: grid_class, grid_init
    implicit none
@@ -97,10 +96,8 @@ program test_couple_remap
       write(*,'(a)') ' PASS: host-grid coupling remaps ice in / rsl out and relaxes sensibly'
    else
       write(*,'(a)') ' FAIL: host-grid coupling path'
-      call radial_fe_finalize()
       error stop 1
    end if
-   call radial_fe_finalize()
 
 contains
 

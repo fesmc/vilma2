@@ -16,7 +16,6 @@ program test_spinup
    use vilma_precision, only: wp
    use vilma_constants, only: pi, sec_per_year
    use vilma_params,    only: vilma_param_class
-   use vilma_radial_fe, only: radial_fe_finalize
    use vilma_sht,       only: sht_grid, sht_grid_init, sht_grid_destroy
    use vilma_coupling,  only: solid_earth, solid_earth_init, solid_earth_update, &
                            solid_earth_spinup, solid_earth_finalize
@@ -126,10 +125,8 @@ program test_spinup
       write(*,'(a)') ' PASS: solid_earth_spinup relaxes the held load to equilibrium'
    else
       write(*,'(a)') ' FAIL: spin-up'
-      call radial_fe_finalize()
       error stop 1
    end if
-   call radial_fe_finalize()
 
 contains
 

@@ -39,7 +39,6 @@ program test_benchmark_sle
    use vilma_precision,       only: wp
    use vilma_constants,       only: pi, kyr, rho_water
    use vilma_earth_structure, only: earth_model, build_M3L70V01
-   use vilma_radial_fe,       only: radial_fe_finalize
    use vilma_response,        only: response_destroy, response_horizontal, response, response_init_elastic, response_init_ve, response_init_null
    use vilma_sht,             only: sht_grid_destroy, sht_grid_eval_point_horiz, sht_grid_eval_point, sht_grid_analysis, sht_grid_surface_integral, sht_grid_init, sht_grid
    use vilma_sle,             only: sle_solve, sle_solver, sle_result, sle_result_grids
@@ -182,9 +181,9 @@ program test_benchmark_sle
       write(*,'(3a)') ' PASS: Martinec-2018 case ', casename, ' (SLE u + horizontal + geoid + SLE) matches'
    else
       write(*,'(3a)') ' FAIL: Martinec-2018 case ', casename, ' SLE validation did not all pass'
-      call response_destroy(resp);  call sht_grid_destroy(sht);  call radial_fe_finalize();  error stop 1
+      call response_destroy(resp);  call sht_grid_destroy(sht);  error stop 1
    end if
-   call response_destroy(resp);  call sht_grid_destroy(sht);  call radial_fe_finalize()
+   call response_destroy(resp);  call sht_grid_destroy(sht)
 
 contains
 

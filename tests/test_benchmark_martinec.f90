@@ -20,7 +20,7 @@ program test_benchmark_martinec
    use vilma_precision,       only: wp
    use vilma_constants,       only: pi, kyr
    use vilma_earth_structure, only: earth_gravity_at, earth_model, build_M3L70V01
-   use vilma_radial_fe,       only: radial_mesh_build, radial_mesh, radial_fe_finalize
+   use vilma_radial_fe,       only: radial_mesh_build, radial_mesh
    use vilma_viscoelastic,    only: ve_destroy, ve_step, ve_init, ve_degree
    implicit none
    character(*), parameter :: REF = 'data/benchmarks/sle_martinec2018/A_fig10_SBK.dat'
@@ -71,9 +71,8 @@ program test_benchmark_martinec
       write(*,'(a)') ' PASS: Martinec-2018 case A (cap loading u/horizontal/geoid) matches'
    else
       write(*,'(a)') ' FAIL: Martinec-2018 case A validation did not all pass'
-      call radial_fe_finalize();  error stop 1
+      error stop 1
    end if
-   call radial_fe_finalize()
 
 contains
 

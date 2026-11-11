@@ -20,7 +20,6 @@ program test_response_3d
    use vilma_precision,       only: wp
    use vilma_constants,       only: kyr
    use vilma_earth_structure, only: earth_n_layers, earth_model, build_M3L70V01, RHEOL_MAXWELL
-   use vilma_radial_fe,       only: radial_fe_finalize
    use vilma_response,        only: response_apply, response_destroy, response_enable_lateral_visc, response_commit_step, response_begin_step, response_radial_rate, response, response_init_elastic, response_init_ve, response_init_null
    use vilma_sht,             only: sht_grid, sht_grid_init, sht_grid_destroy, sht_grid_lmidx
    use vilma_viscoelastic,    only: SCHEME_TRAP, NLAM
@@ -102,10 +101,10 @@ program test_response_3d
       write(*,'(a)') '       advance for a laterally-uniform viscosity field'
    else
       write(*,'(a)') ' FAIL: rung-6a lateral-viscosity validation did not all pass'
-      call sht_grid_destroy(sht);  call radial_fe_finalize()
+      call sht_grid_destroy(sht)
       error stop 1
    end if
-   call sht_grid_destroy(sht);  call radial_fe_finalize()
+   call sht_grid_destroy(sht)
 
 contains
 
