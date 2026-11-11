@@ -5,13 +5,12 @@ built and where it departs from the plan; §1–§6 are the original scoping
 document, kept as written except where marked. It complements `design.md` (the
 Martinec FE method) and `formulation.md` (the equations as implemented).
 
-**Off by default.** `&vilma l_toroidal = .false.` is the default, and the reason
-is model speed: with it on, every genuinely 3-D element carries six memory
-channels instead of four and each step adds the W solve. The cost has not been
-measured, and neither has the effect of toroidal flow on a real solution (V6,
-V7 of §4 are not done). A production deglaciation run with `l_toroidal = .true.`
-is planned to quantify that effect. With the default the model is
-spheroidal-only.
+**On by default** (since 2026-11). V7 of §4 was run: in the 3-D last
+deglaciation at ℓmax 170 the toroidal field changes relative sea level by
+2–3 m rms and up to 92 m locally, halves the difference to VILMA1, and costs a
+factor of 1.47 in run time (`validation/tables/toroidal.md`). `l_toroidal =
+.false.` gives the spheroidal-only model, for quicker runs that do not depend on
+local sea level near the ice sheets.
 
 ## 0. As implemented
 

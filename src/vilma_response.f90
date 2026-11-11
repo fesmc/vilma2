@@ -150,12 +150,11 @@ module vilma_response
       ! a surface load never forces it directly (eq 84 has no δW term), so it has
       ! no elastic gain and no xWn.
       integer  :: nlam = NLAM                           !! memory channels carried: NLAM or NLAM+NLAM_TOR
-      ! Carry the toroidal field once a 3-D element appears. Off by default, as
-      ! l_toroidal in the namelist: the spheroidal-only model, which is faster
-      ! (4 memory channels and transforms, not 6). .true. adds the toroidal
-      ! coupling (design-toroidal.md V7). Set it before the lateral viscosity is
-      ! enabled.
-      logical  :: toroidal = .false.
+      ! Carry the toroidal field once a 3-D element appears. On by default, as
+      ! l_toroidal in the namelist (design-toroidal.md V7). .false. is the
+      ! spheroidal-only model, which is faster (4 memory channels and transforms,
+      ! not 6). Set it before the lateral viscosity is enabled.
+      logical  :: toroidal = .true.
       type(toroidal_operator), allocatable :: tops(:)   !! (1:lmax) per-degree W operator
       real(wp), allocatable :: nrmt(:,:)                !! (NLAM_TOR,1:lmax) Z³,Z⁴ norms
       real(wp), allocatable :: sat(:,:,:), sbt(:,:,:), sct(:,:,:)  !! (2,NLAM_TOR,1:lmax)

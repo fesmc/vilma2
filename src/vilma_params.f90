@@ -190,9 +190,10 @@ module vilma_params
          !! element is treated as genuinely 3-D (pays the dyadic SHT round-trip); below it the
          !! element collapses to its lateral-mean scalar rate (cheap degree-diagonal path). Raising
          !! it demotes weakly-3-D elements to 1-D and cuts the memory-advance cost (the dominant cost).
-      logical  :: l_toroidal     = .false.  !! carry the toroidal degree of freedom once a 3-D element
-         !! exists (Martinec 2000 after eq 110). Off by default: it is slower and its effect on
-         !! the solution is not yet shown (design-toroidal.md V7). .false. is the spheroidal-only model.
+      logical  :: l_toroidal     = .true.   !! carry the toroidal degree of freedom once a 3-D element
+         !! exists (Martinec 2000 after eq 110). On by default: in a 3-D deglaciation it changes
+         !! local relative sea level by up to ~90 m (design-toroidal.md V7). .false. is the
+         !! spheroidal-only model, ~1.5x faster, for quick runs that do not need local sea level.
 
       ! --- VILMA1 backend (solver="v1" only; vilma_v1) -------------------------
       ! INERT unless solver="v1". These mirror the settings CLIMBER-X's VILMA1
