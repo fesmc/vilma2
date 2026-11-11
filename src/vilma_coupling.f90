@@ -61,7 +61,7 @@ module vilma_coupling
    use vilma_sle,             only: sle_solver, ocean_function, sle_host
    use vilma_timestep,        only: stepper_advance, adaptive_stepper
    use vilma_rotation,        only: rotation_destroy, rotation_init, rotation_state, &
-                                    rotation_set_rate
+                                    rotation_set_rate, rotation_ne
    use vilma_remap,           only: remap_ll_gauss, remap_init, remap_to_gauss, remap_to_ll, &
                                     gauss_axes_rows, rows_copy, ROWS_NONE, ROWS_NORTH_FIRST
    use vilma_v1,           only: vilma_v1_backend, vilma_v1_init, vilma_v1_update, vilma_v1_finalize, &
@@ -457,10 +457,23 @@ contains
                                CminusA=self%par%rotation_c_minus_a)
          end if
          self%rotation%enabled = .true.          ! rotation_init leaves it off
-         ! the channels relax on the response's radial viscosity, not the layer table
-         call rotation_set_rate(self%rotation, response_radial_rate(self%resp))
+         call sync_rotation_rate(self)
       end if
    end subroutine build_solver
+
+   subroutine sync_rotation_rate(self)
+      !! Put the rotation channels on the Earth the load response deforms: its radial
+      !! viscosity profile (not the layer table) for a viscoelastic response, and no
+      !! relaxation at all for an elastic or null one, which has none either.
+      type(solid_earth), intent(inout) :: self
+      real(wp), allocatable :: rate(:)
+      if (self%resp%kind == RESP_VE) then
+         rate = response_radial_rate(self%resp)
+      else
+         allocate(rate(rotation_ne(self%rotation)), source=0.0_wp)
+      end if
+      call rotation_set_rate(self%rotation, rate)
+   end subroutine sync_rotation_rate
 
    subroutine solid_earth_enable_visc_3d(self, sht)
       !! Read the lon-lat-r log10(eta) field (load_visc_3d) and enable the tensor-
@@ -488,7 +501,7 @@ contains
       call response_enable_lateral_visc_from_nodes(self%resp, sht, visc_node, &
            lid_depth=self%par%visc3d_lid_depth, lid_log10max=self%par%visc3d_lid_log10max, &
            log10_cap=self%par%visc_log10_max)
-      if (self%rotation%enabled) call rotation_set_rate(self%rotation, response_radial_rate(self%resp))
+      if (self%rotation%enabled) call sync_rotation_rate(self)
    end subroutine apply_visc_nodes
 
    subroutine solid_earth_update(self, h_ice, dt_yr, w, I_g, C, F)

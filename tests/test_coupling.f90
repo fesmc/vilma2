@@ -112,6 +112,7 @@ program test_coupling
    call rotation_visc_check()
    call reinit_check()
    call dt_min_check()
+   call elastic_rotation_check()
 
    call sht_grid_destroy(sht)
 
@@ -300,6 +301,29 @@ contains
          ok = .false.
       end if
    end subroutine dt_min_check
+
+   subroutine elastic_rotation_check()
+      !! earth_response = "elastic" with the rotation on (the default) must initialise and
+      !! run: the rotation channels are then elastic as well (no relaxation), so the polar
+      !! motion under a held load is the same after every interval.
+      type(vilma_param_class) :: pr
+      type(solid_earth)    :: se
+      real(wp), allocatable :: h_off(:,:)
+      complex(wp) :: m1, m2
+      allocate(h_off(sht%nphi,sht%nlat));  call make_load_offaxis(h_off)
+      pr%lmax = LMAX;  pr%nlat = 2*LMAX;  pr%nphi = 4*LMAX
+      pr%earth_response = "elastic";  pr%rotation = .true.
+      se%par = pr; call solid_earth_init(se, z_bed_eq, h_ice_eq)
+      call solid_earth_update(se, h_off, dt_couple);  m1 = se%rotation%m
+      call solid_earth_update(se, h_off, dt_couple);  m2 = se%rotation%m
+      write(*,'(a)') ''
+      write(*,'(a,es10.3,a,es10.2)') '   elastic + rotation: |m| = ', abs(m1), ' rad   |m(2) - m(1)| = ', abs(m2 - m1)
+      if (.not. (abs(m1) > 0.0_wp) .or. abs(m2 - m1) > 1.0e-9_wp*abs(m1) &
+          .or. maxval(se%rotation%load_ch%MkPerDt) /= 0.0_wp) then
+         write(*,'(a)') '   FAIL: an elastic Earth with rotation does not give a steady polar motion'; ok = .false.
+      end if
+      call solid_earth_finalize(se)
+   end subroutine elastic_rotation_check
 
    subroutine make_load_offaxis(h_ice)
       !! A 2 km grounded cap centred at colat 35°, lon 90° (off the rotation axis, on
