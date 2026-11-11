@@ -26,11 +26,14 @@ module vilma_remap
    !! axis is reversed on the way in and out). The grid may be regional. What that means
    !! depends on the field, and remap_to_gauss takes it from conserve_mass:
    !!   mass (ice thickness, conserve_mass=.true.): the source's mass goes where the source
-   !!     has it. Each Gauss cell gets the source mass that falls into it over the WHOLE
-   !!     cell's area (coords norm="dst"), so a cell the source covers in part carries that
-   !!     part's mass and a cell outside the source is zero: ice outside the file is no
-   !!     ice. The Gauss-grid integral is the source integral by construction, for a
-   !!     regional source as for a global one.
+   !!     has it. A Gauss cell under the source gets the area mean of the source over it; a
+   !!     cell a REGIONAL source covers only in part gets that mean times the covered
+   !!     fraction of its area (the part's mass over the whole cell), and a cell outside the
+   !!     source is zero: ice outside the file is no ice. The field is then scaled so that
+   !!     its Gauss-grid integral is the source integral, for a regional source as for a
+   !!     global one. (The covered fraction is coords' and good to ~1e-3, so a cell covered
+   !!     to 99 % counts as covered. A source that reaches every Gauss cell is global, and
+   !!     its cells are not scaled: a polar gap narrower than a cell is not an ice-free cap.)
    !!   anything else (bed, fractions; conserve_mass=.false.): the area mean of the source
    !!     over the cell. There is no value to give a cell outside the source, so the source
    !!     must cover the sphere (remap_covers_sphere) and the call stops if it does not.
@@ -39,7 +42,7 @@ module vilma_remap
    !! come from the Gauss weights, so its cell areas are the SHTns quadrature weights
    !! (R^2 dlon w_j) and the conservative map preserves the integral SHTns takes of the
    !! remapped field to round-off. conserve_mass=.true. then rescales by a factor of 1
-   !! (to ~1e-16, tests/test_remap), kept as a safeguard: the source total in steradians is
+   !! (to ~1e-16, tests/test_remap) for a global source: the source total in steradians is
    !! sum(f*area)/R^2, with R^2 from the Gauss grid's total area 4*pi*R^2.
    use vilma_precision, only: wp, is_finite
    use vilma_sht,       only: sht_grid, sht_grid_surface_integral
@@ -61,6 +64,9 @@ module vilma_remap
    real(wp), parameter :: RAD2DEG = 57.295779513082323_wp
    real(wp), parameter :: FOURPI  = 12.566370614359172_wp
    integer,  parameter :: BIL_NEIGHBORS = 8   !! neighbour pool for the bilinear leg
+   !! A Gauss cell a regional source covers beyond this fraction counts as covered: coords'
+   !! overlap areas are good to ~1e-3 of a cell, so a covered cell's fraction is not exactly 1.
+   real(wp), parameter :: COVER_FULL = 0.99_wp
 
    type :: remap_ll_gauss
       !! A precomputed map pair between a host lon-lat grid and the model's SHTns
@@ -73,6 +79,8 @@ module vilma_remap
       integer :: nphi = 0, nlat = 0           !! Gauss (SHTns) dimensions
       logical :: flip_lat = .false.           !! host latitudes descend: rows reversed in and out
       logical :: global   = .false.           !! every Gauss cell has host cells under it
+      real(wp), allocatable :: cover(:,:)     !! (nphi,nlat), latitude ascending: fraction of each Gauss
+                                              !! cell under a regional host grid (1 for a global one)
    end type remap_ll_gauss
 
 contains
@@ -92,7 +100,7 @@ contains
       character(len=*), optional, intent(in) :: fldr    !! weight-cache dir (default "maps")
       character(len=:), allocatable :: cache
       character(len=64) :: ll_name, gauss_name
-      real(wp), allocatable :: lat_asc(:), ones(:,:), cov(:,:)
+      real(wp), allocatable :: lat_asc(:), ones(:,:), mean1(:,:)
       logical,  allocatable :: m2(:,:)
       real(wp) :: dx, dy, span
       integer :: j
@@ -152,11 +160,21 @@ contains
       call map_init(self%to_ll, self%gauss, self%ll, method="bilinear", &
                     max_neighbors=BIL_NEIGHBORS, gen="coords", fldr=cache)
 
-      ! does the source reach every Gauss cell? (a field that is not a mass needs it)
+      ! Coverage. Does the source reach every Gauss cell (a field that is not a mass needs
+      ! it)? If not, the fraction of each cell it covers, for the mass fields.
       allocate(ones(self%nlon, self%nlat_ll), source=1.0_wp)
-      allocate(cov(self%nphi, self%nlat), m2(self%nphi, self%nlat))
-      call map_field(self%to_gauss, "cover", ones, cov, stat="mean", mask2=m2)
+      allocate(mean1(self%nphi, self%nlat), m2(self%nphi, self%nlat), self%cover(self%nphi, self%nlat))
+      call map_field(self%to_gauss, "cover", ones, mean1, stat="mean", mask2=m2, frac2=self%cover)
       self%global = all(m2)
+      if (self%global) then
+         self%cover = 1.0_wp
+      else
+         where (.not. m2)
+            self%cover = 0.0_wp
+         elsewhere (self%cover > COVER_FULL)
+            self%cover = 1.0_wp
+         end where
+      end if
    end subroutine remap_init
 
    pure logical function remap_covers_sphere(self) result(g)
@@ -203,13 +221,15 @@ contains
       end if
 
       allocate(vt(self%nphi, self%nlat), m2(self%nphi, self%nlat))
+      call map_field(self%to_gauss, "f", src, vt, stat="mean", mask2=m2)
       if (do_mass) then
-         ! the source mass in each Gauss cell over the cell's own area; none outside the source
-         call map_field(self%to_gauss, "f", src, vt, stat="mean", mask2=m2, norm="dst", &
-                        area1=self%ll%area, area2=self%gauss%area)
-         where (.not. m2) vt = 0.0_wp
-      else
-         call map_field(self%to_gauss, "f", src, vt, stat="mean", mask2=m2)
+         ! a mass: the covered part's mean over the whole cell, none outside the source
+         ! (cover is 1 throughout for a global source, so nothing changes there)
+         where (m2)
+            vt = vt*self%cover
+         elsewhere
+            vt = 0.0_wp
+         end where
       end if
 
       do j = 1, self%nlat                                 ! ascending-lat -> SHTns north-first
@@ -217,8 +237,10 @@ contains
       end do
 
       if (do_mass) then
-         ! safeguard: the source total as a steradian integral, sum(f*area)/R^2 with
-         ! 4*pi*R^2 the Gauss grid's total area (the source's own area may be regional)
+         ! the source total as a steradian integral, sum(f*area)/R^2 with 4*pi*R^2 the
+         ! Gauss grid's total area (the source's own area may be regional). The factor is
+         ! 1 to round-off for a global source and to the accuracy of the covered
+         ! fractions (~1e-3 of the edge cells' mass) for a regional one.
          src_int_sr = sum(src * self%ll%area) / sum(self%gauss%area) * FOURPI
          gauss_int  = sht_grid_surface_integral(sht, f_gauss)
          if (abs(gauss_int) > tiny(1.0_wp)) f_gauss = f_gauss * (src_int_sr/gauss_int)

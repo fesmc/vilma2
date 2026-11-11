@@ -154,7 +154,7 @@ program test_remap
       if (abs(m_gauss - m_src) > 1.0e-10_wp*m_src) then
          write(*,*) 'FAIL: a regional ice field does not keep its mass'; ok = .false.
       end if
-      if (maxval(g) > 1000.0_wp*(1.0_wp + 1.0e-9_wp) .or. maxval(g) < 999.0_wp) then
+      if (maxval(g) > 1000.0_wp*(1.0_wp + 1.0e-3_wp) .or. maxval(g) < 999.0_wp) then
          write(*,*) 'FAIL: a regional ice field changes its thickness'; ok = .false.
       end if
       if (south /= 0.0_wp) then
@@ -170,7 +170,8 @@ program test_remap
       m_gauss = sht_grid_surface_integral(sht, g)*r2
       write(*,'(a,es10.2,a,f9.3,a)') '   regional (NH) ice to the edge: volume rel. error = ', &
            abs(m_gauss - m_src)/m_src, '   max thickness = ', maxval(g), ' m'
-      if (abs(m_gauss - m_src) > 1.0e-10_wp*m_src .or. maxval(g) > 1000.0_wp*(1.0_wp + 1.0e-9_wp)) then
+      if (abs(m_gauss - m_src) > 1.0e-10_wp*m_src .or. maxval(g) > 1000.0_wp*(1.0_wp + 1.0e-3_wp) &
+          .or. minval(g(:, 1:sht%nlat/2 - 2)) < 1000.0_wp*(1.0_wp - 1.0e-3_wp)) then
          write(*,*) 'FAIL: regional ice reaching the edge of the source is not conserved'; ok = .false.
       end if
    end block
