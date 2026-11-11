@@ -165,7 +165,7 @@ contains
       allocate(d(nd))
       call radial_operator_solve_vec(op, b, d, iters=it, resid=rr)
 
-      ! (i) non-singular: the equilibrated GMRES residual is at solver tolerance.
+      ! (i) non-singular: the residual of the banded solve is at round-off.
       if (rr > 1.0e-8_wp) then
          write(*,'(a,es10.2)') '      FAIL: j=1 solve did not converge, resid = ', rr
          ok = .false.

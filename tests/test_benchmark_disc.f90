@@ -8,7 +8,7 @@ program test_benchmark_disc
    !!
    !! This test confirms the per-degree response (validated to ~0.1% against the
    !! Love table in test_benchmark_love) SYNTHESIZES into the correct spatial
-   !! field, and pins the degree-1 geoid frame decision (N_1 = 0, CM frame; see
+   !! field, and pins the degree-1 geoid frame decision (N_1 = 0, the "cf" convention; see
    !! vilma_response): the geoid matches only once N_1 is dropped.
    !!
    !!   (1) ELASTIC profile: u(theta), N(theta) over the full grid vs column 1,
