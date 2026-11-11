@@ -125,6 +125,7 @@ contains
                end do
             end if
          end do
+         ve%toroidal = .true.
          call response_enable_lateral_visc(ve, sht, pert)
          deallocate(pert)
       end if

@@ -123,6 +123,7 @@ contains
             end do
          end if
       end do
+      ve%toroidal = .true.                       ! this test is about the toroidal field
       call response_enable_lateral_visc(ve, sht, pert)
 
       nstep = nint(T_END/DT)

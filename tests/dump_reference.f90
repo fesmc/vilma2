@@ -1220,6 +1220,7 @@ contains
             end do
          end do
       end do
+      ve3d%toroidal = .true.
       call response_enable_lateral_visc(ve3d, g, pert)
       call system_clock(tic3, trate3)
       call drive3d(ve3d, g, slm, NSTEP, u3, n3, tyr)
@@ -1227,7 +1228,7 @@ contains
       write(*,'(a,f9.4,a)') '  visc3d timing run A 3-D 35 elements: ', real(toc3-tic3,wp)/real(trate3,wp)/real(NSTEP,wp)*1.0e3_wp, ' ms/step'
       ! (B) uniform (zero) perturbation forced through the 3-D kernel
       call response_init_ve(veu, e, g, DT100)
-      veu%visc3d_tol = -1.0_wp
+      veu%visc3d_tol = -1.0_wp;  veu%toroidal = .true.
       pert = 0.0_wp
       call response_enable_lateral_visc(veu, g, pert)
       call system_clock(tic3, trate3)

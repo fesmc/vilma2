@@ -28,6 +28,7 @@ program test_toroidal
                                  response_begin_step, response_apply, response_commit_step, &
                                  response_horizontal_toroidal, response_destroy
    use vilma_sht,             only: sht_grid, sht_grid_init, sht_grid_destroy, sht_grid_lmidx
+   use vilma_params,          only: vilma_param_class
    implicit none
 
    integer,  parameter :: LMAX  = 12
@@ -47,6 +48,17 @@ program test_toroidal
    e = build_M3L70V01()
    allocate(u_on(sht%nlm), t_on(sht%nlm), u_off(sht%nlm), t_off(sht%nlm))
    allocate(u_h(sht%nlm), t_h(sht%nlm), u_hoff(sht%nlm), t_hoff(sht%nlm))
+
+   ! --- (0) one default: the response type's and the namelist record's ------------
+   block
+      type(response)          :: r0
+      type(vilma_param_class) :: p0
+      write(*,'(a,l1,a,l1)') ' (0) default: response%toroidal = ', r0%toroidal, ',  l_toroidal = ', p0%l_toroidal
+      if (r0%toroidal .neqv. p0%l_toroidal) then
+         write(*,'(a)') '     FAIL: the response type and the namelist record disagree on the default'
+         ok = .false.
+      end if
+   end block
 
    ! --- (1) alive, (2) selection rule --------------------------------------------
    call run(DELTA, .false., .true., u_on, t_on)
