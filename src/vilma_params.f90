@@ -153,6 +153,9 @@ module vilma_params
       character(len=64)  :: name_visc_sd  = ""       !! optional sigma(log10 eta) var; "" => relative
       real(wp) :: f_visc_sd      = 0.0_wp   !! perturbation in units of sigma (0 = mean field)
       real(wp) :: f_visc_rel     = 0.1_wp   !! relative sigma = f_visc_rel*log10(eta) when no sd var
+      character(len=512) :: visc_shift_file = ""  !! optional shift of log10(eta) added to the 3-D field
+         !! (after f_visc_sd, before the clamp and the lid rule): dlog10_visc(lon, lat, r) [dex], r the
+         !! radius [m], read and interpolated as visc_3d_file; "" = none. Needs l_visc_3d.
       real(wp) :: visc_log10_min = 19.5_wp  !! floor on log10(eta) after read + perturbation [dex]
       real(wp) :: visc_log10_max = 30.0_wp  !! ceiling on log10(eta) after read + perturbation [dex]
       real(wp) :: visc3d_lid_depth    = 0.0_wp  !! [m] lid rule off at 0; see visc3d_lid_log10max
@@ -326,6 +329,10 @@ contains
       call nml_read(filename, g, "name_visc_sd",   p%name_visc_sd,   defaults_file=df)
       call nml_read(filename, g, "f_visc_sd",      p%f_visc_sd,      defaults_file=df)
       call nml_read(filename, g, "f_visc_rel",     p%f_visc_rel,     defaults_file=df)
+      call nml_read(filename, g, "visc_shift_file", p%visc_shift_file, defaults_file=df)
+      p%visc_shift_file = expand_path(p%visc_shift_file)
+      if (len_trim(p%visc_shift_file) > 0 .and. .not. p%l_visc_3d) &
+         error stop 'vilma_params: visc_shift_file needs l_visc_3d = .true.'
       call nml_read(filename, g, "visc_log10_min", p%visc_log10_min, defaults_file=df)
       call nml_read(filename, g, "visc_log10_max", p%visc_log10_max, defaults_file=df)
 
@@ -413,6 +420,8 @@ contains
          write(u,'(a,f6.2,a,f6.2,a,f5.2,a,f5.2,a)') &
               '            f_visc_sd=', p%f_visc_sd, '  f_visc_rel=', p%f_visc_rel, &
               '  clamp=[', p%visc_log10_min, ',', p%visc_log10_max, ']'
+         if (len_trim(p%visc_shift_file) > 0) &
+            write(u,'(a,a)') '            visc_shift: ', trim(p%visc_shift_file)
          write(u,'(a,es9.2,a)') '            visc3d_tol=', p%visc3d_tol, ' dex (3-D split)'
          if (p%visc3d_lid_depth > 0.0_wp) &
             write(u,'(a,f6.1,a,f5.2,a)') '            lid rule: elements above ', &

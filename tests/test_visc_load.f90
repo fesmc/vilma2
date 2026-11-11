@@ -14,13 +14,17 @@ program test_visc_load
    !! requested one must come back, and the file's depth is the radius below
    !! R_PREM. Longitude starting at -180 also pins the periodic wrap.
    !!
+   !! Part 1c (always): load_visc_3d with visc_shift_file: the loaded field minus
+   !! the bare field is the shift (+0.5 dex above 670 km depth, -0.25 below).
+   !!
    !! Part 2 (only if present): load the real Pan et al. (2022) field from
    !! input/pan2022.nc (vendored from isostasy_data), enable it via the
    !! node→element bridge, and check the resulting Maxwell rate field is finite and
    !! that a few forced steps produce a finite, non-trivial uplift.
    use vilma_precision,       only: wp
    use vilma_constants,       only: rad2deg
-   use vilma_earth_structure, only: earth_model, build_M3L70V01, vilma_read_visc_3d
+   use vilma_earth_structure, only: earth_model, build_M3L70V01, vilma_read_visc_3d, load_visc_3d
+   use vilma_params,          only: vilma_param_class
    use vilma_radial_fe,       only: radial_fe_finalize
    use vilma_response,        only: response_enable_lateral_visc_from_nodes, response_destroy, response, response_init_elastic, response_init_ve, response_init_null
    use vilma_sht,             only: sht_grid, sht_grid_init
@@ -32,6 +36,7 @@ program test_visc_load
    character(len=*), parameter :: SYNTH = 'libvilma/include/test_visc_synth.nc'
    character(len=*), parameter :: FLIP  = 'libvilma/include/test_visc_flip.nc'
    character(len=*), parameter :: FESM  = 'libvilma/include/test_visc_fesmdata.nc'
+   character(len=*), parameter :: SHIFT = 'libvilma/include/test_visc_shift.nc'
    character(len=*), parameter :: PAN   = 'input/pan2022.nc'
 
    type(sht_grid)    :: sht
@@ -47,6 +52,7 @@ program test_visc_load
    call test_synthetic()
    call test_orientation()
    call test_fesmdata_form()
+   call test_shift()
 
    inquire(file=PAN, exist=exists)
    if (exists) then
@@ -214,6 +220,46 @@ contains
       end if
       deallocate(lon_s, lat_s, depth_s, eta_s, istruct, vn, vn1)
    end subroutine test_fesmdata_form
+
+   subroutine test_shift()
+      !! load_visc_3d with visc_shift_file on the field of SYNTH (test_synthetic): a shift of
+      !! +0.5 dex above the 670 km boundary and -0.25 below, given on the node radii (exact under
+      !! the linear-in-r interpolation). With the clamp opened, the loaded field minus the bare
+      !! field must be the shift.
+      real(wp), parameter :: R_PREM = 6371.0e3_wp
+      type(vilma_param_class) :: p
+      real(wp), allocatable :: lon_s(:), lat_s(:), dv(:,:,:), v0(:,:), v1(:,:)
+      real(wp) :: expect, maxerr
+      integer  :: nphi, nlat, nr, i, j, k
+      nphi = sht%nphi;  nlat = sht%nlat;  nr = ve%nr
+      allocate(lon_s(nphi), lat_s(nlat), dv(nphi,nlat,nr))
+      do i = 1, nphi;  lon_s(i) = sht%lon(i)*rad2deg;  end do
+      do j = 1, nlat;  lat_s(j) = 90.0_wp - sht%colat(nlat+1-j)*rad2deg;  end do
+      do k = 1, nr
+         dv(:,:,k) = merge(0.5_wp, -0.25_wp, ve%r(k) >= R_PREM - 670.0e3_wp)
+      end do
+      call nc_create(SHIFT, overwrite=.true.)
+      call nc_write_dim(SHIFT, "lon", x=lon_s, units="degrees_east")
+      call nc_write_dim(SHIFT, "lat", x=lat_s, units="degrees_north")
+      call nc_write_dim(SHIFT, "r",   x=ve%r,  units="m")
+      call nc_write(SHIFT, "dlog10_visc", dv, dim1="lon", dim2="lat", dim3="r")
+
+      p%l_visc_3d = .true.;  p%visc_3d_file = SYNTH;  p%visc_3d_structure = 0
+      p%visc_log10_min = -1.0e30_wp;  p%visc_log10_max = 1.0e30_wp
+      call load_visc_3d(p, sht, ve%r, v0)
+      p%visc_shift_file = SHIFT
+      call load_visc_3d(p, sht, ve%r, v1)
+      maxerr = 0.0_wp
+      do k = 1, nr
+         expect = merge(0.5_wp, -0.25_wp, ve%r(k) >= R_PREM - 670.0e3_wp)
+         maxerr = max(maxerr, maxval(abs(v1(:,k) - v0(:,k) - expect)))
+      end do
+      write(*,'(a,es10.2)') ' visc_shift_file: max |loaded - bare - shift| = ', maxerr
+      if (maxerr > 1.0e-9_wp) then
+         ok = .false.;  write(*,'(a)') '   FAIL: visc_shift_file is not added to the field'
+      end if
+      deallocate(lon_s, lat_s, dv, v0, v1)
+   end subroutine test_shift
 
    subroutine test_pan2022()
       real(wp), allocatable :: vn(:,:)
