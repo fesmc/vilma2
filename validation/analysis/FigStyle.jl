@@ -39,6 +39,7 @@ const DOCS_FIGURES = Dict(
     # block A — community benchmarks
     "love-numbers"   => "love-numbers",
     "disc-benchmark" => "disc",
+    "martinec-A"     => "martinec-A",
     "sle-benchmark"  => "sle",
     "sle-profiles-C2" => "sle-C2",
     "sle-profiles-D3" => "sle-D3",

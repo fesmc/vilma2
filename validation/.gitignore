@@ -18,3 +18,4 @@
 # earlier passes, kept for comparison (see RESULTS.md)
 /runs_*/
 /data/published_*/
+/data/reference_*/

@@ -585,6 +585,7 @@ end
 const A_DUMPS = Dict(
     "A1.love"  => ["love_elastic", "love_fluid"],
     "A2.disc"  => ["disc_elastic_profile", "disc_ve_profile", "disc_ve_centre_series"],
+    "A3.caseA" => ["martinec_A"],
     "A5.lvz"   => ["lvz_homog_profile", "lvz_lvz_profile", "lvz_homog_series", "lvz_lvz_series"],
 )
 

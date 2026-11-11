@@ -254,6 +254,65 @@ function fig_disc(r)
 end
 
 # =============================================================================
+# A3 case A — Martinec (2018) cap loading, no ocean
+# =============================================================================
+"""
+Case A of Martinec et al. (2018): the loading response after 10 kyr against
+their fig. 10, from the driver's `martinec_A.txt` dump (colatitude, then
+reference and VILMA2 for vertical displacement, horizontal displacement and
+geoid).
+"""
+function fig_martinec_A(r)
+    hasdump(r, "martinec_A.txt") ||
+        (@warn "A3: no martinec_A.txt in $(r.id) — needs test_benchmark_martinec from 83f63e4 on"; return nothing)
+    d = dumptable(r, "martinec_A.txt")
+    θ = d[:, 1]
+    fields = [("vertical displacement u [m]", 3, 2), ("horizontal displacement [m]", 5, 4),
+              ("geoid N [m]", 7, 6)]
+    fig = Figure(size = (1250, 620))
+    errs = Float64[]
+    for (jx, (ylab, cm, cr)) in enumerate(fields)
+        ax = Axis(fig[1, jx], ylabel = ylab)
+        hidexdecorations!(ax, grid = false, ticks = false)
+        lines!(ax, θ, d[:, cm], color = C_MODEL, linewidth = 2, label = "VILMA2")
+        stp = max(1, length(θ) ÷ 60)
+        scatter!(ax, θ[1:stp:end], d[1:stp:end, cr], color = C_REF, markersize = 6,
+                 label = "Martinec et al. (2018)")
+        jx == 1 && axislegend(ax, position = :rb)
+        peak = maximum(abs.(d[:, cr]))
+        res = 100 .* (d[:, cm] .- d[:, cr]) ./ peak
+        push!(errs, maximum(abs.(res)))
+        axr = Axis(fig[2, jx], xlabel = "colatitude [deg]", ylabel = "residual [% of peak]")
+        lines!(axr, θ, res, color = C_MODEL, linewidth = 1.5)
+        hlines!(axr, [0.0], color = C_GREY, linestyle = :dash)
+        linkxaxes!(ax, axr)
+    end
+    rowsize!(fig.layout, 2, Relative(0.35))
+    panels!(fig, [(1, 1), (1, 2), (1, 3), (2, 1), (2, 2), (2, 3)])
+    colgap!(fig.layout, 18); rowgap!(fig.layout, 10)
+
+    savefig(fig, "martinec-A";
+        title = "Martinec loading benchmark, case A",
+        caption = """
+        Case A of the Martinec et al. (2018) benchmark: the response of the M3–L70–V01
+        Earth to the spherical-cap ice load after 10 kyr, without ocean, against their
+        fig. 10 (the SBK reference). (a) Vertical displacement, (b) horizontal
+        displacement and (c) geoid height against colatitude, VILMA2 as the line and the
+        reference as points. (d–f) VILMA2 minus the reference, as a percentage of the
+        reference peak of each field.
+        """,
+        notes = """
+        The driver asserts these fields against the reference; its maximum errors, as
+        printed, are in `tables/blockA.md`. Peak-normalised maxima computed here from the
+        dump: $(join([@sprintf("%.2f %%", e) for e in errs], ", ")) for u, horizontal
+        displacement and N.
+        """,
+        source = @__FILE__,
+        runs = [SRC])
+    (; errs)
+end
+
+# =============================================================================
 # A3 — Martinec (2018) SLE: the profiles behind the error table (Fig. A2)
 # =============================================================================
 # fig10/fig12 are constant-longitude cuts (col1 = colatitude); fig11/fig13 are
@@ -625,6 +684,7 @@ if haskey(byid, "A2.disc")
 end
 
 if haskey(byid, "A3.caseA")
+    fig_martinec_A(byid["A3.caseA"])
     d = Published.martinec_caseA(byid["A3.caseA"])
     !isempty(d.fields) && push!(extras, "A3 case A" =>
         join([@sprintf("%s %.2f %%", f, e) for (f, e) in zip(d.fields, d.errs)], ", "))
