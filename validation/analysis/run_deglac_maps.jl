@@ -52,8 +52,8 @@ const REPO = dirname(@__DIR__)
 # Rows, in the order they should appear. The row label names the Earth structure
 # and nothing else — the epochs are the columns and the caption carries the rest.
 const CASES = [
-    ("D-V2-3D.l170.fe",  "3-D"),
-    ("D-V2-1Db.l170.fe", "1Db"),
+    (RUN_V2_3D,  "3-D"),
+    (RUN_V2_1DB, "1Db"),
 ]
 
 const T_LGM = -21000.0

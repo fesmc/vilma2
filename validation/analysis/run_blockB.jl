@@ -289,7 +289,7 @@ decade_label(d) = d >= 0 ? string(10^d) : "10" * map(c -> SUPERSCRIPT[c], string
 function fig_lmax(cs)
     isempty(cs) && (@warn "no convergence run published"; return nothing)
     fig = Figure(size = (1100, 700))
-    col = Dict(64 => C_1D, 128 => C_3D, 256 => C_TOR)
+    col = Dict(64 => C_1D, 128 => C_3D, 256 => C_3D_DARK)
     pos = Tuple{Int,Int}[]
     for (i, t) in enumerate(["A", "B"]), (j, f) in enumerate(BENCH_FORCINGS)
         ref = t == "A" ? "normal modes to degree $(love.nmax)" : "B-i at ℓmax 256"
@@ -411,6 +411,21 @@ open(joinpath(tables_dir(), "blockB.md"), "a") do io
             v = cs_conv[(t, f, L)][ix]
             @printf(io, "| %s-i | %s | %d | %.4f | %.4f | %.4f |\n", t, f, L, v...)
             record!("blockB", "$(t)_$(f)_l$(L)_rms_dur_100kyr_m" => round(v[end], digits = 4))
+        end
+    end
+end
+open(joinpath(tables_dir(), "blockB.md"), "a") do io
+    rows = [(t, f, bench_cost(t, f)) for t in BENCH_TESTS for f in BENCH_FORCINGS]
+    filter!(r -> r[3] !== nothing, rows)
+    if !isempty(rows)
+        println(io, "\n## Cost\n")
+        println(io, "Wall time to 100 kyr at ℓmax ", lmax_of(cases), ", toroidal coupling on, ",
+                    "summed over the chain of segment jobs (shared albedo nodes).\n")
+        println(io, "| test | load | segments | threads | wall to 100 kyr [h] |")
+        println(io, "|---|---|---:|---:|---:|")
+        for (t, f, c) in rows
+            @printf(io, "| %s-i | %s | %d | %d | %.2f |\n", t, f, c.nseg, c.threads, c.wall_s / 3600)
+            record!("blockB", "$(t)_$(f)_wall_100kyr_h" => round(c.wall_s / 3600, digits = 2))
         end
     end
 end

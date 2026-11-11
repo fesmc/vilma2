@@ -70,8 +70,9 @@
     ! Lid rule (experiments/earth_lid.sh); VILMA1's on-grid files carry the same.
     visc3d_lid_depth    = @LIDDEPTH@
     visc3d_lid_log10max = @LIDMAX@
-    ! Toroidal field of the 3-D elements: .false. in the production rows, .true.
-    ! in the V7 row (D-V2-3D.l170.tor), which differs from D-V2-3D only here.
+    ! Toroidal field of the 3-D elements: .true. in the production 3-D run (V7,
+    ! D-V2-3D.l170.tor), .false. in its control D-V2-3D.l170.fe, which differs
+    ! only here. The 1Db run has no laterally 3-D element for it to act on.
     l_toroidal     = @LTOR@
 /
 

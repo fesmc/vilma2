@@ -49,13 +49,13 @@ const REPO = dirname(@__DIR__)
 # that the figure shows one curve and silently asserts that the others were
 # never run.
 const SERIES = [
-    (id = "D-V2-3D.l170.fe",  lab = "VILMA2, 3-D", col = C_3D, ls = :solid, lw = 3.4, al = 0.5),
-    (id = "D-V2-1Db.l170.fe", lab = "VILMA2, 1Db", col = C_1D, ls = :solid, lw = 1.4, al = 1.0),
-    (id = "D-V1-3D.l170.fe",  lab = "VILMA1, 3-D",       col = C_3D, ls = :dash,  lw = 3.4, al = 0.5),
-    (id = "D-V1-1Db.l170.fe", lab = "VILMA1, 1Db",       col = C_1D, ls = :dash,  lw = 1.4, al = 1.0),
+    (id = RUN_V2_3D,  lab = "VILMA2, 3-D", col = C_3D, ls = :solid, lw = 3.4, al = 0.5),
+    (id = RUN_V2_1DB, lab = "VILMA2, 1Db", col = C_1D, ls = :solid, lw = 1.4, al = 1.0),
+    (id = RUN_V1_3D,  lab = "VILMA1, 3-D", col = C_3D, ls = :dash,  lw = 3.4, al = 0.5),
+    (id = RUN_V1_1DB, lab = "VILMA1, 1Db", col = C_1D, ls = :dash,  lw = 1.4, al = 1.0),
 ]
 
-const F3D, F1D = "D-V2-3D.l170.fe", "D-V2-1Db.l170.fe"
+const F3D, F1D = RUN_V2_3D, RUN_V2_1DB
 
 # The eight sites, from the published schema rather than from a list here: the
 # series are extracted during reduction, so asking for a site that was not
@@ -97,9 +97,9 @@ axislegend(ax1, position = :lt)
 ax2 = Axis(fig[1, 2], xlabel = "time [ka]", ylabel = "Δ barystatic sea level [m]")
 bsl(id) = Float64.(runs[id].ds["bsl"][:])
 tvec(id) = runs[id].time ./ 1000
-for (a, b, lab, c, ls) in (("D-V2-3D.l170.fe",  "D-V1-3D.l170.fe",  "V2 − V1, 3-D",  C_3D, :solid),
-                           ("D-V2-1Db.l170.fe", "D-V1-1Db.l170.fe", "V2 − V1, 1Db",  C_1D, :solid),
-                           ("D-V2-3D.l170.fe",  "D-V2-1Db.l170.fe", "3-D − 1Db, V2", :black, :dot))
+for (a, b, lab, c, ls) in ((RUN_V2_3D,  RUN_V1_3D,  "V2 − V1, 3-D",  C_3D, :solid),
+                           (RUN_V2_1DB, RUN_V1_1DB, "V2 − V1, 1Db",  C_1D, :solid),
+                           (RUN_V2_3D,  RUN_V2_1DB, "3-D − 1Db, V2", :black, :dot))
     (haskey(runs, a) && haskey(runs, b)) || continue
     x, y = bsl(a), bsl(b); n = min(length(x), length(y))
     lines!(ax2, tvec(a)[1:n], x[1:n] .- y[1:n]; color = c, linestyle = ls, label = lab)
@@ -262,8 +262,7 @@ if have_pair
     rmsof(fs) = sqrt(mean(vcat([vec(f) for f in fs]...) .^ 2))
     lat_rms = rmsof(dmaps)
     v2v1_rms = let acc = Matrix{Float64}[]
-        for (a, b) in (("D-V2-3D.l170.fe", "D-V1-3D.l170.fe"),
-                       ("D-V2-1Db.l170.fe", "D-V1-1Db.l170.fe"))
+        for (a, b) in ((RUN_V2_3D, RUN_V1_3D), (RUN_V2_1DB, RUN_V1_1DB))
             (haskey(runs, a) && haskey(runs, b)) || continue
             append!(acc, [rsl_anomaly(runs[a], t) .- rsl_anomaly(runs[b], t) for t in T_MARKS[1:3]])
         end
