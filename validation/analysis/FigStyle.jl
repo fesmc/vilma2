@@ -58,6 +58,7 @@ const DOCS_FIGURES = Dict(
     "v2v1-maps-3d"      => "deglac-v2v1-maps-3d",
     "v2v1-maps-1db"     => "deglac-v2v1-maps-1d",
     "v2v1-summary"      => "deglac-v2v1-summary",
+    "toroidal-10ka"     => "deglac-toroidal-10ka",
 )
 
 figures_dir()      = joinpath(REPO, "figures")

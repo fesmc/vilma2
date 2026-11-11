@@ -3,7 +3,7 @@
 # make_vilma1_visc_ongrid.jl — resample a VILMA1-format 3-D viscosity file onto the
 # radial element grid of a given densi.inp.
 #
-#   julia --project=../analysis experiments/make_vilma1_visc_ongrid.jl \
+#   julia --project=. experiments/make_vilma1_visc_ongrid.jl \
 #        <densi.inp> <source.nc> <out.nc> [<lid_depth_m> <lid_log10max> <log10_cap>]
 #
 # With the three optional arguments, VILMA2's lid rule (&vilma visc3d_lid_depth,

@@ -3,7 +3,7 @@
 # run_blockD_diags.jl — the block D diagnostics that are NOT maps of one run
 #.
 #
-#   julia --project=../analysis analysis/run_blockD_diags.jl
+#   julia --project=. analysis/run_blockD_diags.jl
 #
 # Reads `data/published/blockD/`, not `runs/`. The sea-level budget is not
 # recomputed here — it needs every time level, so it is computed once by

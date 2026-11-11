@@ -5,8 +5,9 @@
 # it (`D-V2-3D.l170.fe`, the control: same model head, reference, namelist but
 # for `l_toroidal`). Writes tables/toroidal.md; reads data/published/ only.
 #
-#   julia --project=../analysis analysis/run_toroidal.jl
+#   julia --project=. analysis/run_toroidal.jl
 
+using CairoMakie
 using Printf
 using Statistics
 
@@ -72,6 +73,33 @@ println(io, "\nWall times from the jobs' own accounting (64 threads on a shared 
 record!("v7", "ocean_mean_pd_ctl_m" => round(omc, digits = 3), "ocean_mean_pd_tor_m" => round(omt, digits = 3),
               "closure_ctl_pct" => round(100bc.closure, digits = 2), "closure_tor_pct" => round(100bt.closure, digits = 2),
               "wall_per_kyr_ctl_min" => round(wc, digits = 2), "wall_per_kyr_tor_min" => round(wt, digits = 2))
+
+# ------------------------------------------------------------------ map, 10 ka
+d10 = slice_at(tr, "rsl", -10000.0) .- slice_at(ct, "rsl", -10000.0)
+lim = symlim(d10; q = 0.999)
+fig = Figure(size = (1000, 520))
+ax = Axis(fig[1, 1]; aspect = DataAspect(), xlabel = "longitude [deg]", ylabel = "latitude [deg]",
+          xticks = -180:60:180, yticks = -90:30:90)
+hm = heatmap!(ax, tr.lon, tr.lat, d10; colormap = CMAP_DIV, colorrange = lim)
+contour!(ax, ct.lon, ct.lat, slice_at(ct, "h_ice", -10000.0); levels = [10.0],
+         color = :black, linewidth = 0.8)
+limits!(ax, -180, 180, -90, 90)
+Colorbar(fig[1, 2], hm; label = "Δ relative sea level, toroidal − control [m]")
+savefig(fig, "toroidal-10ka";
+    title = "Effect of the toroidal field at 10 ka",
+    caption = """
+    Relative sea level at 10 ka in the 3-D deglaciation with the toroidal field of the
+    laterally 3-D elements carried, minus the same run without it (`D-V2-3D.l170.tor`
+    minus `D-V2-3D.l170.fe`, ℓmax 170, both against the same LGM reference state).
+    The black line is the ice margin of the control at 10 ka (10 m thickness). The
+    colour range is the 99.9th percentile of |Δ|.
+    """,
+    notes = """
+    Numbers in `tables/toroidal.md`: area-weighted rms $(@sprintf("%.2f", wrms(d10))) m,
+    max $(@sprintf("%.1f", maximum(abs.(d10)))) m at 10 ka.
+    """,
+    source = @__FILE__,
+    runs = [tr.path, ct.path])
 
 path = joinpath(tables_dir(), "toroidal.md")
 write(path, String(take!(io)))

@@ -2,7 +2,7 @@
 #
 # run_deglac_maps.jl — the last-deglaciation map figure.
 #
-#   julia --project=../analysis analysis/run_deglac_maps.jl
+#   julia --project=. analysis/run_deglac_maps.jl
 #
 # Reads `data/published/blockD/`, not `runs/`. See analysis/Published.jl — only
 # analysis/make_reduced.jl touches the raw output.

@@ -3,7 +3,7 @@
 # make_vilma1_densi.jl — a densi.inp for VILMA1 built from VILMA2's own
 # radial layer table, so the two backends share a radial structure.
 #
-#   julia --project=../analysis experiments/make_vilma1_densi.jl [out.inp]
+#   julia --project=. experiments/make_vilma1_densi.jl [out.inp]
 #
 # WHY. The V2-V1 comparison matched the viscosity field (make_vilma1_visc.jl) and
 # showed VILMA1's time step to be converged, yet a difference remains. The one

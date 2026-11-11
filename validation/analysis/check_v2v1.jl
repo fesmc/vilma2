@@ -3,7 +3,7 @@
 # check_v2v1.jl — VILMA2 against VILMA1 on the last deglaciation
 #.
 #
-#   julia --project=../analysis analysis/check_v2v1.jl
+#   julia --project=. analysis/check_v2v1.jl
 #
 # TWO PAIRS -- the pruned list. Both are referenced to VILMA2's own
 # LGM reference state (i_eq = 2; the 26 ka load held 30 kyr) and both run with the degree-1 frames

@@ -3,7 +3,7 @@
 # make_vilma1_visko_ongrid.jl — a 1-D visko.inp from a laterally uniform VILMA1
 # viscosity file, on the element grid of a given densi.inp.
 #
-#   julia --project=../analysis experiments/make_vilma1_visko_ongrid.jl \
+#   julia --project=. experiments/make_vilma1_visko_ongrid.jl \
 #        <densi.inp> <uniform.nc> <out.inp>
 #
 # WHY. The 1-D control of the V2-V1 comparison has to be the radial mean OF THE

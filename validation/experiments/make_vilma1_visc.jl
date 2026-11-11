@@ -3,7 +3,7 @@
 # make_vilma1_visc.jl — build the 3-D viscosity file VILMA1 reads, from the SAME
 # field VILMA2 reads, with the SAME clamp applied.
 #
-#   julia --project=../analysis experiments/make_vilma1_visc.jl
+#   julia --project=. experiments/make_vilma1_visc.jl
 #
 # WHY THIS EXISTS. The two backends do not share a viscosity path. VILMA2
 # reads `visc_3d_file` (model `input/bagge2021.nc`) and then applies its own

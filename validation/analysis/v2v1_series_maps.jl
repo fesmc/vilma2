@@ -3,7 +3,7 @@
 # v2v1_series_maps.jl — the VILMA2–VILMA1 deglaciation comparison as pictures:
 # rsl through the deglaciation as time series, and as maps with their difference.
 #
-#   julia --project=../analysis analysis/v2v1_series_maps.jl
+#   julia --project=. analysis/v2v1_series_maps.jl
 #
 # WHAT IS PLOTTED, and why it is the RAW rsl rather than the present-day-
 # referenced anomaly. `rsl` is already measured against each run's own reference

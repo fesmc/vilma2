@@ -21,7 +21,7 @@ data: `data/published/` (untracked, on albedo under
 | D | 48966755 3-D (47:19), 48966756 1Db (2:53) | complete |
 | V1 | 48966757 3-D (52:58), 48966759 1Db (13:27) | complete |
 | reduce + analyse | 48966942 (6:17) | all figures and tables |
-| T (V7) | 48966776 | toroidal field on, see `tables/toroidal.md` |
+| T (V7) | 48966776 (1:09:28) | toroidal field on; reduce + analyse 48967141. See below and `tables/toroidal.md` |
 
 Pass 2 agrees with pass 1 to the third printed digit (V2 − V1 rms at 21 ka
 5.138 against 5.141 m), so the comparison with 907bc74 below holds for both.
@@ -30,6 +30,13 @@ The degree-2, order-1 part of V2 − V1 at 21 ka (`tables/v2v1.md`) is 0.50 m in
 of 304f4cb removed that pattern. What remains in 3-D (4.08 m area-weighted) has no
 dominant low-degree part: the largest part up to degree 8 is degree 6, order 2
 at 0.70 m.
+
+V7, the toroidal field of the 3-D elements (`l_toroidal`), against D-V2-3D
+(`tables/toroidal.md`): it changes relative sea level by up to 92 m (2.1 m rms)
+at 10 ka and present-day ocean-mean rsl by −0.06 m, leaves the budget closure at
+102.8 %, and halves the V2 − V1 3-D residual: 4.08 → 2.18 m rms at 21 ka,
+2.30 → 1.22 m at 10 ka, 0.128 → 0.076 mm/yr in present-day uplift rate. It costs
+×1.47 in wall time (2.67 against 1.82 min per kyr). Map: `deglac-toroidal-10ka.png`.
 
 ## Pass 1 — model 0278975, albedo, 2026-11-11
 

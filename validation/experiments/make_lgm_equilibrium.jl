@@ -3,7 +3,7 @@
 # make_lgm_equilibrium.jl — VILMA2's OWN LGM equilibrium as the i_eq=2
 # reference state, read from a RESTART FILE.
 #
-#   julia --project=../analysis experiments/make_lgm_equilibrium.jl [run_dir | restart.nc]
+#   julia --project=. experiments/make_lgm_equilibrium.jl [run_dir | restart.nc]
 #
 # WHY THIS REPLACES make_lgm_reference.jl.
 #

@@ -3,7 +3,7 @@
 # make_reduced.jl — distil `runs/` into `data/published/`, the small set of
 # files the figures and tables are made from.
 #
-#   julia --project=../analysis analysis/make_reduced.jl [BLOCK ...]
+#   julia --project=. analysis/make_reduced.jl [BLOCK ...]
 #
 # with BLOCK one or more of D, V2V1, E, A, B; no argument does all of them. A
 # block whose runs are missing or incomplete is skipped.
