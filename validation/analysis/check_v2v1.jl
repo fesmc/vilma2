@@ -55,25 +55,25 @@ using .FigStyle
 const REPO = dirname(@__DIR__)
 
 const PAIRS = [
-    (tag = "3d",  slug = "v2v1-maps-3d",  v2 = "D-V2-3D.l170.fe",  v1 = "D-V1-3D.l170.fe",
+    (tag = "3d",  slug = "v2v1-maps-3d",  v2 = RUN_V2_3D,  v1 = RUN_V1_3D,
      lab = "3-D Bagge (2021) viscosity"),
-    (tag = "1db", slug = "v2v1-maps-1db", v2 = "D-V2-1Db.l170.fe", v1 = "D-V1-1Db.l170.fe",
+    (tag = "1db", slug = "v2v1-maps-1db", v2 = RUN_V2_1DB, v1 = RUN_V1_1DB,
      lab = "1Db, the radial mean of that field"),
-    # V7: the 3-D pair with VILMA2's toroidal coupling on. A diagnostic
-    # (its slug is not in DOCS_FIGURES), and a third line in the summary.
-    (tag = "3d_tor", slug = "v2v1-maps-3d-tor", v2 = "D-V2-3D.l170.tor", v1 = "D-V1-3D.l170.fe",
-     lab = "3-D Bagge (2021) viscosity, with VILMA2's toroidal coupling"),
+    # V7's control: the 3-D pair with VILMA2's toroidal coupling off. A
+    # diagnostic (its slug is not in DOCS_FIGURES), and a third line in the summary.
+    (tag = "3d_notor", slug = "v2v1-maps-3d-notor", v2 = RUN_V2_3D_NOTOR, v1 = RUN_V1_3D,
+     lab = "3-D Bagge (2021) viscosity, without VILMA2's toroidal coupling"),
 ]
 
 # How each pair is drawn in the summary figure: colour and legend label.
-const PAIR_STYLE = Dict("3d"     => (col = C_3D,  lab = "3-D"),
-                        "1db"    => (col = C_1D,  lab = "1Db"),
-                        "3d_tor" => (col = C_TOR, lab = "3-D, toroidal"))
+const PAIR_STYLE = Dict("3d"       => (col = C_3D,  lab = "3-D"),
+                        "1db"      => (col = C_1D,  lab = "1Db"),
+                        "3d_notor" => (col = C_3D_DARK, lab = "3-D, no toroidal"))
 
 # V7: the toroidal effect, tor − notor, against the residual it is meant to close.
-# The control is the production 3-D run: same head, reference and namelist but
-# for l_toroidal.
-const TOR, NOTOR, V3D = "D-V2-3D.l170.tor", "D-V2-3D.l170.fe", "D-V1-3D.l170.fe"
+# The production 3-D run carries the toroidal field; the control is the same
+# head, reference and namelist but for l_toroidal.
+const TOR, NOTOR, V3D = RUN_V2_3D, RUN_V2_3D_NOTOR, RUN_V1_3D
 
 # Every mark must be one of `Published.EPOCHS`: the table is evaluated from the
 # published 2-D fields, and Published.slice_at refuses an epoch that was not
@@ -203,7 +203,7 @@ function summary_figure(series)
         The VILMA2 minus VILMA1 residual in relative sea level through the last
         deglaciation, for $(join([lowercase(PAIR_STYLE[tag].lab) == "1db" ? "1Db, the radial mean of the 3-D field (blue)" :
                                   tag == "3d" ? "the 3-D viscosity field (red)" :
-                                  "the 3-D field with VILMA2's toroidal coupling on (dark red)"
+                                  "the 3-D field with VILMA2's toroidal coupling off (dark red)"
                                   for (tag, _) in series], ", ")), all at ℓmax 170 on the
         identical reference state. (a) Root-mean-square
         residual over the global grid. (b) The same, as a percentage of the maximum
@@ -288,8 +288,8 @@ function toroidal_figure(tr, nt, v, SC)
         block D difference range.
         """,
         notes = """
-        The run without the toroidal coupling reproduces the production 3-D run to
-        round-off, so the left column is the 3-D pair of the V2−V1 figures.
+        The run with the toroidal coupling is the production 3-D run, so the middle
+        column is the 3-D pair of the V2−V1 figures.
         Most of the residual common to the left and middle columns early in the
         deglaciation is one degree-2, order-1 pattern, the rotational-feedback
         signature, which the toroidal coupling does not touch.

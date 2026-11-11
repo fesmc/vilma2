@@ -16,14 +16,18 @@ description paper (`alex-robinson/paper-fastearth3d-experiments`).
 | `A` | Community benchmarks, each a pass/fail driver from `tests/`: Love numbers (A1), Spada (2011) disc load (A2), Martinec (2018) sea-level cases A, C2, D3, E2, F1 (A3), polar motion and its coupling into the sea-level equation (A4), Weerdesteijn (2023) low-viscosity zone at ℓmax 512 (A5), 3-D path against 1-D path and rotational invariance (A6), restart (A7) | 13 jobs, seconds to minutes each |
 | `B` | Lateral-viscosity benchmark (Klemann et al. setup note), `tests/bench_visc3d.f90`: tests A-i, B-i, C-i with heaviside and ramp forcing at ℓmax 128, to 100 kyr in five chained 20-kyr segments. `LMAX=64` and `LMAX=256` with `CASES="A B"` give the truncation series | A-i, B-i: minutes. C-i: about 20 h per forcing at 64 threads |
 | `ref` | LGM reference state: the 26 ka GLAC-1D load held for 30 kyr against RTopo-2 (3-D viscosity, ℓmax 170). Its end state is the `i_eq = 2` reference of every deglaciation run | 1 job |
-| `D` | Last deglaciation, 26 ka to present, VILMA2 at ℓmax 170: 3-D Bagge et al. (2021) viscosity (`D-V2-3D`) and its radial mean (`D-V2-1Db`) | 2 jobs |
+| `D` | Last deglaciation, 26 ka to present, VILMA2 at ℓmax 170: 3-D Bagge et al. (2021) viscosity with the toroidal field off (`D-V2-3D.l170.fe`, V7's control) and the radial mean of that field (`D-V2-1Db`) | 2 jobs |
 | `V1` | The same two runs through the VILMA1 backend (`solver = "v1"`), on VILMA2's layer table and the same viscosity values | 2 jobs |
+| `T` | V7, the production 3-D run (`D-V2-3D.l170.tor`): `D`'s 3-D run with the toroidal field of the 3-D elements on (`l_toroidal`, the model default), otherwise identical | 1 job, about 1.5× the cost of the run without it |
 | `E` | Sensitivity of the 3-D run: ℓmax 64, 128, 256 and `visc3d_tol` | 7 jobs; scripts only, not part of the last pass |
 
 Deglaciation setup (`experiments/nml/blockD.nml.tmpl`): PREM geometry in 11
 layers, forward Euler at the Maxwell stability limit, rotation on, centre-of-mass
-frame, ice density 931 kg m⁻³, viscosity clamped to 10^19.5–10^30 Pa s, lossless
-output. Both backends start from the same LGM reference file, so neither needs a
+frame, ice density 931 kg m⁻³, viscosity clamped to 10^19.5–10^30 Pa s, the
+220-element radial mesh, lossless output, all set explicitly whatever the model
+defaults. The toroidal field is on in the production 3-D run (`T`) and off in its
+control (`D`); the 1Db run has no laterally 3-D element for it to act on. The
+analysis names these runs once, in `analysis/Published.jl` (`RUN_V2_3D`, ...). Both backends start from the same LGM reference file, so neither needs a
 spin-up. `experiments/nml/blockDV1.nml.tmpl` is the VILMA1 counterpart.
 
 ## Running

@@ -39,6 +39,7 @@ using .Budget
 # from runs/. Bringing both into scope would make every one of those names
 # ambiguous. Here the run-side modules are the ones in use, and Published is
 # referenced qualified, for the schema constants and `deg01`.
+using .Published: RUN_V2_3D, RUN_V2_3D_NOTOR, RUN_V2_1DB, RUN_V1_3D, RUN_V1_1DB
 
 const REPO = dirname(@__DIR__)
 const RUNS = joinpath(REPO, "runs")
@@ -65,27 +66,27 @@ const FIELD_T = Float64
 
 say(args...) = (println("\n== ", args...); flush(stdout))
 
-# The block D production matrix: two Earth structures, two solvers.
+# The block D production matrix: two Earth structures, two solvers, and V7's
+# control (the 3-D run with the toroidal field off). Ids: Published.jl.
 const BLOCKD_RUNS = [
-    (id = "D-V2-3D.l170.fe",  root = "blockD_v2",    solver = "VILMA2"),
-    (id = "D-V2-1Db.l170.fe", root = "blockD_v2",    solver = "VILMA2"),
-    (id = "D-V1-3D.l170.fe",  root = "blockD_v1", solver = "VILMA1"),
-    (id = "D-V1-1Db.l170.fe", root = "blockD_v1", solver = "VILMA1"),
-    # V7: the 3-D run with the toroidal field on; D-V2-3D.l170.fe is its control.
-    (id = "D-V2-3D.l170.tor",   root = "blockD_tor", solver = "VILMA2"),
+    (id = RUN_V2_3D,       root = "blockD_tor", solver = "VILMA2"),
+    (id = RUN_V2_1DB,      root = "blockD_v2",  solver = "VILMA2"),
+    (id = RUN_V1_3D,       root = "blockD_v1",  solver = "VILMA1"),
+    (id = RUN_V1_1DB,      root = "blockD_v1",  solver = "VILMA1"),
+    (id = RUN_V2_3D_NOTOR, root = "blockD_v2",  solver = "VILMA2"),
 ]
 
 # The pruned V2−V1 list: every pair on VILMA2's own LGM equilibrium
 # (i_eq = 2) with the degree-1 frames matched (deg1_frame = "cm"). See
-# analysis/check_v2v1.jl for why those two choices and no others. 3d_tor is V7:
-# the 3-D pair again, with VILMA2's toroidal coupling on.
+# analysis/check_v2v1.jl for why those two choices and no others. 3d_notor is
+# V7's control: the 3-D pair again, with VILMA2's toroidal coupling off.
 const V2V1_PAIRS = [
-    (tag = "3d",  v2 = "D-V2-3D.l170.fe",  v1 = "D-V1-3D.l170.fe",
+    (tag = "3d",  v2 = RUN_V2_3D,  v1 = RUN_V1_3D,
      label = "3-D Bagge (2021) viscosity"),
-    (tag = "1db", v2 = "D-V2-1Db.l170.fe", v1 = "D-V1-1Db.l170.fe",
+    (tag = "1db", v2 = RUN_V2_1DB, v1 = RUN_V1_1DB,
      label = "1Db, the radial mean of that field"),
-    (tag = "3d_tor", v2 = "D-V2-3D.l170.tor", v1 = "D-V1-3D.l170.fe",
-     label = "3-D, VILMA2 with the toroidal coupling"),
+    (tag = "3d_notor", v2 = RUN_V2_3D_NOTOR, v1 = RUN_V1_3D,
+     label = "3-D, VILMA2 without the toroidal coupling"),
 ]
 
 # Block E, as run_blockE.jl declares it: each axis measured against its OWN
@@ -93,7 +94,7 @@ const V2V1_PAIRS = [
 const E1 = [
     (lmax =  64, root = "blockE",    id = "D-V2-3D.l64.cold"),
     (lmax = 128, root = "blockE",    id = "D-V2-3D.l128.cold"),
-    (lmax = 170, root = "blockD_v2", id = "D-V2-3D.l170.fe"),
+    (lmax = 170, root = "blockD_v2", id = RUN_V2_3D_NOTOR),   # toroidal off, like the others
     (lmax = 256, root = "blockE",    id = "D-V2-3D.l256.cold"),
 ]
 const E3 = [

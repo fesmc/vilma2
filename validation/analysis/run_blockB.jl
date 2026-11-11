@@ -289,7 +289,7 @@ decade_label(d) = d >= 0 ? string(10^d) : "10" * map(c -> SUPERSCRIPT[c], string
 function fig_lmax(cs)
     isempty(cs) && (@warn "no convergence run published"; return nothing)
     fig = Figure(size = (1100, 700))
-    col = Dict(64 => C_1D, 128 => C_3D, 256 => C_TOR)
+    col = Dict(64 => C_1D, 128 => C_3D, 256 => C_3D_DARK)
     pos = Tuple{Int,Int}[]
     for (i, t) in enumerate(["A", "B"]), (j, f) in enumerate(BENCH_FORCINGS)
         ref = t == "A" ? "normal modes to degree $(love.nmax)" : "B-i at ℓmax 256"

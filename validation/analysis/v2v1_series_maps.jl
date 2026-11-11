@@ -40,9 +40,9 @@ const REPO = dirname(@__DIR__)
 # (deg1_frame = "cm"). See analysis/check_v2v1.jl for why those two choices, and
 # why the seven datum-hunting pairs this table used to carry are gone.
 const PAIRS = [
-    ("3D",  "3d",  "D-V2-3D.l170.fe",  "D-V1-3D.l170.fe",
+    ("3D",  "3d",  RUN_V2_3D,  RUN_V1_3D,
      "LGM equilibrium (i_eq=2)", "3-D Bagge viscosity; degree-1 frames matched"),
-    ("1Db", "1db", "D-V2-1Db.l170.fe", "D-V1-1Db.l170.fe",
+    ("1Db", "1db", RUN_V2_1DB, RUN_V1_1DB,
      "LGM equilibrium (i_eq=2)", "radial mean of the same field; isolates the lateral signal"),
 ]
 
