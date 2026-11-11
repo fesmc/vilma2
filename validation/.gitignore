@@ -14,3 +14,7 @@
 # links to the machine's VILMA1 inputs and generated viscosity files
 /experiments/vilma1_input_vilma2grid/*
 !/experiments/vilma1_input_vilma2grid/densi.inp
+
+# earlier passes, kept for comparison (see RESULTS.md)
+/runs_*/
+/data/published_*/
