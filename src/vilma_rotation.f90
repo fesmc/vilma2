@@ -328,13 +328,13 @@ contains
    end subroutine rotation_update
 
    subroutine rotation_destroy(self)
+      !! Free the channels and return the state to its pristine (default-initialised) one:
+      !! not enabled, no memory, the default constants.
       type(rotation_state), intent(inout) :: self
+      type(rotation_state) :: fresh
       call channel_destroy(self%load_ch)
       call channel_destroy(self%tidal_ch)
-      self%m = (0.0_wp, 0.0_wp);  self%time = 0.0_wp
-      self%k_s = 0.0_wp;  self%kTe = 0.0_wp;  self%hTe = 0.0_wp
-      if (allocated(self%step0%load_mem)) deallocate(self%step0%load_mem, self%step0%tidal_mem)
-      if (allocated(self%saved%load_mem)) deallocate(self%saved%load_mem, self%saved%tidal_mem)
+      self = fresh
    end subroutine rotation_destroy
 
    ! === stepping with the solid Earth ========================================

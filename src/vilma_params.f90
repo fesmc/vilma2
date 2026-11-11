@@ -161,8 +161,12 @@ module vilma_params
       ! dropped (Spada's tables and tests/test_benchmark_love start at degree 2).
       character(len=8) :: deg1_frame = "cm"   !! "cm" | "cf"
       logical  :: l_visc_3d   = .false.   !! load a lateral log10(eta) field
-      character(len=512) :: visc_3d_file  = ""       !! lon-lat-r log10(eta) field
-      integer  :: visc_3d_structure = 0     !! 0: visc_3d_file is a lon-lat-r field (name_visc*);
+      !! The 3-D field read when l_visc_3d: by default the FesmData Bagge (2021) product,
+      !! relative to the run folder (a `fesmdata` link). These defaults are those of
+      !! input/vilma_defaults.nml (test_params holds the two together), so a host that
+      !! fills the record in memory gets what the standalone driver gets.
+      character(len=512) :: visc_3d_file  = "fesmdata/Global/GLOBAL-T170/GLOBAL-T170_SolidEarth-Bagge2021.nc"
+      integer  :: visc_3d_structure = 6     !! 0: visc_3d_file is a lon-lat-r field (name_visc*);
          !! >= 1: it is the FesmData Bagge2021_visc.nc product (log10_visc on lon, lat, depth,
          !! structure; name_visc* ignored) and this is the structure to read (6 = v_1.0_s16)
       character(len=64)  :: name_visc     = "eta"    !! viscosity var (log10 Pa s)

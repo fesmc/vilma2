@@ -110,6 +110,10 @@ program test_coupling
    ! centred away from the pole here.
    call rotation_check()
    call rotation_visc_check()
+   call reinit_check()
+   call dt_min_check()
+   call elastic_rotation_check()
+   call sle_cap_check()
 
    call sht_grid_destroy(sht)
 
@@ -234,6 +238,122 @@ contains
       end if
       call solid_earth_finalize(se)
    end subroutine rotation_visc_check
+
+   subroutine reinit_check()
+      !! init -> update -> finalize -> init -> update on ONE object, with rotation and a
+      !! viscosity file (the configuration in which a leftover rotation flag stopped the
+      !! second init). Finalize must leave the object pristine, so the second run
+      !! repeats the first bit for bit.
+      type(vilma_param_class) :: pr
+      type(solid_earth)    :: se
+      real(wp), allocatable :: h_off(:,:), z1(:,:)
+      complex(wp) :: m1
+      integer :: run, s
+      allocate(h_off(sht%nphi,sht%nlat))
+      call make_load_offaxis(h_off)
+      pr%lmax = LMAX;  pr%nlat = 2*LMAX;  pr%nphi = 4*LMAX
+      pr%rotation = .true.;  pr%l_visc_3d = .true.;  pr%visc_3d_file = VISC;  pr%visc_3d_structure = 6
+      write(*,'(a)') ''
+      do run = 1, 2
+         se%par = pr; call solid_earth_init(se, z_bed_eq, h_ice_eq)
+         do s = 1, 2;  call solid_earth_update(se, h_off, 500.0_wp);  end do
+         if (run == 1) then
+            z1 = se%z_bed;  m1 = se%rotation%m
+         else
+            write(*,'(a,es10.2,a,es10.2)') '   re-init: max|z_bed run2 − run1| = ', maxval(abs(se%z_bed - z1)), &
+                 '   |m run2 − run1| = ', abs(se%rotation%m - m1)
+            if (any(se%z_bed /= z1) .or. se%rotation%m /= m1) then
+               write(*,'(a)') '   FAIL: a re-initialised object does not repeat the first run'; ok = .false.
+            end if
+         end if
+         call solid_earth_finalize(se)
+         if (se%rotation%enabled .or. se%use_vilma_v1 .or. se%remap .or. associated(se%sht) &
+             .or. allocated(se%rsl) .or. allocated(se%gg%h_ice) .or. allocated(se%sigma_lm) &
+             .or. allocated(se%rotation%load_ch%Are) .or. se%time /= 0.0_wp &
+             .or. se%stepper%n_accept /= 0 .or. se%sle%n_solve /= 0 .or. se%bsl /= 0.0_wp) then
+            write(*,'(a)') '   FAIL: solid_earth_finalize left state behind'; ok = .false.
+         end if
+      end do
+   end subroutine reinit_check
+
+   subroutine dt_min_check()
+      !! The explicit sub-step is the stability ceiling cfl/max(mu/eta) (278 yr for the
+      !! default earth: 8 sub-steps in 2 kyr). A dt_min above it overrides it and must be
+      !! flagged; one below it changes nothing.
+      type(vilma_param_class) :: pr
+      type(solid_earth)    :: se
+      real(wp), allocatable :: h(:,:)
+      integer :: pass, nsub(2)
+      logical :: flag(2)
+      allocate(h(sht%nphi,sht%nlat));  call make_load(h)
+      pr%lmax = LMAX;  pr%nlat = 2*LMAX;  pr%nphi = 4*LMAX;  pr%rotation = .false.
+      do pass = 1, 2
+         pr%dt_min = merge(100.0_wp, 400.0_wp, pass == 1)*sec_per_year
+         se%par = pr; call solid_earth_init(se, z_bed_eq, h_ice_eq)
+         call solid_earth_update(se, h, dt_couple)
+         nsub(pass) = se%stepper%n_accept;  flag(pass) = se%stepper%dt_min_overrides
+         call solid_earth_finalize(se)
+      end do
+      write(*,'(a)') ''
+      write(*,'(a,i0,a,l1,a,i0,a,l1)') '   dt_min 100 yr: ', nsub(1), ' sub-steps, overrides=', flag(1), &
+           '   dt_min 400 yr: ', nsub(2), ' sub-steps, overrides=', flag(2)
+      if (flag(1) .or. .not. flag(2) .or. nsub(1) /= 8 .or. nsub(2) /= 5) then
+         write(*,'(a)') '   FAIL: dt_min over the stability sub-step is not flagged (or the sub-steps changed)'
+         ok = .false.
+      end if
+   end subroutine dt_min_check
+
+   subroutine elastic_rotation_check()
+      !! earth_response = "elastic" with the rotation on (the default) must initialise and
+      !! run: the rotation channels are then elastic as well (no relaxation), so the polar
+      !! motion under a held load is the same after every interval.
+      type(vilma_param_class) :: pr
+      type(solid_earth)    :: se
+      real(wp), allocatable :: h_off(:,:)
+      complex(wp) :: m1, m2
+      allocate(h_off(sht%nphi,sht%nlat));  call make_load_offaxis(h_off)
+      pr%lmax = LMAX;  pr%nlat = 2*LMAX;  pr%nphi = 4*LMAX
+      pr%earth_response = "elastic";  pr%rotation = .true.
+      se%par = pr; call solid_earth_init(se, z_bed_eq, h_ice_eq)
+      call solid_earth_update(se, h_off, dt_couple);  m1 = se%rotation%m
+      call solid_earth_update(se, h_off, dt_couple);  m2 = se%rotation%m
+      write(*,'(a)') ''
+      write(*,'(a,es10.3,a,es10.2)') '   elastic + rotation: |m| = ', abs(m1), ' rad   |m(2) - m(1)| = ', abs(m2 - m1)
+      if (.not. (abs(m1) > 0.0_wp) .or. abs(m2 - m1) > 1.0e-5_wp*abs(m1) &
+          .or. maxval(se%rotation%load_ch%MkPerDt) /= 0.0_wp) then
+         write(*,'(a)') '   FAIL: an elastic Earth with rotation does not give a steady polar motion'; ok = .false.
+      end if
+      call solid_earth_finalize(se)
+   end subroutine elastic_rotation_check
+
+   subroutine sle_cap_check()
+      !! The convergence record of the sea-level solves: with the defaults none ends at a
+      !! cap and the residual is within sle_tol; with one inner iteration every solve ends
+      !! at that cap and the residual says how far it is from the fixed point.
+      type(vilma_param_class) :: pr
+      type(solid_earth)    :: se
+      real(wp), allocatable :: h(:,:)
+      integer :: pass
+      allocate(h(sht%nphi,sht%nlat));  call make_load(h)
+      pr%lmax = LMAX;  pr%nlat = 2*LMAX;  pr%nphi = 4*LMAX;  pr%rotation = .false.
+      write(*,'(a)') ''
+      do pass = 1, 2
+         if (pass == 2) pr%sle_n_inner = 1
+         se%par = pr; call solid_earth_init(se, z_bed_eq, h_ice_eq)
+         call solid_earth_update(se, h, dt_couple)
+         write(*,'(a,i0,a,es10.2,a,i0,a,i0,a,i0,a,i0)') '   sle_n_inner=', se%sle%n_inner, ': resid ', &
+              se%sle_resid, '   solves ', se%sle_n_solve, '   capped inner/coast/mem ', se%sle_n_cap_inner, &
+              '/', se%sle_n_cap_coast, '/', se%sle_n_cap_mem
+         if (pass == 1 .and. (se%sle_n_cap_inner + se%sle_n_cap_coast + se%sle_n_cap_mem /= 0 &
+                              .or. se%sle_resid > pr%sle_tol .or. se%sle_n_solve < 1)) then
+            write(*,'(a)') '   FAIL: a default solve reports a cap or a residual above sle_tol'; ok = .false.
+         end if
+         if (pass == 2 .and. (se%sle_n_cap_inner < 1 .or. se%sle_resid <= pr%sle_tol)) then
+            write(*,'(a)') '   FAIL: a solve cut at one inner iteration is not reported as capped'; ok = .false.
+         end if
+         call solid_earth_finalize(se)
+      end do
+   end subroutine sle_cap_check
 
    subroutine make_load_offaxis(h_ice)
       !! A 2 km grounded cap centred at colat 35°, lon 90° (off the rotation axis, on

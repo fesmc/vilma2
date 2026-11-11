@@ -15,7 +15,7 @@ program test_params
 
    character(len=*), parameter :: NML  = "libvilma/include/test_params.nml"
    character(len=*), parameter :: DEFS = "input/vilma_defaults.nml"   ! shipped complete &vilma defaults
-   type(vilma_param_class) :: p, pdef
+   type(vilma_param_class) :: p, pdef, pfile
    type(earth_model)    :: em, emdef
    integer :: u
    logical :: ok
@@ -78,7 +78,13 @@ program test_params
    ! --- (5) un-overridden values fall through to the defaults file -------------
    call check_int("fallthrough max_couple_iter", p%max_couple_iter, 20)
    call check_int("fallthrough sle_n_inner",     p%sle_n_inner,     20)
-   call check_int("default visc_3d_structure",   pdef%visc_3d_structure, 0)
+   call check_int("default visc_3d_structure",   pdef%visc_3d_structure, 6)
+
+   ! --- (5b) one source of truth: the shipped defaults file IS the in-code defaults ----
+   ! (a host fills the record in memory and never reads the file). lmax (required) and
+   ! the custom-layer arrays (inert unless earth = "custom") are the file's own.
+   call vilma_par_load(pfile, DEFS)
+   call same_defaults(pfile, pdef)
 
    ! --- (6) ~/ and $HOME/ expansion in file paths ------------------------------
    call get_environment_variable("HOME", home)
@@ -98,6 +104,60 @@ program test_params
    end if
 
 contains
+
+   subroutine same_defaults(a, b)
+      !! Every parameter that acts without earth = "custom" agrees between a and b.
+      type(vilma_param_class), intent(in) :: a, b
+      call check_str("defaults: solver", trim(a%solver), trim(b%solver))
+      call check_int("defaults: nlat", a%nlat, b%nlat);  call check_int("defaults: nphi", a%nphi, b%nphi)
+      call check_int("defaults: mmax", a%mmax, b%mmax);  call check_int("defaults: mres", a%mres, b%mres)
+      call check_real("defaults: eps_polar", a%eps_polar, b%eps_polar)
+      call check_str("defaults: earth", trim(a%earth), trim(b%earth))
+      call check_str("defaults: scheme", trim(a%scheme), trim(b%scheme))
+      call check_str("defaults: earth_response", trim(a%earth_response), trim(b%earth_response))
+      call check_int("defaults: sle_n_outer", a%sle_n_outer, b%sle_n_outer)
+      call check_int("defaults: sle_n_inner", a%sle_n_inner, b%sle_n_inner)
+      call check_real("defaults: sle_tol", a%sle_tol, b%sle_tol)
+      call check_int("defaults: sle_max_mem_iter", a%sle_max_mem_iter, b%sle_max_mem_iter)
+      call check_log("defaults: sle_fixed_ocean", a%sle_fixed_ocean, b%sle_fixed_ocean)
+      call check_log("defaults: sle_subgrid", a%sle_subgrid, b%sle_subgrid)
+      call check_real("defaults: rho_ice", a%rho_ice, b%rho_ice)
+      call check_real("defaults: rho_water", a%rho_water, b%rho_water)
+      call check_real("defaults: dt_init", a%dt_init, b%dt_init)
+      call check_real("defaults: dt_min", a%dt_min, b%dt_min)
+      call check_real("defaults: rtol", a%rtol, b%rtol);  call check_real("defaults: atol", a%atol, b%atol)
+      call check_real("defaults: safety", a%safety, b%safety)
+      call check_real("defaults: grow_max", a%grow_max, b%grow_max)
+      call check_real("defaults: shrink_min", a%shrink_min, b%shrink_min)
+      call check_real("defaults: cfl", a%cfl, b%cfl)
+      call check_log("defaults: rotation", a%rotation, b%rotation)
+      call check_real("defaults: rotation_k_s", a%rotation_k_s, b%rotation_k_s)
+      call check_real("defaults: rotation_c_minus_a", a%rotation_c_minus_a, b%rotation_c_minus_a)
+      call check_real("defaults: equil_time_max", a%equil_time_max, b%equil_time_max)
+      call check_real("defaults: equil_rate_tol", a%equil_rate_tol, b%equil_rate_tol)
+      call check_log("defaults: pre_spinup_1d", a%pre_spinup_1d, b%pre_spinup_1d)
+      call check_str("defaults: deg1_frame", trim(a%deg1_frame), trim(b%deg1_frame))
+      call check_log("defaults: l_visc_3d", a%l_visc_3d, b%l_visc_3d)
+      call check_str("defaults: visc_3d_file", trim(a%visc_3d_file), trim(b%visc_3d_file))
+      call check_int("defaults: visc_3d_structure", a%visc_3d_structure, b%visc_3d_structure)
+      call check_str("defaults: name_visc", trim(a%name_visc), trim(b%name_visc))
+      call check_str("defaults: name_visc_lon", trim(a%name_visc_lon), trim(b%name_visc_lon))
+      call check_str("defaults: name_visc_lat", trim(a%name_visc_lat), trim(b%name_visc_lat))
+      call check_str("defaults: name_visc_r", trim(a%name_visc_r), trim(b%name_visc_r))
+      call check_str("defaults: name_visc_sd", trim(a%name_visc_sd), trim(b%name_visc_sd))
+      call check_real("defaults: f_visc_sd", a%f_visc_sd, b%f_visc_sd)
+      call check_real("defaults: f_visc_rel", a%f_visc_rel, b%f_visc_rel)
+      call check_str("defaults: visc_shift_file", trim(a%visc_shift_file), trim(b%visc_shift_file))
+      call check_real("defaults: visc_log10_min", a%visc_log10_min, b%visc_log10_min)
+      call check_real("defaults: visc_log10_max", a%visc_log10_max, b%visc_log10_max)
+      call check_real("defaults: visc3d_lid_depth", a%visc3d_lid_depth, b%visc3d_lid_depth)
+      call check_real("defaults: visc3d_lid_log10max", a%visc3d_lid_log10max, b%visc3d_lid_log10max)
+      call check_real("defaults: visc3d_tol", a%visc3d_tol, b%visc3d_tol)
+      call check_log("defaults: l_toroidal", a%l_toroidal, b%l_toroidal)
+      call check_int("defaults: vilma_v1_jmax", a%vilma_v1_jmax, b%vilma_v1_jmax)
+      call check_int("defaults: vilma_v1_l_prem", a%vilma_v1_l_prem, b%vilma_v1_l_prem)
+      call check_int("defaults: vilma_v1_nsub", a%vilma_v1_nsub, b%vilma_v1_nsub)
+   end subroutine same_defaults
 
    subroutine check_int(name, got, want)
       character(len=*), intent(in) :: name

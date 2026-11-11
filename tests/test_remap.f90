@@ -2,9 +2,13 @@ program test_remap
    !! Conservative lon-lat -> Gauss remap (vilma_remap): constant preservation, latitude
    !! orientation (the ascending<->SHTns-row flip), zonal-field accuracy, and the
    !! optional global mass-rescale (SHTns surface integral == source area integral).
+   !! Then the source-grid cases: latitudes descending (the same result as ascending), and
+   !! a regional source (the Northern Hemisphere): an ice field keeps its mass and its
+   !! thickness and is zero outside the source, and the grid reports that it does not
+   !! cover the sphere (a bed or a fraction cannot come from it).
    use vilma_precision, only: wp
    use vilma_sht,       only: sht_grid, sht_grid_init, sht_grid_surface_integral, sht_grid_destroy
-   use vilma_remap,     only: remap_ll_gauss, remap_init, remap_to_gauss, remap_to_ll
+   use vilma_remap,     only: remap_ll_gauss, remap_init, remap_to_gauss, remap_to_ll, remap_covers_sphere
    implicit none
 
    integer,  parameter :: LMAX = 32
@@ -99,6 +103,79 @@ program test_remap
       end do
       write(*,'(a,es10.2)') '   reverse bilinear sin(lat) err = ', emax
       if (emax > 5.0e-2_wp) then; write(*,*) 'FAIL: reverse bilinear beyond tol'; ok = .false.; end if
+   end block
+
+   ! (5) source latitudes descending: the same Gauss field as the ascending source, and the
+   !     reverse leg returns rows in the source's own (descending) order
+   block
+      type(remap_ll_gauss)  :: rdesc
+      real(wp), allocatable :: fa(:,:), fd(:,:), la(:,:), ld(:,:)
+      allocate(fa(sht%nphi,sht%nlat), fd(sht%nphi,sht%nlat), la(NLON,NLAT_S), ld(NLON,NLAT_S))
+      call remap_init(rdesc, sht, lon_s, lat_s(NLAT_S:1:-1))
+      call remap_to_gauss(rmap,  sht, fsrc, fa, conserve_mass=.true.)
+      call remap_to_gauss(rdesc, sht, fsrc(:, NLAT_S:1:-1), fd, conserve_mass=.true.)
+      call remap_to_ll(rmap,  fa, la)
+      call remap_to_ll(rdesc, fa, ld)
+      write(*,'(a,es10.2,a,es10.2)') '   descending source: max|to_gauss diff| = ', maxval(abs(fd - fa)), &
+           '   max|to_ll diff| = ', maxval(abs(ld(:, NLAT_S:1:-1) - la))
+      if (maxval(abs(fd - fa)) > 1.0e-12_wp .or. maxval(abs(ld(:, NLAT_S:1:-1) - la)) > 1.0e-12_wp) then
+         write(*,*) 'FAIL: a source with descending latitudes is not remapped as the ascending one'; ok = .false.
+      end if
+      if (.not. (remap_covers_sphere(rmap) .and. remap_covers_sphere(rdesc))) then
+         write(*,*) 'FAIL: a global source reported as regional'; ok = .false.
+      end if
+   end block
+
+   ! (6) regional source, the Northern Hemisphere on the same 5-degree cells: an ice cap of
+   !     1000 m north of 60N. Its mass on the Gauss grid is the source's (not 4 pi R^2 / A_src
+   !     = 2 times it), the thickness is not inflated, and south of the source there is none.
+   block
+      integer, parameter :: NLAT_N = NLAT_S/2
+      type(remap_ll_gauss)  :: rnh
+      real(wp), allocatable :: latn(:), ice(:,:), g(:,:)
+      real(wp) :: m_src, m_gauss, r2, south
+      allocate(latn(NLAT_N), ice(NLON,NLAT_N), g(sht%nphi,sht%nlat))
+      do j = 1, NLAT_N;  latn(j) = (real(j,wp)-0.5_wp)*(180.0_wp/NLAT_S);  end do
+      call remap_init(rnh, sht, lon_s, latn)
+      do j = 1, NLAT_N
+         ice(:,j) = merge(1000.0_wp, 0.0_wp, latn(j) > 60.0_wp)
+      end do
+      call remap_to_gauss(rnh, sht, ice, g, conserve_mass=.true.)
+      r2      = sum(rnh%gauss%area)/(16.0_wp*atan(1.0_wp))          ! R^2 of the coords sphere
+      m_src   = sum(ice*rnh%ll%area)                                ! source volume [m^3]
+      m_gauss = sht_grid_surface_integral(sht, g)*r2
+      south = 0.0_wp
+      do j = 1, sht%nlat
+         if (90.0_wp - sht%colat(j)*RAD2DEG < -3.0_wp) south = max(south, maxval(abs(g(:,j))))
+      end do
+      write(*,'(a,es10.2,a,f9.3,a,es9.2,a,l1)') '   regional (NH) ice: volume rel. error = ', &
+           abs(m_gauss - m_src)/m_src, '   max thickness = ', maxval(g), ' m   max south of it = ', south, &
+           '   covers sphere = ', remap_covers_sphere(rnh)
+      if (abs(m_gauss - m_src) > 1.0e-10_wp*m_src) then
+         write(*,*) 'FAIL: a regional ice field does not keep its mass'; ok = .false.
+      end if
+      ! thickness to 2e-3: coords' overlap areas are good to ~1e-3 of a cell (worst at the
+      ! pole), and the mass rescale spreads that over the cap
+      if (maxval(g) > 1000.0_wp*(1.0_wp + 2.0e-3_wp) .or. maxval(g) < 998.0_wp) then
+         write(*,*) 'FAIL: a regional ice field changes its thickness'; ok = .false.
+      end if
+      if (south /= 0.0_wp) then
+         write(*,*) 'FAIL: ice outside the regional source'; ok = .false.
+      end if
+      if (remap_covers_sphere(rnh)) then
+         write(*,*) 'FAIL: a hemisphere reported as covering the sphere'; ok = .false.
+      end if
+      ! ice up to the edge of the source: the Gauss row the edge cuts carries its share
+      ice = 1000.0_wp
+      call remap_to_gauss(rnh, sht, ice, g, conserve_mass=.true.)
+      m_src   = sum(ice*rnh%ll%area)
+      m_gauss = sht_grid_surface_integral(sht, g)*r2
+      write(*,'(a,es10.2,a,f9.3,a)') '   regional (NH) ice to the edge: volume rel. error = ', &
+           abs(m_gauss - m_src)/m_src, '   max thickness = ', maxval(g), ' m'
+      if (abs(m_gauss - m_src) > 1.0e-10_wp*m_src .or. maxval(g) > 1000.0_wp*(1.0_wp + 1.0e-3_wp) &
+          .or. minval(g(:, 1:sht%nlat/2 - 2)) < 1000.0_wp*(1.0_wp - 1.0e-3_wp)) then
+         write(*,*) 'FAIL: regional ice reaching the edge of the source is not conserved'; ok = .false.
+      end if
    end block
 
    call sht_grid_destroy(sht)

@@ -20,7 +20,7 @@ program vilma_mkref
    implicit none
 
    real(wp), parameter :: RAD2DEG = 57.295779513082323_wp
-   character(len=512)  :: cfg
+   character(len=512)  :: cfg, defs
    type(vilma_param_class) :: p
    type(vilma_ctl_class)   :: c
    type(sht_grid)       :: sht
@@ -35,7 +35,9 @@ program vilma_mkref
    else
       cfg = "vilma.nml"
    end if
-   call vilma_par_load(p, cfg, defaults_file=DEFAULTS_FILE)
+   defs = DEFAULTS_FILE                        ! the [defaults.nml] argument overrides it
+   if (command_argument_count() >= 2) call get_command_argument(2, defs)
+   call vilma_par_load(p, trim(cfg), defaults_file=trim(defs))
    call vilma_ctl_load(c, cfg)
    if (len_trim(c%z_bed_ref_file) == 0) error stop 'vilma_mkref: z_bed_ref_file not set'
    if (len_trim(c%h_ice_ref_file) == 0) error stop 'vilma_mkref: h_ice_ref_file not set'
