@@ -3,7 +3,9 @@
 ## `geo_ice_glac1d_deglac.nc`
 
 Forcing for the **last-deglaciation experiment**: GLAC-1D
-(Tarasov) ice thickness, LGM → present-day, with bedrock for comparison.
+(Tarasov) ice thickness, LGM → present-day, with bedrock for comparison. It is
+the forcing of the validation deglaciation runs (the LGM reference and the
+VILMA2/VILMA1 pairs under `validation/`); no unit test or example uses it.
 
 - **Source:** `geo_ice_tarasov_deglac.nc` as distributed with **CLIMBER-X**
   (`input/`), labelled "Tarasov PMIP4" per-variable and "Tarasov GLAC1D" in the
