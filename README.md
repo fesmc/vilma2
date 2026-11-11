@@ -106,8 +106,8 @@ compiles with `-I<vilma>/libvilma/include` and links, in this order,
 
 ### Host-resolved terms (optional)
 
-A host that resolves the ice margin on its own grid inside regions of weight `w` can pass, per
-unit Gauss-cell area, the grounded-ice column `I_g = w·H·f_g`, the ocean fraction
+A host that resolves the ice margin on its own grid inside regions of weight `w` can pass, on that
+grid and per unit cell area, the grounded-ice column `I_g = w·H·f_g`, the ocean fraction
 `C = w·(1−f_g)` and the flooded-area fill `F = w·ζ⁽⁰⁾·(C − C_ref)`:
 
 ```fortran
@@ -185,7 +185,7 @@ behind a single `use vilma`:
 ```fortran
 use vilma
 type(solid_earth) :: se
-call vilma_par_load(se%par, "vilma.nml")
+call vilma_par_load(se%par, "vilma.nml", defaults_file=DEFAULTS_FILE)
 call solid_earth_init(se, z_bed_eq, h_ice_eq, grid=host_grid, time=t0)  ! Gauss grid + remap; clock [yr]
 call solid_earth_update(se, h_ice, dt_yr)   ! advance dt_yr [years]; read se%rsl, se%z_bed
                                             ! (rsl = se%dz_ss - se%dz_bed: sea-surface and bed change)

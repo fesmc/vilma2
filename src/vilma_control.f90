@@ -58,8 +58,8 @@ module vilma_control
       ! --- online lon-lat -> Gauss remap of the forcing -------------------------
       logical  :: remap_input = .true.   !! .true.: forcing is lon-lat, remap on the fly;
                                          !! .false.: forcing already on the Gauss grid (legacy)
-      character(len=64) :: name_lon = "lon"  !! source longitude axis variable [deg]
-      character(len=64) :: name_lat = "lat"  !! source latitude  axis variable [deg]
+      character(len=64) :: name_lon = "lon"  !! longitude axis of every 2-D input file [deg], both modes
+      character(len=64) :: name_lat = "lat"  !! latitude  axis of every 2-D input file [deg], both modes
 
       ! --- reference / equilibration selector -----------------------------------
       ! The relaxed reference (z_bed_eq = SLE topo0, h_ice_eq) is set by i_eq,
@@ -86,8 +86,8 @@ module vilma_control
       ! restart_in_dir and never reads this field.
       character(len=512) :: restart_in_file = ""
          !! full-state restart (vilma_restart.nc) to resume from: solid_earth_init at the
-         !! reference, then restore the saved memory/clock. A lower-resolution restart is
-         !! interpolated up to the model grid.
+         !! reference, then restore the saved memory/clock; a spin-up, if enabled, then
+         !! runs from it. A lower-degree restart is zero-padded in the higher degrees.
       logical :: restart_time_reset = .false.
          !! A restart continues where it left off: the window starts at the restart's time
          !! (time_init unset), and a time_init that selects another start slice stops the
