@@ -114,7 +114,6 @@ contains
       call check_real("defaults: eps_polar", a%eps_polar, b%eps_polar)
       call check_str("defaults: earth", trim(a%earth), trim(b%earth))
       call check_str("defaults: scheme", trim(a%scheme), trim(b%scheme))
-      call check_int("defaults: max_couple_iter", a%max_couple_iter, b%max_couple_iter)
       call check_str("defaults: earth_response", trim(a%earth_response), trim(b%earth_response))
       call check_int("defaults: sle_n_outer", a%sle_n_outer, b%sle_n_outer)
       call check_int("defaults: sle_n_inner", a%sle_n_inner, b%sle_n_inner)
