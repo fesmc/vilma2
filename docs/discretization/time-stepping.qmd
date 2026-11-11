@@ -54,8 +54,7 @@ according to the memory scheme (see [Rheology](../physics/rheology.qmd#memory-ti
 The `dt_*` parameters are given in years. The coupling interval itself is not
 a parameter: the host, or the forcing time axis of the standalone driver,
 passes it with each update. The ice load is interpolated linearly between the
-interval endpoints. `scheme = "etd1"` follows the `"fe"` path here and
-`scheme = "be"` the `"trap"` path (see
+interval endpoints. `scheme` is `"fe"` or `"trap"` (see
 [Rheology](../physics/rheology.qmd#memory-time-schemes)).
 
 ## The viscoelastic field driver
@@ -89,8 +88,6 @@ step endpoint is iterated: the drift is re-solved against the trial
 $\boldsymbol{\tau}^{V,i}$ until the surface drift stops changing (relative
 change below $10^{-6}$). In the sea-level solve the water load is re-converged
 in each of these passes, up to `sle_max_mem_iter` passes (default 20).
-`max_couple_iter` caps the passes of `commit_step` only, so it does not affect
-a model run.
 
 Each complex $(\ell,m)$ history is stored as two real histories (real/imaginary),
 since the operator and $M=\mu\Delta t/\eta$ are real. The per-element Maxwell

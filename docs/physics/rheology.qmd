@@ -81,19 +81,10 @@ the sea-level solve, so the ocean load converges together with the memory. It
 stops when the surface drift changes by less than $10^{-6}$ (relative) between
 passes, or after `sle_max_mem_iter` passes (default 20).
 
-`scheme` also accepts `"etd1"` and `"be"`, but the coupled model has no update
-of its own for them. The exponential (`"etd1"`) and backward-Euler (`"be"`)
-updates exist only in the single-degree stepper (`ve_degree`), as controls for
-testing. `test_etd1` records that the exponential update is less accurate
-than `"fe"` at resolved steps. The field driver advances `"etd1"` exactly as `"fe"`.
-It advances `"be"` with the trapezoidal update, while the step controller
-treats the result as first order. Neither value is meant for production runs.
-Any other string stops the run.
-
-`max_couple_iter` (default 20) caps the same endpoint iteration in
-`commit_step`, the variant that holds the load fixed. The coupled model does
-not call `commit_step`, so this parameter has no effect on a model run. It is
-used by the response-level tests only.
+`scheme` takes `"fe"` or `"trap"`; any other value stops the run. The
+exponential (ETD1) and backward-Euler updates exist only in the single-degree
+stepper (`ve_degree`), as controls for the convergence tests (`test_etd1`,
+`test_couple_order`); they are not settings of the model.
 
 ::: {.callout-note title="Why explicit, not implicit or normal-mode"}
 With the explicit update, the memory stress at step $i$ depends only on the
@@ -183,9 +174,10 @@ in a fixed order. Each stage acts on the result of the previous one.
    `dlog10_visc(lon, lat, r)` in dex, with the fixed names `lon`, `lat` and
    `r` (radius in meters). It is read and interpolated as the field itself and
    added to it. This changes viscosity by region and depth, for example per
-   ensemble member. Outside the radial range of the file the shift of the
-   nearest level applies, not zero. A shift meant for one depth range must
-   therefore carry zero levels at the edges of that range. `visc_shift_file`
+   ensemble member. Outside the radial range of the file the shift is zero, so
+   a file that covers only the upper mantle shifts only the upper mantle. A
+   NaN, Inf or fill value in the viscosity, its standard deviation or the
+   shift stops the run, naming the file and variable. `visc_shift_file`
    needs `l_visc_3d = .true.`; the run stops otherwise.
 4. **Clamp** to [`visc_log10_min`, `visc_log10_max`] (defaults 19.5 and 30.0).
    The floor bounds the fastest relaxation and so the time step (see
