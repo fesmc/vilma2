@@ -10,6 +10,7 @@
 #   ./run.sh prep      export the LGM reference, write the shared viscosity files
 #   ./run.sh D         deglaciation, VILMA2, 3-D and 1Db, lmax 170
 #   ./run.sh V1        the same through the VILMA1 backend
+#   ./run.sh T         D's 3-D run with the toroidal field on (V7)
 #   ./run.sh E         sensitivity: lmax 64/128/256 and visc3d_tol
 #   ./run.sh reduce    runs/ -> data/published/
 #   ./run.sh analyse   figures (docs/benchmarks/figures, figures/) and tables/
@@ -185,6 +186,14 @@ stage_V1() {
     ./experiments/run_deglac.sh blockDV1
 }
 
+stage_T() {
+  require_prep
+  say "deglaciation, VILMA2 3-D with the toroidal field (V7)"
+  SCHEME=fe LMAX_D=$LMAX DEG1=cm \
+    IEQ=2 ZEQ="$REF_NC" HEQ="$REF_NC" EQUIL=0.0 PRE1D=.false. \
+    ./experiments/run_deglac.sh blockD-tor
+}
+
 stage_E() {
   require_prep
   say "sensitivity: truncation and visc3d_tol"
@@ -205,7 +214,8 @@ stage_reduce()  { say "reduce — runs/ -> data/published/"; jl analysis/make_re
 # script:published input it needs; a script whose input is absent is skipped.
 ANALYSIS=(run_blockA.jl:blockA.nc run_blockB.jl:bench_visc3d
           run_deglac_maps.jl:blockD run_blockD_diags.jl:blockD
-          check_v2v1.jl:v2v1.nc v2v1_series_maps.jl:v2v1.nc run_blockE.jl:blockE.nc)
+          check_v2v1.jl:v2v1.nc v2v1_series_maps.jl:v2v1.nc
+          run_toroidal.jl:blockD/D-V2-3D.l170.tor.nc run_blockE.jl:blockE.nc)
 stage_analyse() {
   local e s failed=()
   [ -d data/published ] || die "data/published/ is missing -- run './run.sh reduce'"
@@ -242,6 +252,7 @@ while [ $# -gt 0 ]; do
     prep)    stage_prep ;;
     D)       stage_D ;;
     V1)      stage_V1 ;;
+    T)       stage_T ;;
     E)       stage_E ;;
     reduce)  stage_reduce ;;
     analyse) stage_analyse ;;

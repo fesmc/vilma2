@@ -5,6 +5,7 @@
 #
 #   ./experiments/run_deglac.sh blockD       VILMA2, Earth structures $STRUCTS
 #   ./experiments/run_deglac.sh blockD-res   VILMA2 3-D at the truncations $LMAX_LIST_D
+#   ./experiments/run_deglac.sh blockD-tor   VILMA2 3-D with the toroidal field (V7)
 #   ./experiments/run_deglac.sh blockDV1     the VILMA1 backend, $STRUCTS (needs EXE)
 #   ./experiments/run_deglac.sh blockE-tol   VILMA2 3-D over visc3d_tol
 #
@@ -47,7 +48,7 @@ nmlD() {
       -e "s/@EQTOL@/${EQTOL:-1.0e-3}/g" \
       -e "s/@IEQ@/${IEQ:-1}/g" -e "s|@ZEQ@|${ZEQ:-}|g" -e "s|@HEQ@|${HEQ:-}|g" \
       -e "s|@VISCF@|${VISCF:-$V_VISC_BAGGE}|g" \
-      -e "s|@DEG1@|${DEG1:-cm}|g" \
+      -e "s|@DEG1@|${DEG1:-cm}|g" -e "s|@LTOR@|${LTOR:-.false.}|g" \
       -e "s|@LIDDEPTH@|$LID_DEPTH|g" -e "s|@LIDMAX@|$LID_LOG10MAX|g" \
       "$TMPL_D" > "$out"
   check_nml "$out"
@@ -89,8 +90,9 @@ mode=${1:-}
 case "$mode" in
   blockD|blockD-res) RUNS="${RUNS_BLOCKD:-$VALIDATION/runs/blockD_v2}" ;;
   blockDV1)          RUNS="${RUNS_BLOCKD:-$VALIDATION/runs/blockD_v1}" ;;
+  blockD-tor)        RUNS="${RUNS_BLOCKD:-$VALIDATION/runs/blockD_tor}" ;;
   blockE-tol)        RUNS="${RUNS_BLOCKD:-$VALIDATION/runs/blockE}" ;;
-  *) echo "usage: $0 {blockD|blockD-res|blockDV1|blockE-tol}" >&2; exit 1 ;;
+  *) echo "usage: $0 {blockD|blockD-res|blockDV1|blockD-tor|blockE-tol}" >&2; exit 1 ;;
 esac
 mkdir -p "$RUNS"
 echo "model   : $MODEL ($(cd "$MODEL" && git rev-parse --short HEAD))"
@@ -147,6 +149,17 @@ case "$mode" in
       go "${MODEL_TAG:-D-V1}-$st.l$L.${SCHEME:-fe}" \
          "$(nmlDV1 "${NML_TAG:-dV1}_${st}_${L}" "$L" "$v3" -26000.0)" "$EXE"
     done
+    ;;
+
+  # V7: the D-V2-3D row with the toroidal field of the 3-D elements carried
+  # (l_toroidal); everything else identical, so tor minus D-V2-3D.l170.fe is the
+  # toroidal effect. Six more memory channels per 3-D element: allow more wall.
+  blockD-tor)
+    L=${LMAX_D:-170}; SCH=${SCHEME:-fe}; RT=${RTOL:-1.0e-4}
+    export VISCF="$V_VISC_BAGGE" LTOR=.true.
+    go "${MODEL_TAG:-D-V2}-3D.l$L.tor" \
+       "$(nmlD "${NML_TAG:-dT}_tor_${L}" "$L" "$SCH" "$RT" "${EQUIL:-100000.0}" \
+          "${PRE1D:-.true.}" .true. 1.0e-3 -26000.0)"
     ;;
 
   # visc3d_tol, the speed/accuracy lever of the 3-D path, on the D-V2-3D row.
