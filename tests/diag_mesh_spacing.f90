@@ -92,7 +92,7 @@ program diag_mesh_spacing
    write(*,'(/,a)') ' (B) M3-L70-V01 Love numbers vs the normal-mode table: max |rel. error| [%]'
    write(*,'(a)') '     scale    ne | elastic h, l, k: j<=48          j<=256             | fluid h, l, k: j<=8'
    do is = 1, 4
-      call love_errors(SCALES(is))
+      call love_errors(SCALES(is), reshape([he, le, ke, hf, lf, kf], [NMAX, 6]))
    end do
 
    if (trim(arg) == 'love') then
@@ -199,8 +199,9 @@ contains
       end do
    end function ne_layer_rule
 
-   subroutine love_errors(scale)
-      real(wp), intent(in) :: scale
+   subroutine love_errors(scale, tab)
+      !! tab: the table's elastic h, l, k and fluid h, l, k by degree (columns).
+      real(wp), intent(in) :: scale, tab(:,:)
       type(earth_model)     :: em, ef
       type(radial_mesh)     :: m
       type(radial_operator) :: op
@@ -215,15 +216,14 @@ contains
          call radial_operator_assemble(op, em, m, j)
          call radial_operator_solve(op, 1.0_wp, uu, vv, ff)
          call loading_love(em, j, 1.0_wp, uu, vv, ff, h, l, k)
-         d(1) = reldiff(h, he(j));  d(2) = reldiff(l, le(j));  d(3) = reldiff(k, ke(j))
-         if (j == 2 .and. scale == 1.0_wp) write(*,'(a,2f12.6)') '     (elastic h at degree 2, model and table:', h, he(j)
+         d(1) = reldiff(h, tab(j,1));  d(2) = reldiff(l, tab(j,2));  d(3) = reldiff(k, tab(j,3))
          if (j <= 48) ee(:,1) = max(ee(:,1), d)
          ee(:,2) = max(ee(:,2), d)
          if (j <= 8) then
             call radial_operator_assemble(op, ef, m, j)
             call radial_operator_solve(op, 1.0_wp, uu, vv, ff)
             call loading_love(ef, j, 1.0_wp, uu, vv, ff, h, l, k)
-            d(1) = reldiff(h, hf(j));  d(2) = reldiff(l, lf(j));  d(3) = reldiff(k, kf(j))
+            d(1) = reldiff(h, tab(j,4));  d(2) = reldiff(l, tab(j,5));  d(3) = reldiff(k, tab(j,6))
             ef8 = max(ef8, d)
          end if
       end do
