@@ -182,7 +182,7 @@ function fig_disc(r)
                  strokewidth = 0, label = lab)
     end
     vlines!(ax2, [10.0], color = C_GREY, linestyle = :dash)
-    axislegend(ax2, position = :lb)
+    # no legend here: the epochs are the colours of (a), and every corner has data
 
     if !isempty(els)
         ax3 = Axis(fig[2, 1], xlabel = "colatitude θ [deg]", ylabel = "geoid N [m]",
@@ -349,7 +349,7 @@ function fig_sle_profiles(id)
             lines!(ax, d[:, 1], d[:, cm], color = C_MODEL, linewidth = 2, label = "VILMA2")
             scatter!(ax, d[1:8:end, 1], d[1:8:end, cr], color = C_REF, markersize = 6,
                      strokewidth = 0, label = "Martinec et al. (2018)")
-            (i == 1 && jx == 1) && axislegend(ax, position = :rt)
+            (i == 1 && jx == 1) && axislegend(ax, position = :rb)
         end
     end
     panels!(fig, [(i, jx) for i in 1:length(have) for jx in 1:3])
@@ -401,7 +401,7 @@ function fig_sle_benchmark(cases; show_case = "D3")
         lines!(ax, d[:, 1], d[:, cm], color = C_MODEL, linewidth = 2, label = "VILMA2")
         scatter!(ax, d[1:8:end, 1], d[1:8:end, cr], color = C_REF, markersize = 6,
                  strokewidth = 0, label = "Martinec et al. (2018)")
-        jx == 1 && axislegend(ax, position = :rt)
+        jx == 1 && axislegend(ax, position = :rb)
     end
 
     ax4 = Axis(fig[2, 1], xlabel = "time [kyr]", ylabel = "eustatic sea level [m]")
@@ -425,7 +425,7 @@ function fig_sle_benchmark(cases; show_case = "D3")
     end
     ylims!(ax5, 1e-18, 1e-13)
     hlines!(ax5, [eps(Float64)], color = C_GREY, linestyle = :dash)
-    axislegend(ax4, position = :lb)
+    axislegend(ax4, position = :rc)
 
     ax6 = Axis(fig[2, 3], ylabel = "peak-normalized max error [%]",
                xticks = (1:length(errs), [c for (c, _) in errs]))
@@ -514,7 +514,7 @@ function fig_rotation(r)
         scatterlines!(ax3, tab[:, 1], rel, color = col, markersize = 8, label = b)
     end
     axislegend(ax1, position = :rb)
-    axislegend(ax2, position = :lb)
+    axislegend(ax2, position = :rc)      # between the m1 and m2 curves
     axislegend(ax3, position = :rt)
     panels!(fig, [(1, 1), (1, 2), (1, 3)])
 

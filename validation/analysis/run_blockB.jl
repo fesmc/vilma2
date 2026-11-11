@@ -72,9 +72,9 @@ end
 function fig_sections(forcing)
     have = [t for t in BENCH_TESTS if haskey(cases, (t, forcing))]
     isempty(have) && (@warn "no $forcing case published"; return nothing)
-    fig = Figure(size = (1250, 1050))
+    fig = Figure(size = (430 * length(have) + 160, 1050))
     pos = Tuple{Int,Int}[]
-    for (j, t) in enumerate(BENCH_TESTS), (i, (col, lab)) in enumerate(FIELDS)
+    for (j, t) in enumerate(have), (i, (col, lab)) in enumerate(FIELDS)
         ax = Axis(fig[i, j]; ylabel = j == 1 ? lab : "",
                   xlabel = i == length(FIELDS) ? "distance from structure centre [deg]" : "",
                   title = i == 1 ? "$(t)-i" : "",
@@ -88,17 +88,20 @@ function fig_sections(forcing)
             lines!(ax, c.disp[sel, 3], c.disp[sel, col]; color = log10(tk),
                    colorrange = TRANGE, colormap = :viridis, linewidth = 1.5)
         end
+        # An identically zero field gets Makie's default ±1 range, whose top tick
+        # label sits on the axis top and collides with the panel letter.
+        maximum(abs.(c.disp[:, col])) < 1e-6 && ylims!(ax, -1.25, 1.25)
     end
-    Colorbar(fig[:, length(BENCH_TESTS) + 1]; colormap = :viridis, limits = TRANGE,
+    Colorbar(fig[:, length(have) + 1]; colormap = :viridis, limits = TRANGE,
              label = "time [kyr]", ticks = (-1:2, ["0.1", "1", "10", "100"]))
-    colgap!(fig.layout, 28)
+    colgap!(fig.layout, 44)
     # Label down the columns, then across: (a)-(d) are test A's four fields.
     panels!(fig, sort(pos, by = p -> (p[2], p[1])))
     savefig(fig, "bench-visc3d-sections-$forcing";
         title = "Lateral-viscosity benchmark: cross-sections, $(FORCING_LABEL[forcing])",
         caption = """
         VILMA2's solution of the lateral-viscosity benchmark of Klemann et al., tests
-        A-i, B-i and C-i (columns), $(lowercase(FORCING_LABEL[forcing])), at ℓmax
+        $(join(["$(t)-i" for t in have], ", ", " and ")) (columns), $(lowercase(FORCING_LABEL[forcing])), at ℓmax
         $(lmax_of(cases)). Rows: radial displacement u_r, colatitudinal and
         longitudinal displacement u_ϑ and u_φ, and the perturbation of the
         gravitational potential δφ at the surface, along the section from the centre
@@ -106,8 +109,9 @@ function fig_sections(forcing)
         antipode. Colour is time, at the protocol's thirteen epochs from 0.1 to
         100 kyr. (a–d) Test A-i, M3-L70-V01 with no structure; (e–h) test B-i, a
         column of 12° half-width from 60 to 220 km depth with viscosity reduced to
-        10¹⁸ Pa s at its centre, under the load at the pole; (i–l) test C-i, the same
-        column centred 5° from the load centre, which makes the problem fully 3-D.
+        10¹⁸ Pa s at its centre, under the load at the pole$("C" in have ? "; (i–l) test C-i, the same
+        column centred 5° from the load centre, which makes the problem fully 3-D" : ""). $("C" in have ? "" :
+        "Test C-i (the column centred 5° from the load centre, fully 3-D) was not run in this pass.")
         """,
         notes = """
         There is no reference solution: the benchmark collects submissions from
@@ -145,14 +149,18 @@ function fig_gcm()
             scatterlines!(ax, g[:, 1], g[:, j + 1]; color = colors[t], label = "$(t)-i",
                           markersize = 6)
         end
+        # zero components (A-i and B-i are axisymmetric): keep the top tick off the panel letter
+        all(maximum(abs.(cases[(t, f)].gcm[:, j + 1])) < 1e-6
+            for t in BENCH_TESTS if haskey(cases, (t, f))) && ylims!(ax, -1.25, 1.25)
         (i, j) == (1, 3) && axislegend(ax; position = :lb)
     end
+    colgap!(fig.layout, 44)
     panels!(fig, pos)
     savefig(fig, "bench-visc3d-geocentre";
         title = "Lateral-viscosity benchmark: geocentre motion",
         caption = """
         Geocentre motion u_CF − u_CM in the benchmark of Klemann et al., Cartesian
-        components (columns) against time, for tests A-i, B-i and C-i, under (a–c) the
+        components (columns) against time, for tests $(join(["$(t)-i" for t in BENCH_TESTS if any(haskey(cases, (t, f)) for f in BENCH_FORCINGS)], ", ", " and ")), under (a–c) the
         Heaviside load and (d–f) the load ramped over 0–10 kyr, at ℓmax
         $(lmax_of(cases)). The model runs in the centre-of-mass frame, so u_CF − u_CM
         is the surface mean of the displacement vector.
