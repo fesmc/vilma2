@@ -1,6 +1,7 @@
 name: CI
 
-# Build VILMA2 with gfortran on Linux and run the test suite (`make check`).
+# Build VILMA2 with gfortran on Linux and run the test suite (`make check`),
+# and render the documentation site.
 # fesm-utils (FFTW, SHTns, libfesmutils) is built from the ref pinned in
 # .configme/manifest.toml and cached by its commit; only the OpenMP variant is
 # built, since `make` defaults to openmp=1. The slow suite (`make check-slow`)
@@ -70,3 +71,18 @@ jobs:
 
       - name: Test (make check)
         run: make openmp=1 -j 4 check
+
+  docs:
+    # Render the Quarto site (no publish; publish-docs.yml publishes from main),
+    # so that a broken page fails the pull request rather than the publish.
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out
+        uses: actions/checkout@v5
+
+      - name: Set up Quarto
+        uses: quarto-dev/quarto-actions/setup@v2
+
+      - name: Render
+        run: quarto render docs
