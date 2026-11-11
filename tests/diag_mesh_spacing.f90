@@ -50,7 +50,7 @@ program diag_mesh_spacing
    type(earth_model) :: e
    real(wp) :: he(NMAX), le(NMAX), ke(NMAX), hf(NMAX), lf(NMAX), kf(NMAX)
    real(wp) :: uref(2), u(2)
-   real(wp), allocatable :: disc_lm(:)
+   complex(wp), allocatable :: disc_lm(:)
    character(16) :: arg
    logical  :: okread
    integer  :: is
