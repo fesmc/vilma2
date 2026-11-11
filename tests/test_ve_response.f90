@@ -193,8 +193,9 @@ contains
       call random_number(ve%Bre);  call random_number(ve%Bim)
       call random_number(ve%Cre);  call random_number(ve%Cim)
       ve%Bim(2, ve%ne/2, ve%nk/2) = -7.5_wp
+      ve%Cre(1, 3, ve%nk) = 0.5_wp
       call response_stash_coarse(ve)                    ! buffer B = this memory
-      ve%Cre(1, 3, ve%nk) = ve%Cre(1, 3, ve%nk) + 2.25_wp
+      ve%Cre(1, 3, ve%nk) = 2.75_wp                     ! differs from B by 2.25 exactly
       nrm = response_memory_norm(ve)
       call response_coarse_fine_error(ve, err, tau)
       write(*,'(a,3es12.4)') '      finite memory: norm, error, tau =', nrm, err, tau
