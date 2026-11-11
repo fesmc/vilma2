@@ -3,7 +3,7 @@ program diag_mesh_spacing
    !! element size of radial_mesh_build buys, and how far the default sizes are
    !! from converged. Usage:
    !!
-   !!   diag_mesh_spacing.x [lvz3d]
+   !!   diag_mesh_spacing.x [love|lvz3d]      love: (A) and (B) only (seconds)
    !!
    !! (A) element counts of the default structures under the earlier rule (size
    !!     from the LAYER's mid-depth) and the present one (size from the
@@ -86,6 +86,7 @@ program diag_mesh_spacing
    write(*,'(a,i5,a,i5)') '     toCMB           ', ne_layer_rule(e), ' ->', ne_of(e)
 
    ! --- (B) Love numbers vs the normal-mode table -------------------------------
+   he = 0.0_wp;  le = 0.0_wp;  ke = 0.0_wp;  hf = 0.0_wp;  lf = 0.0_wp;  kf = 0.0_wp
    call read_ref(REF, he, le, ke, hf, lf, kf, okread)
    if (.not. okread) error stop 'diag_mesh_spacing: cannot read the Love table (run from the repo root)'
    write(*,'(/,a)') ' (B) M3-L70-V01 Love numbers vs the normal-mode table: max |rel. error| [%]'
@@ -93,6 +94,11 @@ program diag_mesh_spacing
    do is = 1, 4
       call love_errors(SCALES(is))
    end do
+
+   if (trim(arg) == 'love') then
+      call radial_fe_finalize()
+      stop
+   end if
 
    ! --- (C) disc load -----------------------------------------------------------
    write(*,'(/,a)') ' (C) 100 km disc, U at the centre [m] at 200 yr and 1000 yr; error against the reference [%]'
@@ -198,7 +204,7 @@ contains
       type(earth_model)     :: em, ef
       type(radial_mesh)     :: m
       type(radial_operator) :: op
-      real(wp) :: uu, vv, ff, h, l, k, ee(3,2), ef8(3)
+      real(wp) :: uu, vv, ff, h, l, k, ee(3,2), ef8(3), d(3)
       integer  :: j
       em = build_M3L70V01();  em%mesh_dr = scale*DR_DEF;  em%mesh_depth = DEPTH_DEF
       ef = em
@@ -209,13 +215,16 @@ contains
          call radial_operator_assemble(op, em, m, j)
          call radial_operator_solve(op, 1.0_wp, uu, vv, ff)
          call loading_love(em, j, 1.0_wp, uu, vv, ff, h, l, k)
-         if (j <= 48) ee(:,1) = max(ee(:,1), [reldiff(h,he(j)), reldiff(l,le(j)), reldiff(k,ke(j))])
-         ee(:,2) = max(ee(:,2), [reldiff(h,he(j)), reldiff(l,le(j)), reldiff(k,ke(j))])
+         d(1) = reldiff(h, he(j));  d(2) = reldiff(l, le(j));  d(3) = reldiff(k, ke(j))
+         if (j == 2 .and. scale == 1.0_wp) write(*,'(a,2f12.6)') '     (elastic h at degree 2, model and table:', h, he(j)
+         if (j <= 48) ee(:,1) = max(ee(:,1), d)
+         ee(:,2) = max(ee(:,2), d)
          if (j <= 8) then
             call radial_operator_assemble(op, ef, m, j)
             call radial_operator_solve(op, 1.0_wp, uu, vv, ff)
             call loading_love(ef, j, 1.0_wp, uu, vv, ff, h, l, k)
-            ef8 = max(ef8, [reldiff(h,hf(j)), reldiff(l,lf(j)), reldiff(k,kf(j))])
+            d(1) = reldiff(h, hf(j));  d(2) = reldiff(l, lf(j));  d(3) = reldiff(k, kf(j))
+            ef8 = max(ef8, d)
          end if
       end do
       write(*,'(f10.2,i6,a,3f8.4,2x,3f8.4,a,3f8.4)') scale, m%ne, ' |', 100.0_wp*ee(:,1), &
