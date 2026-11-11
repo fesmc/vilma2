@@ -18,10 +18,16 @@ module vilma_response
    !!
    !!     N(a) = −F(a)/g .
    !!
-   !! This uses only U and F — NOT the horizontal Love number l, whose sign /
-   !! normalization is still being calibrated — so the SLE is not blocked by
-   !! that open item. Both U and the −F/g geoid are pinned by the validated
-   !! rigid (U→0, 1+k→1) and fluid (U→−(2j+1)/3·φ^L/g, 1+k→0) limits.
+   !! The sea-level equation uses only U and F, both pinned by the validated rigid
+   !! (U→0, 1+k→1) and fluid (U→−(2j+1)/3·φ^L/g, 1+k→0) limits. The horizontal
+   !! displacement V(a) (response_horizontal; Love number l = g V(a)/φ^L, validated
+   !! against the benchmark l, doc/formulation.md) is a diagnostic beside them.
+   !!
+   !! Degree 1 is in one of two frames, chosen before init by `deg1_cm`: the
+   !! centre-of-mass frame (response_deg1_to_cm applied to every solved degree-1
+   !! state: U, V and F together), or the solver's own w'd = 0 gauge for the
+   !! displacement with the degree-1 geoid set to zero ("cf", see
+   !! response_init_elastic).
    use vilma_precision,       only: wp, i8
    use vilma_constants,       only: pi, grav_G
    use vilma_earth_structure, only: earth_gravity_at, earth_model, earth_layer_has_memory
@@ -90,7 +96,9 @@ module vilma_response
       !! The per-step response is affine: solving the unit load once per degree
       !! gives the elastic gains gu(l), gn(l) AND the nodal field used to update
       !! memory; begin_step solves the frozen memory forcing per (l,m) for the
-      !! drift; apply combines them; commit_step advances the memory.
+      !! drift; apply combines them; the memory is then advanced with the converged
+      !! load (advance_endpoint under the sea-level equation, commit_step for a
+      !! held load).
       integer  :: lmax = 0, nr = 0, ne = 0, ndof = 0, nlm = 0
       real(wp) :: g = 0.0_wp, a = 0.0_wp, dt = 0.0_wp, time = 0.0_wp
       !! begin_step skips the drift solve for a coefficient whose Maxwell memory is
@@ -537,9 +545,9 @@ contains
    end subroutine elastic_response_apply
 
    subroutine elastic_response_horizontal(self, sht, sigma_lm, v_lm)
-      !! Spheroidal multiply: v_lm = vgain(l)·σ_lm (degree-1 left as solved, like
-      !! ugain — the horizontal displacement is in the CE-like gauge, not the geoid
-      !! CM frame). Synthesize ∇₁(Σ v_lm Y_lm) for (u_θ, u_φ).
+      !! Spheroidal multiply: v_lm = vgain(l)·σ_lm. Degree 1 is in the frame of
+      !! ugain(1): the CM frame with deg1_cm, else the solver's w'd = 0 gauge.
+      !! Synthesize ∇₁(Σ v_lm Y_lm) for (u_θ, u_φ).
       type(response), intent(in)    :: self
       type(sht_grid),          intent(in)    :: sht
       complex(wp),             intent(in)    :: sigma_lm(:)
@@ -620,10 +628,10 @@ contains
       allocate(self%ops(self%lmax), x(self%ndof))
 
       ! degree 0: monopole geoid, no deformation, no memory (no operator).
-      ! degree 1: geocenter motion — carried in the CM frame. The sparse KKT
-      ! border in radial_operator removes the rigid-translation null space
-      ! (wᵀd = 0, Blewitt 2003), so j=1 assembles and steps like any other
-      ! degree; it joins the l-loop below.
+      ! degree 1: the sparse KKT border in radial_operator removes the
+      ! rigid-translation null space (wᵀd = 0, Blewitt 2003), so j=1 assembles
+      ! and steps like any other degree; it joins the l-loop below, and with
+      ! deg1_cm its solved state is moved to the CM frame (geocenter motion).
       self%gu(0) = 0.0_wp
       self%gn(0) = 4.0_wp*pi*grav_G*self%a/self%g
       self%gv(0) = 0.0_wp                       ! no horizontal at degree 0
@@ -644,10 +652,11 @@ contains
          end do
       end do
 
-      ! degree-1 geoid frame (see response_init_elastic): the geoid is referenced
-      ! to the CM frame ⇒ N₁≡0. Zero the degree-1 geoid gain here; the degree-1
-      ! relaxation drift is likewise zeroed in begin_step. Displacement (gu(1),
-      ! xUn/xVn) is left as solved (CE-like geocenter, h₁≈0).
+      ! degree-1 frame "cf" (see response_init_elastic): the displacement (gu(1),
+      ! xUn/xVn) stays in the solver's w'd = 0 gauge and the geoid is referenced to
+      ! CM ⇒ N₁≡0, so the degree-1 geoid gain is zeroed here and the degree-1
+      ! geoid drift in solve_drift. With deg1_cm the projection above has already
+      ! made F(a) = 0, and nothing is overridden.
       if (self%lmax >= 1 .and. .not. self%deg1_cm) self%gn(1) = 0.0_wp
 
       ! Degree-grouped coefficient map: slot k = 1..nk over (l>=1, m=0..min(l,mmax)),
@@ -764,9 +773,9 @@ contains
       ! ops(l) is touched by a single thread. Safe because EVERY degree solves
       ! through the re-entrant banded LU (vilma_band) on threadprivate scratch,
       ! including degree 1, whose dense KKT border merely widens the band (see
-      ! vilma_radial_fe). There is no LIS solver any more, so no degree has to be
-      ! serialized for re-entrancy. The scratch vectors are per-thread; dynamic schedule balances the rising work
-      ! per degree (l+1 orders). Inactive (ordinary serial loop) unless openmp=1.
+      ! vilma_radial_fe). The scratch vectors are per-thread; dynamic schedule
+      ! balances the rising work per degree (l+1 orders). Inactive (ordinary serial
+      ! loop) unless openmp=1.
       !$omp parallel default(shared) private(l, k, node, fre, fim, xre, xim, gre, gim, wre, wim)
       allocate(fre(self%ndof), fim(self%ndof), xre(self%ndof), xim(self%ndof))
       if (tor) allocate(gre(self%nr), gim(self%nr), wre(self%nr), wim(self%nr))
@@ -890,7 +899,7 @@ contains
       lm0 = sht_grid_lmidx(sht, 0, 0)
       u_lm(lm0) = self%gu(0)*sigma_lm(lm0)
       n_lm(lm0) = self%gn(0)*sigma_lm(lm0)
-      ! degrees l>=1, in degree-grouped k order (gn(1)=0 and dFa(k)=0 give N₁≡0)
+      ! degrees l>=1, in degree-grouped k order (in the "cf" frame gn(1)=0 and dFa(k)=0 give N₁≡0)
       do k = 1, self%nk
          l  = self%kdeg(k)
          lm = self%k2lm(k)
@@ -902,8 +911,8 @@ contains
    subroutine ve_response_horizontal(self, sht, sigma_lm, v_lm)
       !! Spheroidal V at the frozen time: v_lm = gv(l)·σ + drift_V. Uses the same
       !! frozen drift (dVa) as the last begin_step, so calling it after a converged
-      !! step gives the horizontal consistent with apply()'s u/N. Degree 1 left as
-      !! solved (CE-like gauge, like u — not the geoid CM frame).
+      !! step gives the horizontal consistent with apply()'s u/N. Degree 1 is in the
+      !! frame of u: the CM frame with deg1_cm, else the solver's w'd = 0 gauge.
       type(response), intent(in)    :: self
       type(sht_grid),     intent(in)    :: sht
       complex(wp),        intent(in)    :: sigma_lm(:)

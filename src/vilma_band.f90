@@ -4,8 +4,8 @@ module vilma_band
    !! system with a ZERO pressure (Π,Π) block, so a factorization MUST pivot; it is
    !! banded (half-bandwidth ~6 for the node-interleaved P1/P0 layout), so a band LU
    !! factors in O(n·kl²) and solves in O(n·(kl+ku)) — far cheaper and far lighter on
-   !! cache than GMRES+ILU, and (unlike LIS) re-entrant, so many degrees can be
-   !! solved concurrently from different threads.
+   !! cache than an iterative solve (GMRES+ILU), and re-entrant, so many degrees can
+   !! be solved concurrently from different threads.
    !!
    !! Storage and algorithm follow LAPACK's unblocked dgbtf2 / dgbtrs exactly:
    !! A(i,j) lives at ab(kv+1+i-j, j) with kv = kl+ku, ldab = 2*kl+ku+1 (the top kl
