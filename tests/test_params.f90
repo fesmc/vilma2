@@ -81,7 +81,7 @@ program test_params
    call check_int("M3-L70-V01 layers", earth_n_layers(emdef), 5)
 
    ! --- (5) un-overridden values fall through to the defaults file -------------
-   call check_int("fallthrough max_couple_iter", p%max_couple_iter, 20)
+   call check_int("fallthrough sle_max_mem_iter", p%sle_max_mem_iter, 20)
    call check_int("fallthrough sle_n_inner",     p%sle_n_inner,     20)
    call check_int("default visc_3d_structure",   pdef%visc_3d_structure, 0)
 

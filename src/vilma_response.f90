@@ -177,15 +177,20 @@ module vilma_response
       complex(wp), allocatable :: dUa(:), dFa(:), dVa(:) !! (nk) surface drift (U,F,V)
       real(wp), allocatable :: dUn_re(:,:), dUn_im(:,:) !! (nr,nk) nodal drift U from τ_n (ε_n)
       real(wp), allocatable :: dVn_re(:,:), dVn_im(:,:) !! (nr,nk) nodal drift V from τ_n
-      ! Memory time-integration scheme (see vilma_viscoelastic). FE (default) advances
-      ! the memory once in commit_step from the report strain — the historical path,
-      ! bit-identical. TRAP (2nd-order) is implicit in the end-of-step strain, so
-      ! commit_step Picard-iterates the endpoint (frozen load: σ held at the converged
-      ! value) — re-solving the drift against the trial τ_{n+1} each pass. §3c part 3a.
+      ! Memory time-integration scheme: SCHEME_FE (default) or SCHEME_TRAP, the two
+      ! the field driver implements (vilma_viscoelastic has more, per degree). FE
+      ! advances the memory once from the report strain. TRAP (2nd-order) is implicit
+      ! in the end-of-step strain, so the endpoint is iterated, re-solving the drift
+      ! against the trial τ_{n+1} each pass, in one of two ways:
+      !   with the sea-level equation (the model): prepare_endpoint / advance_endpoint /
+      !     finalize_step, σ co-converging, capped by the SLE (sle%max_mem_iter);
+      !   with a held load (response_commit_step, a response driven on its own, as
+      !     the benchmark tests do): a Picard iteration capped by max_couple_iter.
+      ! Both stop when the surface drift changes by less than couple_tol (relative).
       integer  :: scheme = SCHEME_FE
-      integer  :: max_couple_iter = 1        !! coupling-iteration cap for implicit schemes
+      integer  :: max_couple_iter = 1        !! iteration cap of response_commit_step (held load) only
       real(wp) :: couple_tol = 1.0e-6_wp     !! relative surface-drift change to stop iterating
-      integer  :: couple_iters_last = 0      !! iterations taken last commit (diagnostic)
+      integer  :: couple_iters_last = 0      !! iterations taken by the last step (diagnostic)
       ! PROFILE: phase wall-clock [s] + call counts, cumulative. The host (vilma_drive)
       ! zeroes these at the start of the transient so the reported per-step breakdown
       ! covers the transient only. t_drift = solve_drift (per-degree band LU);

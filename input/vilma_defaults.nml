@@ -76,7 +76,6 @@
 
     ! --- viscoelastic memory scheme (vilma_response) ---------------------
     scheme          = "fe"     ! fe | trap  (fe = 1st-order explicit, default; trap = 2nd-order adaptive)
-    max_couple_iter = 20       ! SLE<->memory co-convergence cap (implicit schemes)
 
     ! --- response kind selector (vilma_response) -------------------------
     earth_response  = "ve"     ! ve | elastic | null  (ve = full Martinec FE, default)

@@ -378,8 +378,7 @@ contains
       select case (trim(self%par%earth_response))
       case ("ve")
          call response_init_ve(self%resp, self%earth, self%sht, dt0)
-         self%resp%scheme          = scheme_from_name(self%par%scheme)
-         self%resp%max_couple_iter = self%par%max_couple_iter
+         self%resp%scheme = scheme_from_name(self%par%scheme)
       case ("elastic")
          call response_init_elastic(self%resp, self%earth, self%sht%lmax)
       case ("null")

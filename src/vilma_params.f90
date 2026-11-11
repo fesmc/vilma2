@@ -65,7 +65,6 @@ module vilma_params
 
       ! --- viscoelastic memory scheme (vilma_response / vilma_viscoelastic) ------------
       character(len=8) :: scheme = "fe"        !! fe | trap (scheme_name_valid)
-      integer  :: max_couple_iter = 20         !! SLE<->memory co-convergence cap (implicit schemes)
 
       ! --- response kind selector (vilma_response) ----------------------------------
       character(len=8)  :: earth_response = "ve"  !! ve | elastic | null
@@ -268,7 +267,6 @@ contains
       call nml_read(filename, g, "scheme",          p%scheme,          defaults_file=df)
       if (.not. scheme_name_valid(p%scheme)) &
          error stop 'vilma_params: scheme must be "fe" or "trap"'
-      call nml_read(filename, g, "max_couple_iter", p%max_couple_iter, defaults_file=df)
 
       ! response kind selector
       call nml_read(filename, g, "earth_response",  p%earth_response,  defaults_file=df)
@@ -412,9 +410,10 @@ contains
          end do
       end if
       write(u,'(a,a)')        '   response: ', trim(p%earth_response)
-      write(u,'(a,a,a,i0)')   '   scheme: ', trim(p%scheme), '   max_couple_iter=', p%max_couple_iter
-      write(u,'(a,i0,a,i0,a,es8.1,a,l1,a,l1)') &
+      write(u,'(a,a)')        '   scheme: ', trim(p%scheme)
+      write(u,'(a,i0,a,i0,a,i0,a,es8.1,a,l1,a,l1)') &
            '   sle:    n_outer=', p%sle_n_outer, '  n_inner=', p%sle_n_inner, &
+           '  max_mem_iter=', p%sle_max_mem_iter, &
            '  tol=', p%sle_tol, '  fixed_ocean=', p%sle_fixed_ocean, '  subgrid=', p%sle_subgrid
       write(u,'(a,f7.1,a,f7.1,a)') '   density: rho_ice=', p%rho_ice, '  rho_water=', p%rho_water, ' kg/m3'
       write(u,'(a,es9.2,a,es8.1,a,es8.1,a,f5.2)') &
