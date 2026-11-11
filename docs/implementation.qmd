@@ -18,9 +18,10 @@ with rotation from @MartinecHagedoorn2014 and the sea-level equation from
 
 The implementation is modern and minimal: a small, dependency-light Fortran
 codebase organized as single-purpose modules (`vilma_*`), validated rung-by-rung
-against the community benchmarks. It is 3D-ready from the start — laterally
-varying viscosity costs nothing extra in the solver — while validated first
-in 1D.
+against the community benchmarks. It is 3D-ready from the start: laterally
+varying viscosity leaves the per-degree operator and its factorization
+unchanged. The extra cost of a 3D run lies in the memory advance (see
+[Rheology](physics/rheology.qmd)).
 
 ## Libraries we build on
 
@@ -29,7 +30,7 @@ in 1D.
 | **[SHTns](https://nschaeffer.name/?lang=en&page=shtns)** | fast spherical-harmonic transforms (forward/inverse, quadrature, point & gradient evaluation) | @Schaeffer2013 |
 | **[FFTW3](https://www.fftw.org/)** | the longitudinal FFTs underlying SHTns | @FrigoJohnson2005 |
 | **netCDF** | restart and output I/O | — |
-| **fesm-utils** | shared build system + helper library (precision, ncio, namelists) | — |
+| **[fesm-utils](https://github.com/fesmc/fesm-utils)** | shared build system + helper library (ncio, namelists, lon-lat grids), and the builds of FFTW and SHTns | — |
 
 The FFT and spherical-harmonic transform are central, not incidental. A
 pseudo-spectral method moves between grid and spectral space many times per
@@ -42,7 +43,8 @@ Condon–Shortley phase, Gauss grid) is pinned across the whole code. See
 
 The linear solver, by contrast, is hand-rolled: a dependency-free,
 re-entrant, pivoted banded LU (`vilma_band`). This choice avoids an external
-dependency (LIS, LAPACK) that would complicate linking into an OpenMP host.
+dependency that would complicate linking into an OpenMP host. Neither LIS,
+which an early version used, nor LAPACK is linked.
 See [Solver](discretization/solver.qmd).
 
 ## Codebases and datasets that informed the validation
@@ -75,9 +77,13 @@ are covered in [Install & run](getting-started.qmd).
 
 The host-coupling contract, designed for CLIMBER-X, is intentionally narrow.
 The host passes **ice thickness** in and receives **relative sea level** and
-**bedrock** out, on its own grid. The model owns its Gauss grid and the
+**bedrock** out, on its own grid. It can also read the two parts of relative
+sea level (bed change and sea-surface change), the ocean function and the
+barystatic scalars. The model owns its Gauss grid and the
 host↔Gauss remap (conservative in, bilinear out), built from the parameter
-record, and keeps all spherical-harmonic transforms inside.
+record, and keeps all spherical-harmonic transforms inside. A host that
+resolves the ice margin on its own grid can pass
+[host-resolved terms](physics/sea-level.qmd#host-resolved-terms) as well.
 
 ## License and citation
 

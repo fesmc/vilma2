@@ -34,14 +34,29 @@ according to the memory scheme (see [Rheology](../physics/rheology.qmd#memory-ti
 
 - **`"fe"`** (default): the 1st-order update has no embedded error signal, so
   $\Delta t$ is set *a priori* by the stability ceiling $M = \mu\Delta t/\eta \le$
-  `cfl`, and the interval is split into equal sub-steps.
+  `cfl` (default 1), taken over the fastest Maxwell rate present. The interval
+  is split into equal sub-steps of at most that length. `dt_max` lowers the
+  sub-step further. `dt_min` raises it, also above the stability ceiling, so
+  it should stay at its default of 0 (none) for this scheme. A guard rolls a
+  sub-step back and halves it if the memory norm becomes non-finite or grows
+  more than $10^{3}$-fold. It is a safety net and normally never fires.
 - **`"trap"`**: each candidate step is taken once at $\Delta t$ and once as two
-  $\Delta t/2$ halves; their difference estimates the local error of the
-  memory (`rtol`, `atol`). A rejected step is rolled back and retried smaller;
-  an accepted one keeps the fine result and lets $\Delta t$ grow (`grow_max`,
-  bounded by `dt_min`/`dt_max`).
+  $\Delta t/2$ halves. Their difference estimates the local error of the
+  memory, which is compared with `atol` $+$ `rtol` $\times$ the memory norm
+  (defaults $10^{-3}$ and $10^{-4}$). A rejected step is rolled back and
+  retried smaller. An accepted one keeps the fine result. The next step size
+  follows from the error estimate with the factor `safety` (0.9). Its change
+  is limited to between `shrink_min` (0.2) and `grow_max` (5), and its value
+  to the range `dt_min`–`dt_max`. A step at `dt_min` is accepted even above
+  tolerance. The first trial step is `dt_init` (default 0: the whole
+  interval). The step size then carries over from one interval to the next.
 
-The ice load is interpolated linearly between the interval endpoints.
+The `dt_*` parameters are given in years. The coupling interval itself is not
+a parameter: the host, or the forcing time axis of the standalone driver,
+passes it with each update. The ice load is interpolated linearly between the
+interval endpoints. `scheme = "etd1"` follows the `"fe"` path here and
+`scheme = "be"` the `"trap"` path (see
+[Rheology](../physics/rheology.qmd#memory-time-schemes)).
 
 ## The viscoelastic field driver
 
@@ -62,11 +77,20 @@ comes from the *frozen* past-relaxation memory. The step is bracketed:
   done once at the start of the step;
 - `apply()` is then a cheap affine evaluation the SLE fixed point may call
   repeatedly;
-- **`commit_step`** advances the Maxwell memory once, with the converged load.
+- the **memory advance** then moves the Maxwell memory forward once, with the
+  converged load.
 
-With `scheme = "trap"`, `commit_step` iterates the step endpoint (re-solving
-the drift against the trial $\boldsymbol{\tau}^{V,i}$) until the surface drift
-stops changing, since the trapezoidal update needs the end-of-step strain.
+The memory advance has two entry points. `commit_step` takes a given load and
+is used by the response-level tests. The sea-level solve instead uses
+`prepare_endpoint`, `advance_endpoint` and `finalize_step`, which let the load
+and the memory converge together. With `scheme = "fe"` both do one explicit
+update. With `scheme = "trap"` the update needs the end-of-step strain, so the
+step endpoint is iterated: the drift is re-solved against the trial
+$\boldsymbol{\tau}^{V,i}$ until the surface drift stops changing (relative
+change below $10^{-6}$). In the sea-level solve the water load is re-converged
+in each of these passes, up to `sle_max_mem_iter` passes (default 20).
+`max_couple_iter` caps the passes of `commit_step` only, so it does not affect
+a model run.
 
 Each complex $(\ell,m)$ history is stored as two real histories (real/imaginary),
 since the operator and $M=\mu\Delta t/\eta$ are real. The per-element Maxwell
@@ -79,32 +103,112 @@ degree-2 field reproduces the 1D `ve_degree` history to $\sim 10^{-13}$.
 The per-$(\ell,m)$ memory and drift are stored in **degree-grouped slot order**
 (an $\ell m \leftrightarrow k$ map), so the inner loop is contiguous *and*
 per-degree, allowing operator reuse without scattering the (large) memory arrays.
-The **only prognostic state** carried across a restart is the viscoelastic
-memory (the Maxwell stress $\boldsymbol{\tau}$, four spheroidal channels or
-six with the [toroidal field](../physics/toroidal.qmd)) plus the integrator
-state and the model time. Reference fields (equilibrium bedrock, reference
-ice/topo) are static and
-validated on read. `test_restart` confirms a checkpoint-restart reproduces an
-uninterrupted run **bit-for-bit**. A lower-resolution restart is interpolated up
-to the model grid (degree-grouped spectral block copy), so a run can be spun up
-cheaply at coarse resolution and continued at fine resolution.
+
+A restart file is written without rounding. It carries the following state:
+
+| State | Variables | Carried when |
+|---|---|---|
+| Maxwell memory stress, four spheroidal channels or six with the [toroidal field](../physics/toroidal.qmd) | `tau_*` | viscoelastic response |
+| start-of-step load of the trapezoidal scheme, and its flag | `sigma_n_*`, `sigma_primed` | viscoelastic response |
+| model time | `time` | always |
+| next trial step of the step controller | `dt_try_s` | always |
+| polar motion and the memory of both degree-2 channels | `rot_m_*`, `rot_load_mem`, `rot_tidal_mem` | [rotation](../physics/rotation.qmd) on |
+| host-resolved terms of the last update (the start of the next ramp) | `w_prev`, `I_g_prev`, `C_prev`, `F_prev` | host-resolved terms |
+| surface fields of the last update: ice, relative sea level and its two parts, bed, ocean function, barystatic scalars | `h_ice`, `rsl`, `dz_bed`, `dz_ss`, `z_bed`, `C_ocean`, `bsl`, … | always |
+
+The memory stress is by far the largest part. The surface fields follow from
+the memory and the load, but they are restored as well: the ice is the start
+of the next load ramp, and the relative sea level seeds the next sea-level
+solve. The elastic and the null response carry no memory, so their restart
+holds the other rows only. The full variable table is `input/vilma-variables.md`.
+
+The reference fields are static: the equilibrium bed and ice and, with
+host-resolved terms, the host reference. They are written once and compared
+with the initialized model on read. A mismatch stops the run. A file with
+host-resolved terms cannot be read into a run without them, nor the reverse.
+
+The read does not check everything. The radial mesh and the channel count
+must match, but nothing ties the memory to the viscosity field or the
+parameters that produced it. The user must restart with the same earth
+structure and viscosity input.
+
+`test_restart` asserts that a restarted run reproduces an uninterrupted one
+**bit for bit**, with rotation on, for a radially symmetric Earth and for a
+3-D field with toroidal channels. `test_restart_3d` asserts the same after the
+1-D pre-spin-up, and `test_restart_host` covers host-resolved terms.
+
+A lower-resolution restart can be read into a higher-resolution run. The
+memory of the shared low degrees is copied (a contiguous block in the
+degree-grouped order) and the higher degrees start at zero. The surface
+fields, the trapezoidal load and the host-resolved terms live on the file's
+grid and are not transferred. The caller re-derives the surface fields with a
+zero-length update. A run can thus be spun up at coarse resolution and
+continued at fine resolution, but that continuation is not bit for bit. A
+higher-resolution file cannot be read into a lower-resolution run.
 
 ## Coupling cadence
 
 For host coupling (CLIMBER-X), the model sub-cycles its short dynamical step
-$\Delta t$ within a longer coupling interval: ice thickness is held across the
-interval, the SLE is solved each $\Delta t$, and the bedrock
+$\Delta t$ within a longer coupling interval. The ice thickness ramps linearly
+from the previous update's value to the new one across the interval. The SLE
+is solved each $\Delta t$, and the bedrock
 $z_{\text{bed}} = z_{\text{bed,eq}} - \text{rsl}$ is returned at the coupling
-cadence. The reference state and its datum are chosen by `i_eq` (e.g. a
-present-day RTopo reference, or an equilibrium configuration); a non-equilibrium
-start (a held LGM load) is brought into balance by a **spin-up**
-(`solid_earth_spinup`) that relaxes the held load to bed-stationary equilibrium
-(rate below `equil_rate_tol`) — capped by `equil_time_max` — with an optional cheap 1-D pre-equilibration
-(`pre_spinup_1d`) before switching the transient to the 3-D path.
+cadence.
+
+The reference state is the relaxed state. The memory is zero there, and
+relative sea level is measured against it. A host passes the reference at
+initialization. The standalone driver chooses it with `i_eq` (`&ctl`):
+
+| `i_eq` | Reference bed and ice |
+|---|---|
+| 0 | the start slice of the forcing |
+| 1 (default) | a present-day reference (`z_bed_ref_file`, `h_ice_ref_file`), so that rsl is close to zero at the present day |
+| 2 | an equilibrium state read from `z_bed_eq_file` and `h_ice_eq_file` |
+| 3 | the present-day reference bed plus an rsl field from `rsl_restart_file` |
+
+### Spin-up
+
+A run that starts away from the reference (a held LGM load, say) starts with
+zero memory, as if the load had just been applied. The optional **spin-up**
+(`solid_earth_spinup`) removes this. It holds the start-slice ice and relaxes
+the model toward isostatic equilibrium, with the reference kept as the datum.
+The transient then starts with viscous memory. The spin-up has two phases,
+both off by default:
+
+- **Full-model phase** (`equil_time_max` $> 0$, in years). The held load is
+  relaxed in passes of growing length: 200 yr first, then 1.6 times longer
+  each pass, at most 60 passes. After each pass the mean bed velocity is the
+  global mean of the absolute bed change over the pass, divided by the pass
+  length. The phase ends when this falls below `equil_rate_tol` (default
+  $10^{-3}$ m/yr). `equil_time_max` caps the total relaxation time. If the cap
+  is reached first, the run continues and prints a warning with the remaining
+  rate.
+- **1-D pre-phase** (`pre_spinup_1d = .true.`). The same relaxation first runs
+  on a laterally uniform field, the lateral mean of $\log_{10}\eta$ of the 3-D
+  field at each radius. It uses the same convergence test and has no time
+  cap. The 3-D field is then restored and the memory is kept. This phase is
+  cheap, because no element is on the 3-D path. It is independent of
+  `equil_time_max`.
+
+The criterion is a global mean. It bounds the mean bed velocity, not the
+velocity at every point. Elements with very high viscosity do not equilibrate
+within any practical cap, which is what the
+[lid rule](../physics/rheology.qmd#visc3d-input) addresses. `test_spinup`
+asserts that the spin-up relaxes the held load well beyond a single cold
+step, and that the state after it is near-stationary. The spin-up is not
+available with `solver = "v1"`.
+
+A zero-length update (`dt = 0`) advances neither time nor memory. It solves
+the SLE against the current memory and refreshes the surface fields. The
+spin-up begins with one, and a run without spin-up (a restarted run included)
+begins with one, to seed the start-slice ice. In this call the relative sea level and the ocean function are those
+of the ice the model carried before the call, not of the ice just passed in.
+This affects the first output sample only, not the transient that follows.
 
 ::: {.callout-tip title="Where this lives in the code"}
 `vilma_viscoelastic` (1D stepper + shared kernel), `vilma_response` (`ve_response`
 field driver, `begin_step`/`commit_step`), `vilma_io` (netCDF restart), and
-`vilma_coupling` (host init/update contract). The cost of `begin_step` is the
-main performance driver and is addressed in [Solver](solver.qmd).
+`vilma_coupling` (host init/update contract, spin-up), `vilma_timestep` (the
+sub-step controller) and `vilma_sle` (the load–memory iteration). The cost of
+the drift solve in `begin_step` is addressed in [Solver](solver.qmd).
 :::

@@ -47,10 +47,11 @@ same dependency-minimization reason — the band solver is small and fully teste
 
 ## Performance of the SLE driver
 
-The cost driver for a coupled run is `ve_response%begin_step`, which performs
-two real per-degree solves for every $(\ell,m)$ each step ($\mathcal{O}(n_{\ell m})$
-solves). Four changes — all exact (results unchanged) except the
-threshold-controlled skip — brought this from impractical to routine:
+The drift solve in `ve_response%begin_step` performs two real per-degree
+solves for every $(\ell,m)$ each step ($\mathcal{O}(n_{\ell m})$ solves). With
+the iterative solver it was the cost driver of a coupled run. Four changes —
+all exact (results unchanged) except the threshold-controlled skip — brought
+it from impractical to routine:
 
 | Change | Effect |
 |---|---|
@@ -71,9 +72,16 @@ The full sea-level benchmark ($\ell_{\max}=128$, $\sim 750$ steps) thus runs in
 [Martinec (2018) SLE cases](../benchmarks/sea-level.qmd) feasible as routine
 validation. At VILMA1 resolution (SH degree 170) the same machinery applies.
 
+These numbers date from the development of the band solver (`doc/design.md`).
+With the drift solve this cheap, it no longer dominates a run. The repository's
+`doc/performance.md` gives the current whole-step breakdown, measured on DKRZ
+Levante. A 3-D run is dominated by the memory advance of the 3-D elements
+times the number of explicit sub-steps (see
+[Rheology](../physics/rheology.qmd#visc3d-input)).
+
 ::: {.callout-tip title="Where this lives in the code"}
 `vilma_band` (pivoted banded LU + equilibration), `vilma_radial_fe` (assembly,
 factorization, reuse), `vilma_response` (`skip_tol`, degree-grouped slots,
-OpenMP loop). Build with `make openmp=1` for the threaded degree loop
-(serial dependencies + `-fopenmp`).
+OpenMP loop). OpenMP is on by default (`openmp=1`), with the OpenMP variants
+of the dependencies. `make openmp=0` builds the serial model.
 :::
