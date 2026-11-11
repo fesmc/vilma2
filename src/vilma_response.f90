@@ -22,7 +22,7 @@ module vilma_response
    !! normalization is still being calibrated — so the SLE is not blocked by
    !! that open item. Both U and the −F/g geoid are pinned by the validated
    !! rigid (U→0, 1+k→1) and fluid (U→−(2j+1)/3·φ^L/g, 1+k→0) limits.
-   use vilma_precision,       only: wp
+   use vilma_precision,       only: wp, i8
    use vilma_constants,       only: pi, grav_G
    use vilma_earth_structure, only: earth_gravity_at, earth_model, RHEOL_MAXWELL
    use vilma_radial_fe,       only: radial_operator_load_rhs, radial_operator_solve_vec, radial_operator_destroy, radial_operator_solve, radial_operator_assemble, radial_mesh_build, radial_mesh, radial_operator, &
@@ -53,6 +53,13 @@ module vilma_response
    public :: response_radial_rate
 
    integer, parameter :: RESP_NULL = 0, RESP_ELASTIC = 1, RESP_VE = 2
+
+   ! The magnitude bits of a real(wp): the IEEE pattern with the sign cleared. As
+   ! integers they order exactly as |x| does, with Inf above every finite value
+   ! and every NaN above Inf. The memory norms take their maximum over these
+   ! integers, not over the reals: max() of reals may drop a NaN, and the
+   ! optimised builds (-Ofast, -ffast-math) assume there is none.
+   integer(i8), parameter :: ABS_BITS = int(z'7FFFFFFFFFFFFFFF', i8)
 
 
    type :: response
@@ -729,8 +736,8 @@ contains
       nb = self%nlam*self%ne
       !$omp parallel do default(shared) private(k) schedule(static)
       do k = 1, self%nk
-         self%mnorm(k) = absmax6(nb, self%Are(1,1,k), self%Bre(1,1,k), self%Cre(1,1,k), &
-                                 self%Aim(1,1,k), self%Bim(1,1,k), self%Cim(1,1,k))
+         self%mnorm(k) = transfer(absmax6(nb, self%Are(1,1,k), self%Bre(1,1,k), self%Cre(1,1,k), &
+                                          self%Aim(1,1,k), self%Bim(1,1,k), self%Cim(1,1,k)), 1.0_wp)
       end do
       !$omp end parallel do
       ! Skip the drift solve for coefficients with negligible memory (their drift is
@@ -815,9 +822,11 @@ contains
       self%t_drift = self%t_drift + real(pc1-pc0,wp)/prate;  self%n_drift = self%n_drift + 1
    end subroutine solve_drift
 
-   pure real(wp) function absmax6(n, x1, x2, x3, x4, x5, x6) result(amax)
+   pure integer(i8) function absmax6(n, x1, x2, x3, x4, x5, x6) result(amax)
       !! max|x| over six contiguous blocks of n values each (0 for n = 0): the six
-      !! memory arrays of one (l,m) slot. Exact, so the scan order cannot move a bit.
+      !! memory arrays of one (l,m) slot, returned as magnitude bits (ABS_BITS;
+      !! transfer(amax, 1.0_wp) is the value). Exact, so the scan order cannot move
+      !! a bit, and a NaN or Inf anywhere in the blocks gives a non-finite result.
       !! One loop over all six, not six loops: at low thread counts the scan is
       !! latency-bound, and six concurrent streams draw more bandwidth than one
       !! at a time. Callers pass each block's first element, A(1,1,k), not the
@@ -825,26 +834,34 @@ contains
       integer,  intent(in) :: n
       real(wp), intent(in) :: x1(n), x2(n), x3(n), x4(n), x5(n), x6(n)
       integer :: i
-      amax = 0.0_wp
+      amax = 0_i8
       do i = 1, n
-         amax = max(amax, abs(x1(i)), abs(x2(i)), abs(x3(i)), &
-                          abs(x4(i)), abs(x5(i)), abs(x6(i)))
+         amax = max(amax, absbits(x1(i)), absbits(x2(i)), absbits(x3(i)), &
+                          absbits(x4(i)), absbits(x5(i)), absbits(x6(i)))
       end do
    end function absmax6
 
-   pure real(wp) function absdiffmax6(n, x1, x2, x3, x4, x5, x6, y1, y2, y3, y4, y5, y6) &
+   pure integer(i8) function absdiffmax6(n, x1, x2, x3, x4, x5, x6, y1, y2, y3, y4, y5, y6) &
          result(dmax)
-      !! max|x − y| over six pairs of contiguous blocks, as absmax6.
+      !! max|x − y| over six pairs of contiguous blocks, as absmax6 (a non-finite
+      !! value in either gives a non-finite difference).
       integer,  intent(in) :: n
       real(wp), intent(in) :: x1(n), x2(n), x3(n), x4(n), x5(n), x6(n)
       real(wp), intent(in) :: y1(n), y2(n), y3(n), y4(n), y5(n), y6(n)
       integer :: i
-      dmax = 0.0_wp
+      dmax = 0_i8
       do i = 1, n
-         dmax = max(dmax, abs(x1(i) - y1(i)), abs(x2(i) - y2(i)), abs(x3(i) - y3(i)), &
-                          abs(x4(i) - y4(i)), abs(x5(i) - y5(i)), abs(x6(i) - y6(i)))
+         dmax = max(dmax, absbits(x1(i) - y1(i)), absbits(x2(i) - y2(i)), &
+                          absbits(x3(i) - y3(i)), absbits(x4(i) - y4(i)), &
+                          absbits(x5(i) - y5(i)), absbits(x6(i) - y6(i)))
       end do
    end function absdiffmax6
+
+   elemental integer(i8) function absbits(x)
+      !! The magnitude bits of x (see ABS_BITS).
+      real(wp), intent(in) :: x
+      absbits = iand(transfer(x, 0_i8), ABS_BITS)
+   end function absbits
 
    subroutine ve_response_apply(self, sht, sigma_lm, u_lm, n_lm)
       !! Affine response at the frozen time: u = gu(l)·σ + drift_U,
@@ -1787,27 +1804,31 @@ contains
    subroutine response_coarse_fine_error(self, err_inf, tau_inf)
       !! After the fine path, return the coarse↔fine memory difference ‖τ_fine−τ_coarse‖∞
       !! (buffer B is τ_coarse, self%Are… is τ_fine) and the memory magnitude ‖τ_fine‖∞,
-      !! for the controller's scaled local-error estimate.
+      !! for the controller's scaled local-error estimate. A NaN or Inf anywhere in
+      !! the memory comes back as a non-finite norm (as response_memory_norm), which
+      !! is_finite (vilma_precision) rejects.
       type(response), intent(in)  :: self
       real(wp),           intent(out) :: err_inf, tau_inf
-      integer  :: k, nb
+      integer(i8) :: ebits, tbits
+      integer     :: k, nb
       ! Explicit threaded loop for the same reason response_memory_norm uses one:
       ! the maxval(abs(A - B)) form this replaced built TWELVE full (NLAM,ne,nk)
       ! heap temporaries per call, one per term, and ran serially. Each slot block
       ! is scanned flat (see solve_drift).
       nb = self%nlam*self%ne
-      err_inf = 0.0_wp;  tau_inf = 0.0_wp
+      ebits = 0_i8;  tbits = 0_i8
       !$omp parallel do default(shared) private(k) schedule(static) &
-      !$omp   reduction(max:err_inf,tau_inf)
+      !$omp   reduction(max:ebits,tbits)
       do k = 1, self%nk
-         err_inf = max(err_inf, absdiffmax6(nb, &
-                       self%Are(1,1,k), self%Aim(1,1,k), self%Bre(1,1,k), &
-                       self%Bim(1,1,k), self%Cre(1,1,k), self%Cim(1,1,k), &
-                       self%Are_c(1,1,k), self%Aim_c(1,1,k), self%Bre_c(1,1,k), &
-                       self%Bim_c(1,1,k), self%Cre_c(1,1,k), self%Cim_c(1,1,k)))
-         tau_inf = max(tau_inf, absmax6(nb, self%Are(1,1,k), self%Aim(1,1,k), &
-                       self%Bre(1,1,k), self%Bim(1,1,k), self%Cre(1,1,k), self%Cim(1,1,k)))
+         ebits = max(ebits, absdiffmax6(nb, &
+                     self%Are(1,1,k), self%Aim(1,1,k), self%Bre(1,1,k), &
+                     self%Bim(1,1,k), self%Cre(1,1,k), self%Cim(1,1,k), &
+                     self%Are_c(1,1,k), self%Aim_c(1,1,k), self%Bre_c(1,1,k), &
+                     self%Bim_c(1,1,k), self%Cre_c(1,1,k), self%Cim_c(1,1,k)))
+         tbits = max(tbits, absmax6(nb, self%Are(1,1,k), self%Aim(1,1,k), &
+                     self%Bre(1,1,k), self%Bim(1,1,k), self%Cre(1,1,k), self%Cim(1,1,k)))
       end do
+      err_inf = transfer(ebits, 1.0_wp);  tau_inf = transfer(tbits, 1.0_wp)
    end subroutine response_coarse_fine_error
 
    real(wp) function response_max_rate(self) result(rate)
@@ -1824,20 +1845,25 @@ contains
 
    real(wp) function response_memory_norm(self) result(nrm)
       !! ∞-norm of the viscoelastic memory stress over all coefficients/elements —
-      !! the reactive-guard observable for the explicit stepper (a non-finite or
-      !! runaway value flags an unstable sub-step). Explicit loop to avoid the
-      !! abs(slice) heap temporaries maxval would create on these (NLAM,ne,nk) arrays.
+      !! the reactive-guard observable for the explicit stepper. If any memory value
+      !! is NaN or Inf the result is non-finite, in every build: test it with
+      !! is_finite (vilma_precision), not with a comparison, which -Ofast may fold.
+      !! Explicit loop to avoid the abs(slice) heap temporaries maxval would create
+      !! on these (nlam,ne,nk) arrays.
       type(response), intent(in) :: self
-      integer  :: k, nb
+      integer(i8) :: nbits
+      integer     :: k, nb
       nrm = 0.0_wp
       if (.not. allocated(self%Are)) return
       nb = self%nlam*self%ne                   ! slot blocks scanned flat (see solve_drift)
-      !$omp parallel do default(shared) private(k) reduction(max:nrm) schedule(static)
+      nbits = 0_i8
+      !$omp parallel do default(shared) private(k) reduction(max:nbits) schedule(static)
       do k = 1, self%nk
-         nrm = max(nrm, absmax6(nb, self%Are(1,1,k), self%Aim(1,1,k), self%Bre(1,1,k), &
-                                    self%Bim(1,1,k), self%Cre(1,1,k), self%Cim(1,1,k)))
+         nbits = max(nbits, absmax6(nb, self%Are(1,1,k), self%Aim(1,1,k), self%Bre(1,1,k), &
+                                        self%Bim(1,1,k), self%Cre(1,1,k), self%Cim(1,1,k)))
       end do
       !$omp end parallel do
+      nrm = transfer(nbits, 1.0_wp)
    end function response_memory_norm
 
    subroutine ensure_commit_scratch(self)

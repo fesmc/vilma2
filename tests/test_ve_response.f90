@@ -12,12 +12,16 @@ program test_ve_response
    !!       same Maxwell kernel. Degree 1 is special: its geoid is referenced to
    !!       the CM frame (N₁≡0), so the field driver's degree-1 geoid is zero by
    !!       design and does not track the 1-D stepper's raw F — checked as N₁=0.
-   use vilma_precision,       only: wp
+   !!   (4) memory norms — response_memory_norm and response_coarse_fine_error are
+   !!       the exact maxima for a finite memory, and non-finite (is_finite rejects
+   !!       them) when a NaN or Inf sits anywhere in it, in an optimised build too.
+   use vilma_precision,       only: wp, i8, is_finite
    use vilma_constants,       only: kyr
    use vilma_earth_structure, only: earth_model, build_M3L70V01
    use vilma_radial_fe,       only: radial_mesh_build, radial_mesh, radial_fe_finalize
    use vilma_viscoelastic,    only: ve_destroy, ve_step, ve_init, ve_degree, SCHEME_FE, SCHEME_TRAP
-   use vilma_response,        only: response_commit_step, response_apply, response_begin_step, response_destroy, response, response_init_elastic, response_init_ve, response_init_null
+   use vilma_response,        only: response_commit_step, response_apply, response_begin_step, response_destroy, response, response_init_elastic, response_init_ve, response_init_null, &
+                                    response_memory_norm, response_coarse_fine_error, response_stash_coarse
    use vilma_sht,             only: sht_grid, sht_grid_init, sht_grid_destroy, sht_grid_lmidx
    implicit none
 
@@ -50,6 +54,10 @@ program test_ve_response
    write(*,'(a)') ''
    write(*,'(a)') '     j = 2:'
    call stepper_agreement(2, SCHEME_TRAP, 50, ok)
+
+   write(*,'(a)') ''
+   write(*,'(a)') ' (4) memory norms: exact when finite, non-finite on a NaN or Inf'
+   call memory_norms(ok)
 
    write(*,'(a)') ''
    if (ok) then
@@ -170,5 +178,51 @@ contains
       end if
       call ve_destroy(vd);  call response_destroy(ve)
    end subroutine stepper_agreement
+
+   subroutine memory_norms(ok)
+      !! A known finite memory gives the exact maxima; then a NaN and an Inf, each
+      !! at the first, a middle and the last position of the memory arrays (a max()
+      !! over reals drops a NaN depending on where it stands), must come back as a
+      !! non-finite norm and a non-finite coarse-fine error.
+      logical, intent(inout) :: ok
+      type(response) :: ve
+      real(wp) :: bad(2), nrm, err, tau, keep
+      integer  :: ib, ip, lam, el, k
+      call response_init_ve(ve, e, sht, dt)
+      call random_number(ve%Are);  call random_number(ve%Aim)
+      call random_number(ve%Bre);  call random_number(ve%Bim)
+      call random_number(ve%Cre);  call random_number(ve%Cim)
+      ve%Bim(2, ve%ne/2, ve%nk/2) = -7.5_wp
+      call response_stash_coarse(ve)                    ! buffer B = this memory
+      ve%Cre(1, 3, ve%nk) = ve%Cre(1, 3, ve%nk) + 2.25_wp
+      nrm = response_memory_norm(ve)
+      call response_coarse_fine_error(ve, err, tau)
+      write(*,'(a,3es12.4)') '      finite memory: norm, error, tau =', nrm, err, tau
+      if (nrm /= 7.5_wp .or. tau /= 7.5_wp .or. err /= 2.25_wp) then
+         write(*,'(a)') '      FAIL: the norms of a finite memory are not the exact maxima'
+         ok = .false.
+      end if
+      bad(1) = transfer(int(z'7FF8000000000000', i8), 1.0_wp)   ! NaN
+      bad(2) = transfer(int(z'7FF0000000000000', i8), 1.0_wp)   ! +Inf
+      do ib = 1, 2
+         do ip = 1, 3
+            select case (ip)
+            case (1);  lam = 1;        el = 1;        k = 1
+            case (2);  lam = 2;        el = ve%ne/2;  k = ve%nk/2
+            case (3);  lam = ve%nlam;  el = ve%ne;    k = ve%nk
+            end select
+            keep = ve%Aim(lam, el, k)
+            ve%Aim(lam, el, k) = bad(ib)
+            nrm = response_memory_norm(ve)
+            call response_coarse_fine_error(ve, err, tau)
+            ve%Aim(lam, el, k) = keep
+            if (is_finite(nrm) .or. is_finite(err) .or. is_finite(tau)) then
+               write(*,'(a,i0,a,i0)') '      FAIL: non-finite value ', ib, ' not reported at position ', ip
+               ok = .false.
+            end if
+         end do
+      end do
+      call response_destroy(ve)
+   end subroutine memory_norms
 
 end program test_ve_response
