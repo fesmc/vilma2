@@ -35,7 +35,7 @@ module vilma_control
       ! --- legacy Gauss-grid reference file (remap_input=.false.) ----------------
       character(len=512) :: file_ref     = ""            !! reference state (z_bed_eq, h_ice_eq)
       character(len=64)  :: name_zbed_eq = "z_bed_eq"    !! bed var (legacy 2D ref; or 3D bed in forcing)
-      character(len=64)  :: name_hice_ref = "h_ice_ref"  !! ice var (legacy 2D ref)
+                                                         !! (i_eq = 0: the reference ice is the start slice)
 
       ! --- step output ----------------------------------------------------------
       character(len=512) :: file_out     = "vilma_out.nc"  !! step output
@@ -51,7 +51,8 @@ module vilma_control
       ! --- forcing time window --------------------------------------------------
       ! Time fields are SI [s] in the record; the nml supplies them in YEARS and
       ! vilma_ctl_load converts on read (so the in-memory record is uniformly SI).
-      real(wp) :: time_init = -huge(1.0_wp)  !! start time [years] (default: first forcing slice)
+      real(wp) :: time_init = -huge(1.0_wp)  !! start time [years] (default, and any value <= -1e29:
+                                             !! unset = the first forcing slice, or the restart's time)
       real(wp) :: time_end  =  huge(1.0_wp)  !! end time   [years] (default: last  forcing slice)
 
       ! --- online lon-lat -> Gauss remap of the forcing -------------------------
@@ -87,6 +88,15 @@ module vilma_control
          !! full-state restart (vilma_restart.nc) to resume from: solid_earth_init at the
          !! reference, then restore the saved memory/clock. A lower-resolution restart is
          !! interpolated up to the model grid.
+      logical :: restart_time_reset = .false.
+         !! A restart continues where it left off: the window starts at the restart's time
+         !! (time_init unset), and a time_init that selects another start slice stops the
+         !! run. .true. takes the restart's state as the state AT the window start instead,
+         !! whatever time the file carries (a memory state reused for another experiment).
+      logical :: restart_other_visc = .false.
+         !! A restart must come from the same viscosity (radial profile and 3-D field,
+         !! checked on read). .true. accepts one written under another viscosity: its
+         !! memory then seeds this run (a 1-D spin-up for a 3-D run) rather than continuing it.
    end type vilma_ctl_class
 
 contains
@@ -94,11 +104,12 @@ contains
    subroutine vilma_ctl_load(c, filename, group)
       !! Fill the control record from the `&ctl` group of `filename`. There is no
       !! separate &ctl defaults file (the canonical defaults — input/vilma_defaults.nml
-      !! — carry only &vilma, the host API contract). Reads are therefore non-strict:
-      !! a parameter present in `filename` overrides, one that is absent keeps the
-      !! vilma_ctl_class in-code default. So a run config may set only the &ctl keys it
-      !! needs. Override `group` to read a differently-named namelist. Time fields are
-      !! given in YEARS and converted to SI here.
+      !! — carry only &vilma, the host API contract). So the &ctl group must hold every
+      !! key read below (nml_read stops on a missing one), except the optional ones read
+      !! behind nml_has_param (write_lossless, restart_time_reset, restart_other_visc),
+      !! which keep their in-code default when absent; keys nothing reads are ignored.
+      !! Override `group` to read a differently-named namelist. Time fields are given in
+      !! YEARS and converted to SI here.
       type(vilma_ctl_class), intent(inout) :: c
       character(len=*),   intent(in)    :: filename
       character(len=*),   intent(in), optional :: group
@@ -118,7 +129,6 @@ contains
       call nml_read(filename, g, "file_ref",      c%file_ref)
       c%file_ref = expand_path(c%file_ref)
       call nml_read(filename, g, "name_zbed_eq",  c%name_zbed_eq)
-      call nml_read(filename, g, "name_hice_ref", c%name_hice_ref)
 
       ! output
       call nml_read(filename, g, "file_out",      c%file_out)
@@ -161,6 +171,11 @@ contains
       ! restart-in path
       call nml_read(filename, g, "restart_in_file", c%restart_in_file)
       c%restart_in_file = expand_path(c%restart_in_file)
+      ! optional (default .false.), so existing run configs keep working
+      if (nml_has_param(filename, g, "restart_time_reset")) &
+         call nml_read(filename, g, "restart_time_reset", c%restart_time_reset)
+      if (nml_has_param(filename, g, "restart_other_visc")) &
+         call nml_read(filename, g, "restart_other_visc", c%restart_other_visc)
    end subroutine vilma_ctl_load
 
    subroutine vilma_ctl_print(c, unit)
@@ -181,6 +196,10 @@ contains
       if (c%write_lossless) write(u,'(a)') '   write_lossless: diagnostics written without rounding'
       if (len_trim(c%restart_in_file) > 0) &
          write(u,'(a,a)')  '   restart:  ', trim(c%restart_in_file)
+      if (len_trim(c%restart_in_file) > 0 .and. c%restart_time_reset) &
+         write(u,'(a)')    '   restart_time_reset: the restart is taken as the state at the window start'
+      if (len_trim(c%restart_in_file) > 0 .and. c%restart_other_visc) &
+         write(u,'(a)')    '   restart_other_visc: a restart from another viscosity is accepted as a seed'
    end subroutine vilma_ctl_print
 
 end module vilma_control

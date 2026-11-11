@@ -23,24 +23,28 @@ module vilma_io
    !! terms of the last update (w_prev, I_g_prev, C_prev, F_prev: the next ramp start).
    !! Static (written once, checked on read): the reference state z_bed_eq, h_ice_eq and,
    !! with host terms, w_ref, I_g_ref, C_host_ref; the global attribute host_terms (1 or 0)
-   !! says whether the run had host terms, and a read into the other kind stops. Diagnostic: h_ice,
+   !! says whether the run had host terms, and a read into the other kind stops. The Earth the
+   !! memory was built on is stamped as global attributes and checked on read
+   !! (vilma_restart_compatible): the radial mesh and shear moduli, the radial viscosity
+   !! profile and, with lateral viscosity, the 3-D field. Diagnostic: h_ice,
    !! rsl, z_bed, dz_bed, dz_ss, C_ocean (lon,lat) and the scalars bsl, bsl_ive, bsl_ive_host, dphi, fill_int, fill_int_own — written
    !! for inspection and restored if present.
    use vilma_precision,    only: wp
    use vilma_constants,    only: rad2deg, sec_per_year
    use vilma_viscoelastic, only: NLAM, NLAM_TOR
    use vilma_response,     only: response_prime_sigma, response, response_init_elastic, response_init_ve, &
-                              response_init_null, RESP_VE, &
+                              response_init_null, RESP_VE, response_radial_rate, &
                               response_horizontal, response_horizontal_toroidal
    use vilma_sht,          only: sht_grid_sph_synthesis, sht_grid_tor_synthesis
    use vilma_rotation,     only: rotation_ne, rotation_get_memory, rotation_set_memory, ROT_NCOMP
-   use vilma_coupling,     only: solid_earth, solid_earth_sync_host, VILMA_UNSET
+   use vilma_coupling,     only: solid_earth, solid_earth_sync_host, solid_earth_set_time, VILMA_UNSET
    use ncio
    use variable_io
    implicit none
    private
 
    public :: vilma_restart_write, vilma_restart_read, vilma_write_step, vilma_io_set_table
+   public :: vilma_restart_time, vilma_restart_compatible
    public :: vilma_write_horizontal
 
    ! The full time-varying variable set a restart writes, split by response kind.
@@ -330,7 +334,120 @@ contains
       call nc_write_attr(filename, "visc3d_tol", real(self%resp%visc3d_tol, wp))
       if (allocated(self%earth%visc_3d)) &
          call nc_write_attr(filename, "visc_3d_checksum", visc_3d_checksum(self%earth%visc_3d))
+      ! the radial structure the memory lives on, for every viscoelastic run (1-D or 3-D)
+      if (self%resp%kind == RESP_VE) then
+         call nc_write_attr(filename, "mesh_checksum", mesh_checksum(self))
+         call nc_write_attr(filename, "visc_radial_checksum", visc_radial_checksum(self))
+      end if
    end subroutine write_visc_attrs
+
+   function mesh_checksum(self) result(chk)
+      !! Fingerprint of the radial mesh and the elastic structure: node radii [m] and
+      !! element shear moduli [Pa], each scaled to O(1).
+      type(solid_earth), intent(in) :: self
+      real(wp) :: chk
+      chk = checksum1(self%resp%r/self%resp%r(size(self%resp%r))) &
+            + checksum1(self%resp%mu*1.0e-11_wp)
+   end function mesh_checksum
+
+   function visc_radial_checksum(self) result(chk)
+      !! Fingerprint of the radial viscosity profile the response integrates: log10 of the
+      !! per-element Maxwell rate (response_radial_rate; the lateral geometric mean where
+      !! the viscosity varies laterally), elements without relaxation counting 0.
+      type(solid_earth), intent(in) :: self
+      real(wp) :: chk
+      real(wp), allocatable :: rate(:)
+      rate = response_radial_rate(self%resp)
+      where (rate > 0.0_wp)
+         rate = log10(rate)
+      elsewhere
+         rate = 0.0_wp
+      end where
+      chk = checksum1(rate)
+   end function visc_radial_checksum
+
+   pure function checksum1(v) result(chk)
+      !! Order-sensitive fingerprint of a vector: the sum of v weighted by index.
+      real(wp), intent(in) :: v(:)
+      real(wp) :: chk
+      integer  :: i
+      chk = 0.0_wp
+      do i = 1, size(v)
+         chk = chk + v(i)*real(i, wp)
+      end do
+   end function checksum1
+
+   logical function vilma_restart_compatible(self, filename, msg, other_visc) result(ok)
+      !! Was the restart `filename` written by a model with the same Earth as self (already
+      !! initialised)? Compared, where the file carries the attribute (a file from before an
+      !! attribute existed is not checked on it), to 1e-12 relative:
+      !!
+      !!   mesh_checksum         radial mesh and shear moduli. Always.
+      !!   l_visc_3d             lateral viscosity on or off.
+      !!   visc_radial_checksum  radial viscosity profile. On the same horizontal grid, or
+      !!                         across resolutions when neither run has lateral viscosity
+      !!                         (the lateral mean depends on the grid).
+      !!   visc_3d_checksum      the 3-D log10(eta) field. On the same horizontal grid.
+      !!
+      !! other_visc = .true. skips the three viscosity checks (the file's memory is then a
+      !! seed, not a continuation). An elastic or null model has no memory and nothing to
+      !! check. On .false. msg names the first mismatch with both values.
+      type(solid_earth), intent(in)  :: self
+      character(len=*),  intent(in)  :: filename
+      character(len=*),  intent(out) :: msg
+      logical, optional, intent(in)  :: other_visc
+      real(wp) :: in_file, here
+      integer  :: l3d_file, l3d_here
+      logical  :: same_grid, skip_visc
+      ok = .true.;  msg = ''
+      if (self%resp%kind /= RESP_VE) return
+      skip_visc = .false.;  if (present(other_visc)) skip_visc = other_visc
+
+      if (nc_exists_attr(filename, "mesh_checksum")) then
+         call nc_read_attr(filename, "mesh_checksum", in_file)
+         here = mesh_checksum(self)
+         if (differ(in_file, here)) then
+            write(msg,'(a,es23.16,a,es23.16)') 'radial mesh / shear moduli (mesh_checksum): file ', in_file, &
+                 ', model ', here
+            ok = .false.;  return
+         end if
+      end if
+      if (skip_visc) return
+
+      l3d_here = merge(1, 0, self%resp%lat_visc);  l3d_file = l3d_here
+      if (nc_exists_attr(filename, "l_visc_3d")) call nc_read_attr(filename, "l_visc_3d", l3d_file)
+      if (l3d_file /= l3d_here) then
+         write(msg,'(a,i0,a,i0,a)') 'lateral viscosity (l_visc_3d): file ', l3d_file, ', model ', l3d_here, &
+              ' (other_visc / &ctl restart_other_visc = .true. takes the file as a seed)'
+         ok = .false.;  return
+      end if
+
+      same_grid = (nc_size(filename, "nk") == self%resp%nk) .and. (nc_size(filename, "lon") == self%sht%nphi) &
+                  .and. (nc_size(filename, "lat") == self%sht%nlat)
+      if (nc_exists_attr(filename, "visc_radial_checksum") .and. (same_grid .or. l3d_here == 0)) then
+         call nc_read_attr(filename, "visc_radial_checksum", in_file)
+         here = visc_radial_checksum(self)
+         if (differ(in_file, here)) then
+            write(msg,'(a,es23.16,a,es23.16,a)') 'radial viscosity profile (visc_radial_checksum): file ', in_file, &
+                 ', model ', here, ' (other_visc / &ctl restart_other_visc = .true. takes the file as a seed)'
+            ok = .false.;  return
+         end if
+      end if
+      if (same_grid .and. nc_exists_attr(filename, "visc_3d_checksum") .and. allocated(self%earth%visc_3d)) then
+         call nc_read_attr(filename, "visc_3d_checksum", in_file)
+         here = visc_3d_checksum(self%earth%visc_3d)
+         if (differ(in_file, here)) then
+            write(msg,'(a,es23.16,a,es23.16,a)') '3-D viscosity field (visc_3d_checksum): file ', in_file, &
+                 ', model ', here, ' (other_visc / &ctl restart_other_visc = .true. takes the file as a seed)'
+            ok = .false.;  return
+         end if
+      end if
+   contains
+      pure logical function differ(a, b)
+         real(wp), intent(in) :: a, b
+         differ = abs(a - b) > 1.0e-12_wp*max(abs(a), abs(b))
+      end function differ
+   end function vilma_restart_compatible
 
    pure function visc_3d_checksum(v) result(chk)
       !! Order-sensitive fingerprint of the (node, radius) absolute log10(eta) field:
@@ -373,6 +490,11 @@ contains
       case ("dphi");     call put_scalar(filename, name, self%dphi, n, ncid, lossless)
       case ("fill_int");     call put_scalar(filename, name, self%fill_int,     n, ncid, lossless)
       case ("fill_int_own"); call put_scalar(filename, name, self%fill_int_own, n, ncid, lossless)
+      ! convergence of the interval's sea-level solves (native solver; diagnostic output only)
+      case ("sle_resid");    call put_scalar(filename, name, self%sle_resid, n, ncid, lossless)
+      case ("sle_n_cap");    call put_scalar(filename, name, &
+                                  real(self%sle_n_cap_inner + self%sle_n_cap_coast + self%sle_n_cap_mem, wp), &
+                                  n, ncid, lossless)
       ! Polar motion m = m1 + i*m2 [rad]. Already prognostic and already
       ! serialized into restarts by write_rotation; these two cases let the
       ! DIAGNOSTIC output file carry it as well, via an explicit nms list.
@@ -481,7 +603,7 @@ contains
 
    ! --- reading ---------------------------------------------------------------
 
-   subroutine vilma_restart_read(self, filename, time)
+   subroutine vilma_restart_read(self, filename, time, other_visc)
       !! Restore the prognostic state into an already-initialised solid_earth
       !! (init() must have rebuilt the operators, spectrum and grid). Reads the
       !! response's memory state + model time at the time slice matching `time`
@@ -494,10 +616,17 @@ contains
       !!
       !! The clock and the adaptive controller's dt_try seed are restored for every
       !! kind so the restarted run sub-steps the same path as the uninterrupted one.
+      !!
+      !! The file must come from the same Earth (vilma_restart_compatible), or the read
+      !! stops. other_visc = .true. (default .false.) accepts a file written under another
+      !! viscosity: its memory then seeds this run (a 1-D spin-up for a 3-D run, say)
+      !! instead of continuing one. The mesh must match either way.
       type(solid_earth), intent(inout) :: self
       character(len=*),   intent(in)    :: filename
       real(wp), optional, intent(in)    :: time
+      logical,  optional, intent(in)    :: other_visc
       real(wp), allocatable :: tvals(:)
+      character(len=400) :: msg
       integer :: nt, n, np, nl
 
       np = self%sht%nphi;  nl = self%sht%nlat
@@ -517,6 +646,13 @@ contains
       ! a file with host terms goes into a model with them, and one without into one without
       call check_host_kind(self, filename)
 
+      ! the memory belongs to the Earth it was built on
+      if (.not. vilma_restart_compatible(self, filename, msg, other_visc)) then
+         write(*,'(a)') ' vilma_restart_read: '//trim(filename)//' is from another Earth:'
+         write(*,'(a)') '   '//trim(msg)
+         error stop 'vilma_restart_read: the restart does not match the model (see message above)'
+      end if
+
       ! kind-specific prognostic memory + (where applicable) reference/diagnostics
       select case (self%resp%kind)
       case (RESP_VE);    call read_ve_state(self, filename, n, np, nl)
@@ -525,10 +661,7 @@ contains
          call restore_host(self, filename, n, np, nl)
       end select
 
-      ! restore the clock and the adaptive controller's step-size seed. self%time is
-      ! in years (file units); the response's internal clock is in SI seconds.
-      self%resp%time = tvals(n)*sec_per_year
-      self%time      = tvals(n)
+      ! restore the adaptive controller's step-size seed.
       ! dt_try_s is the seed itself, in seconds. dt_try is the same in years, for reading: years
       ! and back is not exact, and the adaptive (implicit) stepper sub-steps by it, so a file
       ! from before dt_try_s continues to round-off only.
@@ -544,10 +677,25 @@ contains
       if (self%rotation%enabled .and. nc_exists_var(filename, "rot_m_re")) &
          call read_rotation(self, filename, n)
 
+      ! the clock: the time the file's state was written at (years, the file's units)
+      call solid_earth_set_time(self, tvals(n))
+
       ! the restart restores the Gauss-grid state (gg) + memory; re-derive the
       ! host-grid outputs (rsl, z_bed) from it so the host reads a consistent state.
       call solid_earth_sync_host(self)
    end subroutine vilma_restart_read
+
+   function vilma_restart_time(filename) result(time)
+      !! The model time [years] of the last snapshot in a restart file: the time a run
+      !! resumed from it continues at (vilma_restart_read sets the clock to it).
+      character(len=*), intent(in) :: filename
+      real(wp) :: time
+      real(wp), allocatable :: tvals(:)
+      integer :: nt
+      nt = nc_size(filename, "time")
+      allocate(tvals(nt));  call nc_read(filename, "time", tvals)
+      time = tvals(nt)
+   end function vilma_restart_time
 
    subroutine read_rotation(self, filename, n)
       !! Restore the rotation solver's prognostic state at slice n: the polar motion
@@ -571,7 +719,6 @@ contains
       call nc_read(filename, "rot_m_im", mim, start=[n], count=[1])
       m = cmplx(mre, mim, wp)
       call rotation_set_memory(self%rotation, m, load_mem, tidal_mem)
-      self%rotation%time = self%time
    end subroutine read_rotation
 
    subroutine read_ve_state(self, filename, n, np, nl)

@@ -54,6 +54,10 @@ module vilma_earth_structure
       ! the element's radial reference η — storing the absolute field here avoids a
       ! per-node reference ambiguity at layer interfaces.
       real(wp), allocatable :: visc_3d(:,:)
+      ! Radial-mesh target sizes by depth, for radial_mesh_build: mesh_dr(k) [m]
+      ! between the depths mesh_depth(k-1) and mesh_depth(k) [m] (surface first,
+      ! one depth fewer than sizes). Unallocated: the VEGA defaults.
+      real(wp), allocatable :: mesh_dr(:), mesh_depth(:)
    end type earth_model
 
 contains
@@ -79,6 +83,9 @@ contains
       case default
          error stop 'build_earth: unknown earth model "'//trim(p%earth)//'"'
       end select
+      ! The mesh table, without its unused (0) entries; radial_mesh_build checks it.
+      em%mesh_dr    = p%mesh_dr_scale*p%mesh_dr(1:count(p%mesh_dr /= 0.0_wp))
+      em%mesh_depth = p%mesh_depth(1:count(p%mesh_depth /= 0.0_wp))
       call earth_validate(em)
    end function build_earth
 

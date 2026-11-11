@@ -46,16 +46,18 @@ module vilma_v1
    !! VILMA1's time axis is in kyr. CLIMBER-X feeds it calendar ka BP; this wrapper
    !! feeds it the MODEL time (vilma_coupling's se%time) divided by 1000, which for the
    !! standalone driver is the forcing file's own time axis (e.g. -26.0 -> 0.0 kyr
-   !! for a deglaciation). VILMA1's viscoelastic response depends only on time
-   !! DIFFERENCES, so the labelling affects only VILMA1's own diagnostic output files.
+   !! for a deglaciation): solid_earth_init hands the start time over through
+   !! vilma_v1_set_time, and `setup` takes its start epoch from it. VILMA1's
+   !! viscoelastic response depends only on time DIFFERENCES, so the labelling
+   !! affects only VILMA1's own diagnostic output files.
    !!
    !! --- Deferred setup ---------------------------------------------------------
    !! VILMA1's `setup` needs both the integration time step and the start time, and
-   !! the vilma_coupling API supplies neither at init (the driver's coupling interval
-   !! comes from the forcing axis, and the clock is set after init). So init does
-   !! everything that does not need them — grids, maps, the reference NetCDFs — and
-   !! `setup` is called on the FIRST advancing update, from that update's own dt and
-   !! start time. A zero-length update (the driver's seed call) only records the
+   !! the vilma_coupling API does not supply the time step at init (the driver's
+   !! coupling interval comes from the forcing axis). So init does everything that
+   !! does not need it — grids, maps, the reference NetCDFs — and `setup` is called on
+   !! the FIRST advancing update, from that update's own dt and the start time set by
+   !! vilma_v1_set_time. A zero-length update (the driver's seed call) only records the
    !! entering ice, exactly as it does for the native solver.
    use vilma_precision, only: wp
    use vilma_constants, only: rad2deg, rho_ice_default => rho_ice, rho_water_default => rho_water, sec_per_year
@@ -82,7 +84,7 @@ module vilma_v1
    private
 
    public :: vilma_v1_backend
-   public :: vilma_v1_init, vilma_v1_update, vilma_v1_finalize
+   public :: vilma_v1_init, vilma_v1_update, vilma_v1_finalize, vilma_v1_set_time
    public :: vilma_v1_available, vilma_v1_require
 
    integer, parameter :: BIL_NEIGHBORS = 8     !! neighbour pool for the bilinear leg
@@ -332,6 +334,17 @@ contains
       call system_clock(pc1);  t_remap = t_remap + real(pc1-pc0,wp)/prate
 #endif
    end subroutine vilma_v1_update
+
+   subroutine vilma_v1_set_time(self, t_yr)
+      !! Place VILMA1's clock at the model time t_yr [years] (VILMA1 counts in kyr). Only
+      !! before the first advancing update: `setup` takes its start epoch from this clock,
+      !! and from then on VILMA1 advances its own.
+      type(vilma_v1_backend), intent(inout) :: self
+      real(wp),               intent(in)    :: t_yr
+      if (self%started) &
+         error stop 'vilma_v1_set_time: the VILMA1 clock cannot be set after its first advancing update'
+      self%t_kyr = t_yr*1.0e-3_wp
+   end subroutine vilma_v1_set_time
 
    subroutine vilma_v1_finalize(self)
       !! Release the wrapper's state and close VILMA1 down. Safe on a fresh object.

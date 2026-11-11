@@ -10,10 +10,11 @@ module vilma_timestep
    !!  • EXPLICIT (forward-Euler, the default): the 1st-order memory has no embedded
    !!    error signal, so Δt is set a priori by the Maxwell STABILITY ceiling
    !!    Δt ≤ cfl/max(μ/η) and the interval is divided into equal sub-steps (this is
-   !!    how VILMA1 marches its explicit memory). A cheap reactive guard rolls a sub-step
-   !!    back (resp%save_state/restore_state) and halves it if the memory ∞-norm goes
-   !!    non-finite or grows past guard_growth× — a safety net for a stiffer-than-
-   !!    estimated structure that normally never fires.
+   !!    how VILMA1 marches its explicit memory). The ceiling is exact — max(μ/η) is taken
+   !!    over every element and, with lateral viscosity, every grid point — so the scheme
+   !!    is stable by construction; a sub-step whose memory ∞-norm comes back non-finite
+   !!    (a corrupt input or state) is rolled back and halved, and the run stops when
+   !!    halving does not cure it.
    !!
    !!  • IMPLICIT (trapezoidal, SCHEME_TRAP): Δt is chosen by a step-doubling local-error
    !!    estimate on the memory (the §3c adaptive-dt controller) + the SLE↔memory
@@ -24,7 +25,8 @@ module vilma_timestep
    !!
    !! Δt enters the response only through Mk = (μ/η)Δt, so changing it (resp%set_dt) is a
    !! cheap rescale — no operator re-factorization (the band LU is Δt-independent).
-   use vilma_precision,    only: wp
+   use vilma_precision,    only: wp, is_finite
+   use vilma_constants,    only: sec_per_year
    use vilma_sht,          only: sht_grid
    use vilma_response,     only: response_coarse_fine_error, response_stash_coarse, response_prime_sigma, response_restore_state, response_set_dt, response_save_state, response_memory_norm, response_max_rate, response
    use vilma_sle,          only: sle_solve, sle_solver, sle_result, sle_host
@@ -47,7 +49,9 @@ module vilma_timestep
       real(wp) :: shrink_min = 0.2_wp     !! min Δt shrink per step (reject or grow)
       real(wp) :: dt_min    = 0.0_wp      !! Δt floor (0 = none); a step at the floor is
                                           !! accepted even if over tolerance (no infinite
-                                          !! subdivision) and tallied in n_floor
+                                          !! subdivision) and tallied in n_floor. For the
+                                          !! explicit scheme it OVERRIDES the stability
+                                          !! ceiling when larger (dt_min_overrides)
       real(wp) :: dt_max    = huge(1.0_wp)!! Δt ceiling
       !! Explicit (forward-Euler) sub-stepping. The 1st-order memory carries no
       !! embedded local-error signal, so Δt is set a priori by the Maxwell stability
@@ -55,11 +59,10 @@ module vilma_timestep
       !! Maxwell number M = μΔt/η ≤ cfl. cfl = 1 matches the rotation channel's
       !! convention (M ≤ 1, a factor-2 margin below the |1−M| = 1 stability bound).
       real(wp) :: cfl       = 1.0_wp      !! explicit sub-step Maxwell-number ceiling
-      !! Reactive instability guard (b): a sub-step is rolled back and halved when the
-      !! memory ∞-norm is non-finite OR grows by more than guard_growth× over the step
-      !! (floor atol). A generous factor ⇒ a true safety net for a stiffer-than-
-      !! estimated structure, not an accuracy controller; it normally never fires.
-      real(wp) :: guard_growth = 1.0e3_wp !! max memory-norm growth per sub-step
+      !! Set (and a warning printed, once) when dt_min exceeded the explicit stability
+      !! ceiling cfl/max(μ/η) and so set the sub-step: the run is then outside the
+      !! Maxwell number the user asked for, and unstable beyond M = 2.
+      logical  :: dt_min_overrides = .false.
       real(wp) :: dt_try    = 0.0_wp      !! next-step Δt suggestion (carried across
                                           !! intervals; 0 ⇒ first guess = whole interval)
       integer  :: n_accept  = 0           !! accepted steps (cumulative)
@@ -67,6 +70,16 @@ module vilma_timestep
       integer  :: n_floor   = 0           !! steps accepted at dt_min over tolerance
       integer  :: n_solve   = 0           !! SLE solves issued (the dominant cost unit)
       real(wp) :: worst_mass_resid = 0.0_wp  !! worst SLE mass residual over the LAST advance()
+      !! Convergence of the SLE solves of the LAST advance() (sle_result): how many there
+      !! were, how many ended at a cap of the inner (water load), coastline or memory
+      !! iteration, the worst inner residual max|ΔS|/max|S| (sle%tol bounds it when
+      !! converged) and the most cells still changing ocean/land state at the end of a solve.
+      integer  :: n_sle       = 0
+      integer  :: n_cap_inner = 0
+      integer  :: n_cap_coast = 0
+      integer  :: n_cap_mem   = 0
+      real(wp) :: worst_resid = 0.0_wp
+      integer  :: worst_coast_flip = 0
       !! PROFILE: wall-clock [s] of the rollback bookkeeping — response_save_state /
       !! _restore_state (a full copy of the (NLAM,ne,nk) memory arrays) and the
       !! response_memory_norm scans that feed the guards. This is paid on EVERY
@@ -114,8 +127,8 @@ contains
       !! sle_host) at the reference and at t0 and t1. They ramp linearly over the interval,
       !! field by field and with the same formula as the ice, so every sub-step solves
       !! with host(t) = host0 + (t−t0)/(t1−t0)·(host1−host0). The ice then is the own
-      !! part's (1−w). The σ_n priming uses host0; the dt = 0 seed uses host1 with ice0
-      !! (like the ice, see KNOWN ISSUE below). Without them the stepper is the host-free one.
+      !! part's (1−w). The σ_n priming uses host0; the dt = 0 solve uses host1 with ice1.
+      !! Without them the stepper is the host-free one.
       type(sle_host), optional, intent(in)    :: host_ref, host0, host1
       !! dIg_out (optional): the grounded-ice increment ΔI_g [m] of the final SLE solve (t1).
       real(wp),       optional, intent(out)   :: dIg_out(:,:)
@@ -129,9 +142,9 @@ contains
       complex(wp), allocatable :: sig0(:), sig_last(:), u_last(:), N_last(:)
       real(wp) :: dphi_last, fill_last(2)
       real(wp) :: t, dt, err_inf, tau_inf, errsc, fac, ricfac, expo, span
-      real(wp) :: rate, dt_stab, tau0, tau_run, scale
+      real(wp) :: rate, dt_stab
       integer  :: p, np, nl, n_sub
-      logical  :: at_floor, accept, finite, hmode
+      logical  :: at_floor, accept, hmode
       integer(kind=8) :: gc0, gc1, grate          ! PROFILE: see %t_guard
 
       span = t1 - t0
@@ -147,47 +160,24 @@ contains
       allocate(sig_last(sht%nlm), u_last(sht%nlm), N_last(sht%nlm), dIg_last(sht%nphi,sht%nlat))
       dIg_last = 0.0_wp
       dphi_last = 0.0_wp;  fill_last = 0.0_wp
-      self%worst_mass_resid = 0.0_wp             ! per-interval diagnostic (reset each advance)
+      self%worst_mass_resid = 0.0_wp             ! per-interval diagnostics (reset each advance)
+      self%n_sle = 0;  self%n_cap_inner = 0;  self%n_cap_coast = 0;  self%n_cap_mem = 0
+      self%worst_resid = 0.0_wp;  self%worst_coast_flip = 0
 
-      ! Zero-length interval: no time or memory advance, but still refresh the diagnostic
-      ! fields (rsl, C) so they are consistent with the CURRENT memory + ice load. A
-      ! report-only SLE solve converges the load against the frozen entering memory and
-      ! returns without advancing it. The drive uses solid_earth_update(...,dt=0) to seed
-      ! the entering ice and populate rsl/z_bed/C from a seeded or restored memory state;
-      ! a cross-resolution restart restores only the spectral memory (not the 2-D rsl), so
-      ! without this the caller's rsl would stay zero on the first output sample.
-      !
-      ! KNOWN ISSUE -- the diagnostic is built from ice0, the ice the model is
-      ! already carrying, NOT ice1, the slice the caller just handed in. The caller
-      ! (solid_earth_update) overwrites gg%h_ice with the new ice the moment this
-      ! returns, so after a dt=0 call rsl/C describe the PREVIOUS ice while h_ice
-      ! describes the new one, and update_bsl then combines the new h_ice with the
-      ! old C. Three consequences:
-      !   * solid_earth_update(se, X, 0.0) is not idempotent -- calling it twice
-      !     with the same X gives different rsl/C.
-      !   * the two backends differ at t0. vilma_drive seeds with dt=0 and
-      !     solid_earth_init leaves h_ice = h_ice_eq, so the native seed reports
-      !     the REFERENCE coastline while the VILMA1 path (which sets h_ice before
-      !     its own diagnostics) reports the LGM one. They differ over every cell
-      !     where LGM grounded ice sits on sub-sea-level bed -- Hudson Bay, the
-      !     Barents shelf, West Antarctica -- in both C_ocean and the t0 bsl.
-      !   * it affects only the t0 diagnostic sample, not the transient physics.
-      ! Switching to ice1 is the obviously right expression and was tried; it makes
-      ! solid_earth_spinup stop relaxing (relax_hold's first pass then measures
-      ! ~4e-7 m of bed motion instead of 136 m and exits "converged" immediately,
-      ! leaving 29 m of subsidence where the equilibrium is 239 m). That interaction
-      ! is not understood, and initialization I1 -- which every production
-      ! deglaciation depends on -- runs through this path, so the one-line change is
-      ! NOT safe to make on its own. Fixing it means understanding why a seeded rsl
-      ! suppresses the subsequent viscous advance; test_spinup is the reproducer.
+      ! Zero-length interval: no time or memory advance, but the diagnostic fields (rsl, C,
+      ! and u, N, Δφ) are re-solved for the CURRENT memory under ice1, the ice the caller
+      ! hands in (and host1): a report-only SLE solve converges the load against the frozen
+      ! memory. The caller then holds that same ice, so the state is consistent (rsl and C
+      ! describe the ice h_ice holds), and a second call with the same ice changes nothing
+      ! beyond the SLE tolerance. The driver seeds the start slice this way, the spin-up
+      ! reads the bed of its memory after each pass, and a cross-resolution restart (which
+      ! restores only the spectral memory) gets its 2-D fields back.
       if (span <= 0.0_wp) then
          allocate(ice_now(sht%nphi, sht%nlat), dice_now(sht%nphi, sht%nlat))
-         ice_now  = ice0
-         dice_now = ice0 - ice_ref
+         ice_now  = ice1
+         dice_now = ice1 - ice_ref
          call solve(dice_now, ice_now, sig_last, 0.0_wp, host1, report_only=.true.)
-         self%worst_mass_resid = res%mass_resid
-         u_last = res%u_lm;  N_last = res%N_lm;  dphi_last = res%esl
-         fill_last = [res%fill_int, res%fill_own]
+         call tally()
          call hand_back()
          return
       end if
@@ -195,14 +185,10 @@ contains
          ! --- explicit (forward-Euler) memory: a-priori stability sub-stepping -------
          ! The 1st-order memory carries no embedded error signal, so step-doubling is
          ! meaningless. Instead the interval is divided into equal sub-steps sized by
-         ! the Maxwell stability ceiling Δt ≤ cfl/max(μ/η) (M = μΔt/η ≤ cfl), and a
-         ! cheap reactive guard rolls back and halves a sub-step whose memory goes
-         ! non-finite OR grows past guard_growth× an ESTABLISHED memory scale (a safety
-         ! net for a stiffer-than-estimated structure that normally never fires). The
-         ! scale is the running max of the accepted memory norm, NOT a fixed floor —
-         ! otherwise the legitimate ramp-up of memory from the relaxed (τ≈0) start, where
-         ! the instantaneous norm is tiny, reads as runaway growth and trips false alarms.
-         ! VILMA1 advances its explicit memory the same way (small fixed Δt).
+         ! the Maxwell stability ceiling Δt ≤ cfl/max(μ/η) (M = μΔt/η ≤ cfl), as VILMA1
+         ! advances its explicit memory (small fixed Δt). max(μ/η) is exact
+         ! (response_max_rate), so within the ceiling the memory cannot run away and no
+         ! growth test is made; the one check is that the memory norm stays finite.
          np = sht%nphi;  nl = sht%nlat
          allocate(rsl_n(np,nl), ice_now(np,nl), dice_now(np,nl))
          rate = response_max_rate(resp)
@@ -212,19 +198,24 @@ contains
             dt_stab = span                           ! purely elastic: one step suffices
          end if
          dt_stab = min(dt_stab, self%dt_max)
-         if (self%dt_min > 0.0_wp) dt_stab = max(dt_stab, self%dt_min)
+         if (self%dt_min > dt_stab) then
+            ! the floor wins over stability: say so once, with the Maxwell number it implies
+            if (.not. self%dt_min_overrides) write(*,'(a,es10.3,a,es10.3,a,f0.2,a)') &
+               ' WARNING vilma_timestep: dt_min = ', self%dt_min/sec_per_year, &
+               ' yr exceeds the explicit sub-step limit ', dt_stab/sec_per_year, &
+               ' yr and overrides it: Maxwell number M = ', rate*self%dt_min, &
+               ' (cfl asked for less; forward Euler is unstable for M > 2)'
+            self%dt_min_overrides = .true.
+            dt_stab = self%dt_min
+         end if
          n_sub = max(1, ceiling(span/dt_stab - 1.0e-9_wp))
          dt    = span/real(n_sub, wp)                 ! nominal (equal) sub-step
          t = t0
-         call system_clock(gc0, grate)
-         tau_run = response_memory_norm(resp)                ! established memory scale at entry
-         call system_clock(gc1);  self%t_guard = self%t_guard + real(gc1-gc0,wp)/grate
          do
             if (t >= t1 - 1.0e-9_wp*span) exit
             dt   = min(dt, t1 - t)
             rsl_n = rsl
             call system_clock(gc0, grate)
-            tau0 = response_memory_norm(resp)                ! entering memory ∞-norm
             call response_save_state(resp)
             if (present(rot)) call rotation_save_state(rot)
             call system_clock(gc1);  self%t_guard = self%t_guard + real(gc1-gc0,wp)/grate
@@ -233,15 +224,8 @@ contains
             call system_clock(gc0, grate)
             err_inf = response_memory_norm(resp)
             call system_clock(gc1);  self%t_guard = self%t_guard + real(gc1-gc0,wp)/grate
-            finite  = (err_inf <= huge(1.0_wp))      ! .false. for NaN / +Inf
-            scale   = max(tau0, tau_run)             ! established memory magnitude
-            if (scale <= 0.0_wp) then
-               accept = finite                       ! no scale yet (relaxed): finite-only
-            else
-               accept = finite .and. (err_inf <= self%guard_growth*scale)
-            end if
+            accept  = is_finite(err_inf)             ! .false. for NaN / Inf
             if (accept) then
-               tau_run = max(tau_run, err_inf)       ! grow the running scale
                t = t + dt;  self%n_accept = self%n_accept + 1
                dt = min(span/real(n_sub, wp), 2.0_wp*dt)   ! recover toward nominal
             else
@@ -252,7 +236,7 @@ contains
                self%n_reject = self%n_reject + 1
                dt = 0.5_wp*dt
                if (dt <= 1.0e-12_wp*span) error stop &
-                  'vilma_timestep: explicit guard sub-step collapsed (viscosity too stiff for FE)'
+                  'vilma_timestep: the memory is not finite at any explicit sub-step (corrupt input or state)'
             end if
          end do
          call hand_back()
@@ -308,11 +292,11 @@ contains
          call system_clock(gc1);  self%t_guard = self%t_guard + real(gc1-gc0,wp)/grate
          call response_set_dt(resp, dt)                       ! leave resp%dt at the step size
          errsc = (err_inf/ricfac) / (self%atol + self%rtol*tau_inf)
-         ! Same two guards the explicit path carries. Without them a non-finite
-         ! estimate makes fac NaN and dt_try NaN, so t never advances; and with the
-         ! default dt_min = 0 a persistently rejected step shrinks geometrically
-         ! toward zero forever. Both are an infinite hang rather than an error.
-         if (.not. (errsc <= huge(1.0_wp))) error stop &
+         ! Two guards. Without them a non-finite estimate makes fac NaN and dt_try NaN,
+         ! so t never advances; and with the default dt_min = 0 a persistently rejected
+         ! step shrinks geometrically toward zero forever. Both are an infinite hang
+         ! rather than an error.
+         if (.not. is_finite(errsc)) error stop &
             'vilma_timestep: implicit local-error estimate went non-finite &
             &(viscosity too stiff, or the state has already diverged)'
 
@@ -356,6 +340,20 @@ contains
          if (present(fill_out))  fill_out  = fill_last
       end subroutine hand_back
 
+      subroutine tally()
+         !! Record the solve just made (res): the fields handed back from the final one,
+         !! and the interval's convergence record.
+         self%worst_mass_resid = max(self%worst_mass_resid, res%mass_resid)
+         u_last = res%u_lm;  N_last = res%N_lm;  dphi_last = res%esl
+         fill_last = [res%fill_int, res%fill_own]
+         self%n_sle = self%n_sle + 1
+         if (res%inner_capped) self%n_cap_inner = self%n_cap_inner + 1
+         if (res%coast_capped) self%n_cap_coast = self%n_cap_coast + 1
+         if (res%mem_capped)   self%n_cap_mem   = self%n_cap_mem + 1
+         self%worst_resid      = max(self%worst_resid, res%resid_rel)
+         self%worst_coast_flip = max(self%worst_coast_flip, res%n_coast_flip)
+      end subroutine tally
+
       subroutine solve(dice, ice, sigma, h, hn, report_only)
          !! The one place sle_solve is called: with the host terms hn (and the reference)
          !! when the stepper has them, else exactly the host-free call. Solves into the
@@ -395,9 +393,7 @@ contains
          else
             call solve(dice_now, ice_now, sig_last, h)
          end if
-         self%worst_mass_resid = max(self%worst_mass_resid, res%mass_resid)
-         u_last = res%u_lm;  N_last = res%N_lm;  dphi_last = res%esl
-         fill_last = [res%fill_int, res%fill_own]
+         call tally()
       end subroutine solve_at
 
    end subroutine stepper_advance

@@ -20,9 +20,18 @@ module vilma_params
 
    public :: vilma_param_class, vilma_par_load, vilma_par_print, expand_path
    public :: scheme_name_valid
-   public :: MAX_LAYER
+   public :: MAX_LAYER, MAX_MESH_ZONE, MESH_DR_DEFAULT, MESH_DEPTH_DEFAULT
 
    integer, parameter :: MAX_LAYER = 16   !! cap on custom earth-structure layers
+
+   ! Radial-mesh target sizes (vilma_radial_fe radial_mesh_build), after VEGA
+   ! (Martinec et al. 2018): 5 km above 70 km depth, 10 km to 670 km, 40 km
+   ! below. A table of depth zones, surface first; unused entries are 0.
+   integer,  parameter :: MAX_MESH_ZONE = 8   !! cap on radial-mesh depth zones
+   real(wp), parameter :: MESH_DR_DEFAULT(MAX_MESH_ZONE) = &
+        [5.0e3_wp, 10.0e3_wp, 40.0e3_wp, 0.0_wp, 0.0_wp, 0.0_wp, 0.0_wp, 0.0_wp]
+   real(wp), parameter :: MESH_DEPTH_DEFAULT(MAX_MESH_ZONE) = &
+        [70.0e3_wp, 670.0e3_wp, 0.0_wp, 0.0_wp, 0.0_wp, 0.0_wp, 0.0_wp, 0.0_wp]
 
    type :: vilma_param_class
       ! --- solid-earth solver backend --------------------------------------------
@@ -62,6 +71,16 @@ module vilma_params
       real(wp) :: mu(MAX_LAYER)    = 0.0_wp    !! custom: layer shear moduli [Pa]
       real(wp) :: eta(MAX_LAYER)   = 0.0_wp    !! custom: layer viscosities [Pa s]
       integer  :: rheology(MAX_LAYER) = 1      !! custom: 0=elastic 1=Maxwell 2=fluid
+
+      ! --- radial mesh (vilma_radial_fe radial_mesh_build) --------------------------
+      ! The target element size is a function of the element's depth: zone k has
+      ! size mesh_dr(k) and reaches from depth mesh_depth(k-1) (the surface for
+      ! k = 1) down to mesh_depth(k); the last zone reaches the centre, so n sizes
+      ! take n-1 depths. Layer interfaces are always element boundaries. Changing
+      ! the element count makes restart files of the old mesh unreadable.
+      real(wp) :: mesh_dr(MAX_MESH_ZONE)    = MESH_DR_DEFAULT     !! [m] target element size per depth zone
+      real(wp) :: mesh_depth(MAX_MESH_ZONE) = MESH_DEPTH_DEFAULT  !! [m] depth of the base of each zone but the last
+      real(wp) :: mesh_dr_scale = 1.0_wp       !! factor on every mesh_dr (0.5 halves the element size)
 
       ! --- viscoelastic memory scheme (vilma_response / vilma_viscoelastic) ------------
       character(len=8) :: scheme = "fe"        !! fe | trap (scheme_name_valid)
@@ -142,8 +161,12 @@ module vilma_params
       ! dropped (Spada's tables and tests/test_benchmark_love start at degree 2).
       character(len=8) :: deg1_frame = "cm"   !! "cm" | "cf"
       logical  :: l_visc_3d   = .false.   !! load a lateral log10(eta) field
-      character(len=512) :: visc_3d_file  = ""       !! lon-lat-r log10(eta) field
-      integer  :: visc_3d_structure = 0     !! 0: visc_3d_file is a lon-lat-r field (name_visc*);
+      !! The 3-D field read when l_visc_3d: by default the FesmData Bagge (2021) product,
+      !! relative to the run folder (a `fesmdata` link). These defaults are those of
+      !! input/vilma_defaults.nml (test_params holds the two together), so a host that
+      !! fills the record in memory gets what the standalone driver gets.
+      character(len=512) :: visc_3d_file  = "fesmdata/Global/GLOBAL-T170/GLOBAL-T170_SolidEarth-Bagge2021.nc"
+      integer  :: visc_3d_structure = 6     !! 0: visc_3d_file is a lon-lat-r field (name_visc*);
          !! >= 1: it is the FesmData Bagge2021_visc.nc product (log10_visc on lon, lat, depth,
          !! structure; name_visc* ignored) and this is the structure to read (6 = v_1.0_s16)
       character(len=64)  :: name_visc     = "eta"    !! viscosity var (log10 Pa s)
@@ -262,6 +285,12 @@ contains
       call nml_read(filename, g, "mu",        p%mu,        defaults_file=df)
       call nml_read(filename, g, "eta",       p%eta,       defaults_file=df)
       call nml_read(filename, g, "rheology",  p%rheology,  defaults_file=df)
+
+      ! radial mesh. init: the entries a namelist does not list are 0 (unused),
+      ! so a shorter table than the default's can be given.
+      call nml_read(filename, g, "mesh_dr",       p%mesh_dr,       init=.true., defaults_file=df)
+      call nml_read(filename, g, "mesh_depth",    p%mesh_depth,    init=.true., defaults_file=df)
+      call nml_read(filename, g, "mesh_dr_scale", p%mesh_dr_scale, defaults_file=df)
 
       ! memory scheme
       call nml_read(filename, g, "scheme",          p%scheme,          defaults_file=df)
@@ -409,6 +438,10 @@ contains
                  '  rheol=', p%rheology(k)
          end do
       end if
+      write(u,'(a,*(f0.1,1x))') '   mesh:   dr [km] = ', pack(p%mesh_dr, p%mesh_dr /= 0.0_wp)*1.0e-3_wp
+      write(u,'(a,*(f0.1,1x))') '           below depths [km] = 0.0 ', &
+           pack(p%mesh_depth, p%mesh_depth /= 0.0_wp)*1.0e-3_wp
+      write(u,'(a,f0.3)')       '           dr scale = ', p%mesh_dr_scale
       write(u,'(a,a)')        '   response: ', trim(p%earth_response)
       write(u,'(a,a)')        '   scheme: ', trim(p%scheme)
       write(u,'(a,i0,a,i0,a,i0,a,es8.1,a,l1,a,l1)') &
