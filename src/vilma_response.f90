@@ -230,6 +230,12 @@ module vilma_response
       !! a function of the radial structure and the field handed in last, never of the
       !! fields enabled before it (the 1-D pre-spin-up enables a mean field, then the real one).
       real(wp), allocatable :: MkPerDt_rad(:)             !! (ne)
+      !! The lateral mean rate per element once a lateral viscosity is enabled: the
+      !! rate of the area-weighted mean of log10 η over the sphere (the geometric
+      !! mean of η). A 1-D-effective element advances with it (it is its MkPerDt);
+      !! for a genuinely 3-D element it is the radial profile a radially symmetric
+      !! consumer sees (response_radial_rate).
+      real(wp), allocatable :: MkPerDt_mean(:)            !! (ne)
       ! Controller state snapshots (§3c controller, lazily allocated): buffer A holds
       ! the entering state τ_n that a rejected/fine step restores to; buffer B holds the
       ! coarse τ_{n+1} for the step-doubling error estimate. Distinct from Are0 (which
@@ -1031,14 +1037,16 @@ contains
       !! 1-D/3-D split (VILMA1 mod_visc3d): an element is flagged genuinely 3-D only
       !! when its lateral log10(η) spread exceeds visc3d_tol; that subset (e3d) pays
       !! the pseudo-spectral tensor-SH advance. Every other Maxwell element collapses
-      !! to a scalar effective rate (its lateral MEAN) and advances on the cheap
-      !! degree-diagonal spectral path. A laterally-uniform field therefore flags NO
-      !! element 3-D, so the cost equals the 1-D run (exactly, not just to SHT round-off).
+      !! to a scalar effective rate, that of its lateral mean log10(η) — the mean over
+      !! the sphere, area-weighted (grid_area_mean), not over the grid points, which
+      !! crowd toward the poles — and advances on the cheap degree-diagonal spectral
+      !! path. A laterally-uniform field therefore flags NO element 3-D, so the cost
+      !! equals the 1-D run (exactly, not just to SHT round-off).
       type(response), intent(inout) :: self
       type(sht_grid),     intent(in)    :: sht
       real(wp),           intent(in)    :: pert_elem(:,:,:)   !! (nphi,nlat,ne) log10 η perturbation
-      integer :: e, ne_grid
-      real(wp) :: spread, mean_pert
+      integer :: e
+      real(wp) :: spread
       if (size(pert_elem,1) /= sht%nphi .or. size(pert_elem,2) /= sht%nlat .or. &
           size(pert_elem,3) /= self%ne) &
          error stop 'enable_lateral_visc: pert_elem must be (nphi,nlat,ne)'
@@ -1048,24 +1056,25 @@ contains
       if (allocated(self%e3d))      deallocate(self%e3d)
       allocate(self%MkPerDt3(sht%nphi, sht%nlat, self%ne))
       allocate(self%Mk3(sht%nphi, sht%nlat, self%ne))
-      ne_grid = sht%nphi*sht%nlat
+      if (.not. allocated(self%MkPerDt_mean)) allocate(self%MkPerDt_mean(self%ne))
       ! Build the per-grid rate from the radial MkPerDt_rad (never from a rate an earlier
       ! enable left in MkPerDt), THEN classify and (for 1-D-effective elements) set the
       ! scalar MkPerDt to the lateral-mean rate. Repeated enables then agree bit for bit
       ! with a single one.
       self%MkPerDt = self%MkPerDt_rad
+      self%MkPerDt_mean = self%MkPerDt_rad
       do e = 1, self%ne
          self%MkPerDt3(:,:,e) = self%MkPerDt_rad(e) * 10.0_wp**(-pert_elem(:,:,e))
       end do
       self%active1d = .true.;  self%ne3d = 0
       do e = 1, self%ne
          if (self%MkPerDt_rad(e) == 0.0_wp) cycle         ! elastic/fluid: spectral, memory-free
+         self%MkPerDt_mean(e) = self%MkPerDt_rad(e) * 10.0_wp**(-grid_area_mean(sht, pert_elem(:,:,e)))
          spread = maxval(pert_elem(:,:,e)) - minval(pert_elem(:,:,e))
          if (spread > self%visc3d_tol) then
             self%active1d(e) = .false.;  self%ne3d = self%ne3d + 1   ! genuinely 3-D
          else
-            mean_pert = sum(pert_elem(:,:,e))/real(ne_grid, wp)      ! collapse to scalar
-            self%MkPerDt(e) = self%MkPerDt_rad(e) * 10.0_wp**(-mean_pert)
+            self%MkPerDt(e) = self%MkPerDt_mean(e)                   ! collapse to scalar
          end if
       end do
       self%Mk  = self%MkPerDt * self%dt                   ! rescale 1-D scalar rates
@@ -1201,24 +1210,40 @@ contains
       deallocate(pert)
    end subroutine response_enable_lateral_visc_from_nodes
 
+   pure real(wp) function grid_area_mean(sht, f) result(mean)
+      !! Mean of a grid field over the sphere: Gauss weights in latitude, uniform in
+      !! longitude. Taken as f(1,1) plus the mean of the deviation from it, so a
+      !! uniform field gives its value exactly.
+      type(sht_grid), intent(in) :: sht
+      real(wp),       intent(in) :: f(:,:)   !! (nphi, nlat)
+      real(wp) :: row
+      integer  :: i, j
+      mean = 0.0_wp
+      do j = 1, sht%nlat
+         row = 0.0_wp
+         do i = 1, sht%nphi
+            row = row + (f(i,j) - f(1,1))
+         end do
+         mean = mean + sht%gauss_w(j)*row
+      end do
+      mean = f(1,1) + mean/(2.0_wp*real(sht%nphi, wp))      ! Σ gauss_w = 2
+   end function grid_area_mean
+
    function response_radial_rate(self) result(rate)
       !! The radial profile of the viscosity the response integrates, as the per-element
-      !! Maxwell rate μ/η (ne). A 1-D element gives its scalar rate, which after a
-      !! lateral-viscosity enable is already the lateral geometric mean; a genuinely
-      !! 3-D element gives the lateral geometric mean of its grid rate (the unweighted
-      !! grid mean of log10 η, as the 1-D collapse in enable_lateral_visc takes it).
-      !! Elastic/fluid elements stay 0. This is what a radially symmetric consumer
-      !! (the degree-2 rotation channels) should see.
+      !! Maxwell rate μ/η (ne): the earth model's own without lateral viscosity, else
+      !! the rate of the lateral mean log10 η of each element (MkPerDt_mean: the
+      !! area-weighted mean over the sphere, i.e. the geometric mean of η), for the
+      !! 1-D-effective and the genuinely 3-D elements alike. Elastic/fluid elements
+      !! stay 0. This is what a radially symmetric consumer (the degree-2 rotation
+      !! channels) should see.
       type(response), intent(in) :: self
       real(wp) :: rate(self%ne)
-      integer  :: k, e
-      rate = self%MkPerDt
-      if (.not. self%lat_visc) return
-      do k = 1, self%ne3d
-         e = self%e3d(k)
-         rate(e) = 10.0_wp**(sum(log10(self%MkPerDt3(:,:,e))) &
-                             / real(size(self%MkPerDt3,1)*size(self%MkPerDt3,2), wp))
-      end do
+      if (self%lat_visc) then
+         rate = self%MkPerDt_mean
+      else
+         rate = self%MkPerDt
+      end if
    end function response_radial_rate
 
    subroutine advance_memory_3d(self, sht, sigma_lm)
@@ -1972,6 +1997,7 @@ contains
       if (allocated(self%sigma_next)) deallocate(self%sigma_next)
       if (allocated(self%MkPerDt))    deallocate(self%MkPerDt)
       if (allocated(self%MkPerDt_rad)) deallocate(self%MkPerDt_rad)
+      if (allocated(self%MkPerDt_mean)) deallocate(self%MkPerDt_mean)
       if (allocated(self%Are_s))      deallocate(self%Are_s, self%Aim_s, self%Bre_s, &
                                                  self%Bim_s, self%Cre_s, self%Cim_s)
       if (allocated(self%Are_c))      deallocate(self%Are_c, self%Aim_c, self%Bre_c, &

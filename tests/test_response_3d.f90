@@ -12,13 +12,16 @@ program test_response_3d
    !!       1-D run on an Earth whose Maxwell-layer viscosities are scaled by 10^p,
    !!       validating the perturbation→Maxwell-rate mapping (η_eff = η·10^p).
    !!
+   !! and (4): the lateral mean of a field p = a·cos²θ is its mean over the sphere,
+   !! a/3, in the scalar rate of a collapsed element and in response_radial_rate.
+   !!
    !! Both drive a multi-(l,m) load (degrees and orders, complex coefficients)
    !! through begin/apply/commit so the full spectral round-trip is exercised.
    use vilma_precision,       only: wp
    use vilma_constants,       only: kyr
    use vilma_earth_structure, only: earth_n_layers, earth_model, build_M3L70V01, RHEOL_MAXWELL
    use vilma_radial_fe,       only: radial_fe_finalize
-   use vilma_response,        only: response_apply, response_destroy, response_enable_lateral_visc, response_commit_step, response_begin_step, response, response_init_elastic, response_init_ve, response_init_null
+   use vilma_response,        only: response_apply, response_destroy, response_enable_lateral_visc, response_commit_step, response_begin_step, response_radial_rate, response, response_init_elastic, response_init_ve, response_init_null
    use vilma_sht,             only: sht_grid, sht_grid_init, sht_grid_destroy, sht_grid_lmidx
    use vilma_viscoelastic,    only: SCHEME_TRAP, NLAM
    implicit none
@@ -90,6 +93,10 @@ program test_response_3d
    call consistency_trap(-0.4_wp, ok)
 
    write(*,'(a)') ''
+   write(*,'(a)') ' (4) the lateral mean is the mean over the sphere (area-weighted)'
+   call lateral_mean_check(ok)
+
+   write(*,'(a)') ''
    if (ok) then
       write(*,'(a)') ' PASS: the pseudo-spectral memory advance reduces to the 1-D'
       write(*,'(a)') '       advance for a laterally-uniform viscosity field'
@@ -101,6 +108,44 @@ program test_response_3d
    call sht_grid_destroy(sht);  call radial_fe_finalize()
 
 contains
+
+   subroutine lateral_mean_check(ok)
+      !! p = a·cos²θ has the mean a/3 over the sphere; the mean over the Gauss grid
+      !! points, which are near-uniform in θ, is close to a/2. Both places that take
+      !! a lateral mean must give a/3: the scalar rate of an element that collapses
+      !! to 1-D (visc3d_tol above the spread), and response_radial_rate of the same
+      !! element kept 3-D.
+      logical, intent(inout) :: ok
+      real(wp), parameter :: A = 0.6_wp
+      type(response) :: v1, v3
+      real(wp), allocatable :: pert(:,:,:), rate(:)
+      real(wp) :: expect, e1, e3
+      integer  :: ie, j
+      call response_init_ve(v1, e, sht, dt)
+      call response_init_ve(v3, e, sht, dt)
+      allocate(pert(sht%nphi, sht%nlat, v1%ne))
+      do j = 1, sht%nlat
+         pert(:,j,:) = A*cos(sht%colat(j))**2
+      end do
+      v1%visc3d_tol = 2.0_wp*A                   ! every element collapses to its mean
+      call response_enable_lateral_visc(v1, sht, pert)
+      call response_enable_lateral_visc(v3, sht, pert)      ! every Maxwell element 3-D
+      rate = response_radial_rate(v3)
+      e1 = 0.0_wp;  e3 = 0.0_wp
+      do ie = 1, v1%ne
+         if (v1%MkPerDt_rad(ie) == 0.0_wp) cycle
+         expect = v1%MkPerDt_rad(ie)*10.0_wp**(-A/3.0_wp)
+         e1 = max(e1, abs(v1%MkPerDt(ie)/expect - 1.0_wp))
+         e3 = max(e3, abs(rate(ie)/expect - 1.0_wp))
+      end do
+      write(*,'(a,es10.2,a,es10.2,a,i0,a,i0)') '      rel. error of the mean rate: collapsed ', e1, &
+           ',  radial rate of 3-D elements ', e3, '   (3-D elements: ', v1%ne3d, ', ', v3%ne3d, ')'
+      if (e1 > 1.0e-12_wp .or. e3 > 1.0e-12_wp .or. v1%ne3d /= 0 .or. v3%ne3d == 0) then
+         write(*,'(a)') '      FAIL: the lateral mean is not the area-weighted mean'
+         ok = .false.
+      end if
+      call response_destroy(v1);  call response_destroy(v3)
+   end subroutine lateral_mean_check
 
    subroutine build_load(slm)
       !! Deterministic NON-axisymmetric real-field load: every (l,m) up to LMAX
