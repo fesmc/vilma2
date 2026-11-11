@@ -27,7 +27,8 @@ vilma_v1  ?= 0
 defaulttarget: usage
 
 # === Compiler configuration ==================================================
-# Inserted by `configme` (or the legacy config/legacy/config.py). The fragment
+# Inserted by `configme` (`configme config vilma2 -m <machine> -c <compiler>`),
+# which writes the top-level Makefile from this template. The fragment
 # defines the compiler (FC), flag sets (FFLAGS_BASE, FFLAGS_OPENMP, MODFLAGS,
 # CPPFLAGS_PP, DFLAGS_*), the netCDF wiring (INC_NC, LIB_NC), and any
 # host-specific link extras (LFLAGS_EXTRA).
@@ -41,6 +42,8 @@ defaulttarget: usage
 include config/common.mk
 
 # === Git version string ======================================================
+# "unknown" where git is missing (the compute nodes of albedo and levante) or
+# the tree is not a git checkout: the build never depends on git.
 GIT_VERSION := $(shell git describe --abbrev=4 --dirty --always --tags 2>/dev/null || echo "unknown")
 CPPFLAGS_VILMA := $(CPPFLAGS_VILMA) -DVERSION=\"$(GIT_VERSION)\"
 

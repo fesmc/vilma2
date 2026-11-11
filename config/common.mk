@@ -4,15 +4,15 @@
 # FFLAGS_BASE, MODFLAGS, CPPFLAGS_PP, INC_NC and LIB_NC defined there.
 #
 # All numerical dependencies (FFTW, SHTns) and the fesm-utils helper library are
-# provided by the fesm-utils package, expected at the repo root as a symlink:
+# provided by the fesm-utils package, expected at the repo root as `fesm-utils`
+# (cloned there by `configme install vilma2`, or a symlink to an existing checkout:
+# `configme install vilma2 --link fesm-utils=/abs/path`).
 #
-#     ln -s ../fesm-utils fesm-utils
-#
-# vilma_remap (conservative lon-lat -> Gauss remapping for the standalone driver) uses
-# the `coords` module, which is in the fesm-utils `dev` branch (and so in `phase0-kryos`,
-# the one kryos uses). Point the symlink at a checkout on one of them and build its
-# utils library:
-#     (in the fesm-utils checkout)  configme config && make fesmutils-static
+# fesm-utils must be at the ref pinned in .configme/manifest.toml (`phase0-kryos`):
+# vilma_remap uses coords' grid_init_gaussian, which fesm-utils `dev` (v1.4) does
+# not have yet, and the namelist reader uses nml_has_param (in dev since v1.4).
+# configme clones and builds it; by hand:
+#     (in the fesm-utils checkout)  configme config fesm-utils && make openmp=1 all
 #
 # SHTns (spherical-harmonic transforms) is built into fesm-utils with:
 #     cd fesm-utils && make shtns openmp=0   # (openmp=1 for the omp variant)
@@ -40,13 +40,6 @@ SHTNSROOT = fesm-utils/SHTns/shtns-serial
 INC_SHTNS = -I$(SHTNSROOT)/include
 LIB_SHTNS = -L$(SHTNSROOT)/lib -lshtns
 
-# --- (LIS removed) -----------------------------------------------------------
-# The per-degree solve is now a dependency-free pivoted banded LU (vilma_band); LIS
-# is no longer linked. Keeping INC_LIS / LIB_LIS empty so the flag lists below
-# (and any external references) stay valid.
-INC_LIS =
-LIB_LIS =
-
 # --- OpenMP build (make openmp=1) --------------------------------------------
 # Two things happen for an OpenMP build:
 #   1. The serial dependency builds above are swapped for their OpenMP variants
@@ -56,8 +49,6 @@ LIB_LIS =
 #      FFLAGS by config/Makefile, which also threads the per-degree loop in
 #      vilma_response (begin_step / commit_step) over independent per-degree systems,
 #      each solved by the re-entrant banded LU (vilma_band).
-# (There is no LIS variant to reconcile: the iterative solver was removed in
-# favour of the direct banded LU.)
 ifeq ($(openmp),1)
 	INC_FESMUTILS = -I$(FESMUTILSROOT)/include-omp
 	LIB_FESMUTILS = -L$(FESMUTILSROOT)/include-omp -lfesmutils
@@ -101,9 +92,9 @@ endif
 # MODFLAGS (-I/-J objdir) and FFLAGS_BASE come from the compiler fragment.
 # INC_SHTNS is what lets `include 'shtns.f03'` in src/vilma_sht.f90 be found.
 CPPFLAGS_VILMA = $(CPPFLAGS_PP) $(CPPFLAGS_VILMA_V1)
-FFLAGS_VILMA   = $(FFLAGS_BASE) $(MODFLAGS) $(INC_NC) $(INC_FESMUTILS) $(INC_FFTW) $(INC_SHTNS) $(INC_LIS) $(INC_VILMA_V1)
+FFLAGS_VILMA   = $(FFLAGS_BASE) $(MODFLAGS) $(INC_NC) $(INC_FESMUTILS) $(INC_FFTW) $(INC_SHTNS) $(INC_VILMA_V1)
 
 # Static archives resolve left-to-right, so a library must precede the libraries
 # it depends on: SHTns before FFTW (SHTns calls FFTW), fesm-utils before netCDF.
 # LIB_VILMA_V1 is empty unless vilma_v1=1; VILMA1 calls netCDF, so it precedes LIB_NC.
-LFLAGS_VILMA   = $(LIB_FESMUTILS) $(LIB_SHTNS) $(LIB_FFTW) $(LIB_LIS) $(LIB_VILMA_V1) $(LIB_NC) $(LFLAGS_EXTRA)
+LFLAGS_VILMA   = $(LIB_FESMUTILS) $(LIB_SHTNS) $(LIB_FFTW) $(LIB_VILMA_V1) $(LIB_NC) $(LFLAGS_EXTRA)

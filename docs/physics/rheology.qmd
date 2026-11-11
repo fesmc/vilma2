@@ -7,7 +7,9 @@ elastically on short timescales and viscously on long ones, with a single
 Maxwell time $\tau_M = \eta/\mu$ per layer. VILMA2 integrates this
 constitutive law **explicitly in the time domain** — there is no normal-mode
 decomposition and no Laplace transform. This is the structural choice that
-makes laterally varying (3D) viscosity essentially free.
+admits laterally varying (3D) viscosity without changing the operator. The
+extra cost of a 3D run lies in the memory advance, and in the shorter time
+step that low viscosities require.
 
 ## The Maxwell body
 
@@ -73,11 +75,25 @@ step.
 `"fe"` is the $\omega = 1$ scheme of @Martinec2000 and matches how VILMA1
 marches its memory. `"trap"` is implicit in the end-of-step strain
 $\boldsymbol{\varepsilon}^{i}$, which itself depends on
-$\boldsymbol{\tau}^{V,i}$. The commit therefore iterates the step endpoint to
-a consistent strain–memory pair (up to `max_couple_iter` passes). The
-exponential (`"etd1"`) and backward-Euler (`"be"`) updates are kept in the
-single-degree stepper as controls for testing; the field driver advances them
-as `"fe"` and `"trap"` respectively.
+$\boldsymbol{\tau}^{V,i}$. The step endpoint is therefore iterated to a
+consistent strain–memory pair. In the coupled model this iteration runs inside
+the sea-level solve, so the ocean load converges together with the memory. It
+stops when the surface drift changes by less than $10^{-6}$ (relative) between
+passes, or after `sle_max_mem_iter` passes (default 20).
+
+`scheme` also accepts `"etd1"` and `"be"`, but the coupled model has no update
+of its own for them. The exponential (`"etd1"`) and backward-Euler (`"be"`)
+updates exist only in the single-degree stepper (`ve_degree`), as controls for
+testing. `test_etd1` records that the exponential update is less accurate
+than `"fe"` at resolved steps. The field driver advances `"etd1"` exactly as `"fe"`.
+It advances `"be"` with the trapezoidal update, while the step controller
+treats the result as first order. Neither value is meant for production runs.
+Any other string stops the run.
+
+`max_couple_iter` (default 20) caps the same endpoint iteration in
+`commit_step`, the variant that holds the load fixed. The coupled model does
+not call `commit_step`, so this parameter has no effect on a model run. It is
+used by the response-level tests only.
 
 ::: {.callout-note title="Why explicit, not implicit or normal-mode"}
 With the explicit update, the memory stress at step $i$ depends only on the
@@ -134,13 +150,66 @@ Three details matter in practice:
   stiffest Maxwell elements ($M\sim10^{-10}$ at $\eta\sim10^{30}$ Pa s) that
   error is of order one per step.
 - **Elastic and fluid layers stay memory-free.** A 3-D field modulates only
-  the Maxwell layers; the elastic lithosphere of the earth model remains
-  exactly elastic and laterally uniform, whatever the file prescribes there.
+  the Maxwell layers of the earth model. A layer declared elastic
+  (`rheology = 0`) stays exactly elastic and laterally uniform, whatever the
+  file prescribes there. The same holds for a fluid layer. The
+  [lid rule](#visc3d-input) below is a separate, optional rule that acts on
+  Maxwell elements.
 
-The lateral field is read as absolute $\log_{10}\eta(\text{lon},\text{lat},r)$
-(`visc_3d_file`, default the @Bagge2021 field from the FesmData product `GLOBAL-T170_SolidEarth-Bagge2021.nc`, structure 6), bounded by `visc_log10_min` /
-`visc_log10_max`, and optionally perturbed by `f_visc_sd` standard deviations
-for uncertainty ensembles.
+### The 3-D viscosity input chain {#visc3d-input}
+
+With `l_visc_3d = .true.` the lateral field is built once at initialization,
+in a fixed order. Each stage acts on the result of the previous one.
+
+1. **Read.** `visc_3d_file` holds absolute $\log_{10}\eta$ [Pa s]. With
+   `visc_3d_structure = 0` it is a field on (lon, lat, r), the radius in
+   meters, with the variable names `name_visc`, `name_visc_lon`,
+   `name_visc_lat` and `name_visc_r`. With `visc_3d_structure` $\ge 1$ the file
+   is in the FesmData layout, `log10_visc(lon, lat, depth, structure)`, with
+   depth in meters below a surface radius of 6371 km. The value is then the
+   index of the structure to read, and the `name_visc*` names are ignored. The
+   default is the @Bagge2021 field of the FesmData product
+   `GLOBAL-T170_SolidEarth-Bagge2021.nc`, structure 6 (`v_1.0_s16`). The field
+   is interpolated in $\log_{10}\eta$ onto the Gauss grid and the radial nodes:
+   bilinear in longitude (periodic) and latitude, linear in radius. Outside the
+   latitude or radius range of the file the nearest value is used. An axis may
+   be stored in either direction. A non-monotonic axis stops the run.
+2. **Perturb** (`f_visc_sd`, default 0). The field is shifted by `f_visc_sd`
+   standard deviations, for uncertainty ensembles. The standard deviation is
+   read from the variable `name_visc_sd` if one is named (lon-lat-r layout
+   only). Otherwise it is relative, `f_visc_rel` $\times\,\lvert\log_{10}\eta\rvert$
+   (default 0.1).
+3. **Shift** (`visc_shift_file`, default `""`, none). The file holds a shift
+   `dlog10_visc(lon, lat, r)` in dex, with the fixed names `lon`, `lat` and
+   `r` (radius in meters). It is read and interpolated as the field itself and
+   added to it. This changes viscosity by region and depth, for example per
+   ensemble member. Outside the radial range of the file the shift of the
+   nearest level applies, not zero. A shift meant for one depth range must
+   therefore carry zero levels at the edges of that range. `visc_shift_file`
+   needs `l_visc_3d = .true.`; the run stops otherwise.
+4. **Clamp** to [`visc_log10_min`, `visc_log10_max`] (defaults 19.5 and 30.0).
+   The floor bounds the fastest relaxation and so the time step (see
+   [Stability](#stability)).
+5. **Lid rule** (`visc3d_lid_depth`, default 0, off). The nodal field is first
+   averaged to the radial elements (the mean of $\log_{10}\eta$ at the two
+   nodes). In a Maxwell element that lies wholly above `visc3d_lid_depth` [m],
+   every grid point whose $\log_{10}\eta$ exceeds `visc3d_lid_log10max`
+   (default 22.0) is then set to `visc_log10_max`. Such points relax over
+   millions of years, so a held-load spin-up never equilibrates them. The rule
+   splits the lid into points that relax within thousands of years and points
+   that do not relax on the run's time scale. The capped points still carry
+   memory, so they are close to elastic, not exactly elastic. The rule acts on
+   elements, not nodes, because a node at the lid base is shared with the
+   element below. `test_visc_lid` asserts that only lid elements above the
+   threshold change.
+6. **1-D/3-D split** (`visc3d_tol`, default $10^{-3}$ dex). Elements whose
+   lateral spread exceeds the tolerance run on the 3-D path, as described
+   above. A larger tolerance moves weakly varying elements to the 1-D path.
+   This lowers the cost of the memory advance and approximates their lateral
+   structure by its mean.
+
+The [rotation](rotation.qmd) channels relax on the radial profile of the
+field that results from this chain.
 
 ## Stability
 
@@ -161,8 +230,11 @@ freeze and carry no memory; fluid layers ($\mu = 0$) carry no memory either.
 
 ::: {.callout-tip title="Where this lives in the code"}
 `vilma_viscoelastic` holds both the 1D per-degree stepper (`ve_degree`) and the
-shared per-element kernel. The memory state is the only prognostic field carried
-across a restart (`vilma_io`). Time integration is validated by `test_relax`
+shared per-element kernel. `vilma_earth_structure` (`load_visc_3d`) and
+`vilma_response` build the 3-D field. The memory stress is the largest part of
+the state that a restart carries, but not all of it: see
+[Memory storage and restart](../discretization/time-stepping.qmd#memory-storage-and-restart).
+Time integration is validated by `test_relax`
 (a held load relaxes elastic $\to$ fluid, $t_{\text{relax}}\propto\eta$,
 step-converged) and is benchmarked in
 [Sea-level equation](../benchmarks/sea-level.qmd).

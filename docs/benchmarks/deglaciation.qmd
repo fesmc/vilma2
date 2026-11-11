@@ -1,0 +1,251 @@
+---
+title: "Deglaciation: VILMA1 versus VILMA2"
+search: false
+---
+
+::: {.callout-warning appearance="minimal"}
+**Pre-publication page.** This page is not linked from the navigation and is
+excluded from the site search. It is reachable by direct link only.
+:::
+
+::: {.callout-note appearance="minimal"}
+**Reference:** VILMA1 [@Martinec2000; @Martinec2018], run through VILMA2's own
+driver with `solver = "v1"`. **Earth structure:** the 3-D viscosity field of
+@Bagge2021 and its radial mean. **Driver:** `vilma.x` (not in `make check`;
+needs a VILMA1 install). **Status:** 🔧 run at $\ell_\max = 170$; numbers to
+be regenerated.
+:::
+
+This page compares VILMA2 with VILMA1 on the last deglaciation. Both solvers
+run behind the same driver, so they share the ice forcing, the remap, the
+reference state, the output grid and the output file layout. The comparison is
+a change of one namelist key, `solver = "v2"` or `solver = "v1"`. It tests the
+complete model at production resolution: the visco-elastic response with 3-D
+viscosity, the sea-level equation with migrating coastlines, and the rotational
+feedback.
+
+It is a code-to-code comparison, not a comparison with a reference solution.
+Agreement shows that the two codes solve the same problem in the same way. It
+does not bound the error that both codes share.
+
+## Experiment design
+
+The settings below are common to both solvers unless stated.
+
+| item | setting |
+|---|---|
+| Ice forcing | GLAC-1D ice thickness, `input/geo_ice_glac1d_deglac.nc`, 26 ka to present, 261 slices every 100 yr |
+| Coupling and output grid | $\ell_\max = 170$, Gauss grid of VILMA2 |
+| VILMA1 internal grid | `vilma_v1_jmax = 170`, 512 × 256 |
+| Reference state | `i_eq = 2`, VILMA2's LGM reference state, the same file for both solvers |
+| Viscosity, case 3-D | the field of @Bagge2021, with VILMA2's clamp applied (floor $10^{19}$ Pa s) |
+| Viscosity, case 1-D | the radial mean of that field (the geometric mean per level) |
+| Degree-1 frame | center of mass in both (`deg1_frame = "cm"`) |
+| Radial elastic structure | VILMA2's layer table, also given to VILMA1 |
+| Ice and water density | VILMA2's values, also written to VILMA1's load file |
+| Rotation | on in both |
+| Coastlines | migrating, with the subgrid (water-column) ocean load |
+| VILMA2 time stepping | `scheme = "fe"`, adaptive sub-steps within the 100 yr interval |
+| VILMA1 time stepping | `vilma_v1_nsub = 12` uniform sub-steps of 8.33 yr |
+
+**Reference state.** The reference is built once, by VILMA2 with the 3-D
+viscosity. The 26 ka ice load is held for 30 kyr from rest
+(`equil_time_max = 30000`, `equil_rate_tol = 0`, no 1-D pre-spin-up, lid rule
+off). The result is not an equilibrium, because the stiffest parts of the
+viscosity field keep relaxing. The fixed duration makes the state reproducible.
+Both solvers start from this state, so the load anomaly is zero at the start
+for both. VILMA1 requires this: it starts with zero load anomaly and zero
+viscous memory. Neither solver runs a spin-up in the comparison itself
+(`equil_time_max = 0`, `pre_spinup_1d = .false.`).
+
+**Viscosity.** VILMA1 reads its viscosity file directly and applies no clamp of
+its own. The file it reads is therefore written from VILMA2's clamped field, on
+the radial elements that VILMA1 uses. The 1-D case uses the radial mean of the
+same field in both solvers, so the 3-D and 1-D cases differ only by the lateral
+variation.
+
+**VILMA1 sub-steps.** VILMA1 does not sub-step by itself, and it stops if the
+step exceeds its Maxwell limit. The limit measured for this structure is
+11.0 yr, which gives 12 sub-steps per 100 yr interval.
+
+**Shared diagnostics.** The ocean function `C_ocean` and the barystatic sea
+level `bsl` are computed by VILMA2's routines from the state of each solver.
+They are not independent between the two solvers.
+
+## Results
+
+::: {.callout-important}
+**All numbers in this section: model 907bc74, levante; to be regenerated.**
+They will be replaced by numbers from a rerun on another cluster with the
+current model.
+:::
+
+Relative sea level (RSL) is taken relative to each run's own present day. The
+difference is VILMA2 minus VILMA1. All statistics are over the global grid. The
+difference is therefore zero at present day by construction, and present day is
+covered by the uplift rate instead.
+
+| time | RMS [m] | max \|Δ\| [m] | 99th pct [m] | VILMA2 signal max [m] | RMS / signal | deg 0 [m] | \|deg 1\| [m] | RMS after deg 0+1 [m] |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| 21 ka | 9.234 | 83.536 | 22.556 | 459.6 | 2.01e-02 | 0.39 | 0.41 | 9.227 |
+| 14 ka | 5.679 | 91.205 | 18.748 | 428.5 | 1.33e-02 | 0.43 | 0.27 | 5.666 |
+| 8 ka | 2.771 | 34.269 | 9.410 | 189.6 | 1.46e-02 | 0.09 | 0.27 | 2.770 |
+| 2 ka | 0.634 | 6.193 | 1.756 | 45.8 | 1.38e-02 | -0.01 | 0.06 | 0.633 |
+
+: RSL difference, VILMA2 minus VILMA1, 3-D viscosity. Model 907bc74, levante; to be regenerated. {#tbl-deglac-3d}
+
+| time | RMS [m] | max \|Δ\| [m] | 99th pct [m] | VILMA2 signal max [m] | RMS / signal | deg 0 [m] | \|deg 1\| [m] | RMS after deg 0+1 [m] |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| 21 ka | 7.659 | 17.583 | 16.165 | 428.6 | 1.79e-02 | -0.40 | 0.46 | 7.645 |
+| 14 ka | 3.125 | 8.143 | 6.766 | 382.2 | 8.18e-03 | -0.18 | 0.21 | 3.118 |
+| 8 ka | 1.705 | 7.584 | 3.888 | 234.4 | 7.28e-03 | -0.16 | 0.11 | 1.695 |
+| 2 ka | 0.496 | 1.519 | 1.036 | 32.7 | 1.52e-02 | -0.03 | 0.03 | 0.494 |
+
+: RSL difference, VILMA2 minus VILMA1, 1-D viscosity (radial mean of the 3-D field). Model 907bc74, levante; to be regenerated. {#tbl-deglac-1d}
+
+The RMS difference is 0.7 to 2.0 % of the largest RSL that VILMA2 produces at
+the same time, in both cases. The degree-0 and degree-1 parts of the difference
+are below 0.5 m at the four times listed. Removing them changes the RMS by less
+than 0.02 m.
+
+| quantity | 3-D | 1-D |
+|---|---:|---:|
+| Present-day uplift rate, RMS difference [mm/yr] | 0.2973 | 0.2278 |
+| Present-day uplift rate, max difference [mm/yr] | 2.7754 | 0.9734 |
+| Present-day uplift rate, 99th pct difference [mm/yr] | 0.8288 | 0.4855 |
+| Present-day uplift rate, VILMA2 signal max [mm/yr] | 38.74 | 15.47 |
+| Present-day uplift rate, RMS / signal | 7.67e-03 | 1.47e-02 |
+| Barystatic sea level, max difference over the run [m] | 0.154 | 0.147 |
+| Barystatic sea level, difference at present day [m] | 0.110 | 0.086 |
+| Ocean-mean RSL at present day, VILMA2 [m] | 97.43 | 97.57 |
+| Ocean-mean RSL at present day, VILMA1 [m] | 96.57 | 96.85 |
+| Ocean-mean RSL at present day, difference [m] | 0.86 | 0.72 |
+
+: Present-day uplift rate and global-mean quantities, VILMA2 against VILMA1. Model 907bc74, levante; to be regenerated. {#tbl-deglac-scalars}
+
+| time | 3-D: cells differing | 3-D: % of grid | 1-D: cells differing | 1-D: % of grid |
+|---|---:|---:|---:|---:|
+| 21 ka | 91 | 0.039 | 87 | 0.037 |
+| 14 ka | 354 | 0.152 | 352 | 0.151 |
+| 8 ka | 837 | 0.360 | 864 | 0.372 |
+| 2 ka | 785 | 0.338 | 741 | 0.319 |
+| 0 ka | 766 | 0.329 | 738 | 0.317 |
+
+: Grid cells on which the ocean functions of the two runs differ. Model 907bc74, levante; to be regenerated. {#tbl-deglac-ocean}
+
+For scale, the lateral-viscosity signal within VILMA2 is larger than the
+difference between the codes. The table below gives the RSL difference between
+the 3-D and the 1-D run of VILMA2.
+
+| time | RMS [m] | max \|Δ\| [m] | 99th pct \|Δ\| [m] | signal max \|RSL\| [m] | RMS / signal |
+|---|---:|---:|---:|---:|---:|
+| 21 ka | 17.365 | 250.988 | 75.845 | 459.6 | 3.78e-02 |
+| 14 ka | 15.148 | 220.333 | 65.905 | 428.5 | 3.54e-02 |
+| 8 ka | 6.253 | 66.545 | 27.391 | 189.6 | 3.30e-02 |
+
+: RSL difference within VILMA2, 3-D minus 1-D viscosity. Model 907bc74, levante; to be regenerated. {#tbl-deglac-lateral}
+
+The corresponding difference in present-day uplift rate has an RMS of
+0.6404 mm/yr and a maximum of 24.6767 mm/yr (model 907bc74, levante; to be
+regenerated).
+
+## Figures
+
+<!-- FIGURE (enable when figures/deglac-v2v1-maps-3d.png exists)
+![VILMA2 against VILMA1 with the 3-D viscosity of Bagge et al. (2021). Both codes solve the same problem: the same GLAC-1D forcing, reference state, viscosity field, grid ($\ell_\max = 170$) and degree-1 frame. (a, d, g) VILMA2. (b, e, h) VILMA1. (c, f, i) VILMA2 minus VILMA1. The top and middle rows show relative sea level at 21 ka and 8 ka, relative to each run's own present day. The bottom row shows the present-day uplift rate of the bedrock. The two model columns share a color scale. The difference column has its own, narrower scale. Model 907bc74, levante; to be regenerated.](figures/deglac-v2v1-maps-3d.png){#fig-deglac-v2v1-maps-3d}
+-->
+
+<!-- FIGURE (enable when figures/deglac-v2v1-maps-1d.png exists)
+![VILMA2 against VILMA1 with the 1-D viscosity, the radial mean of the 3-D field. Both codes solve the same problem: the same GLAC-1D forcing, reference state, viscosity profile, grid ($\ell_\max = 170$) and degree-1 frame. (a, d, g) VILMA2. (b, e, h) VILMA1. (c, f, i) VILMA2 minus VILMA1. The top and middle rows show relative sea level at 21 ka and 8 ka, relative to each run's own present day. The bottom row shows the present-day uplift rate of the bedrock. The two model columns share a color scale. The difference column has its own, narrower scale. Model 907bc74, levante; to be regenerated.](figures/deglac-v2v1-maps-1d.png){#fig-deglac-v2v1-maps-1d}
+-->
+
+<!-- FIGURE (enable when figures/deglac-v2v1-summary.png exists)
+![Size and composition of the difference in relative sea level, VILMA2 minus VILMA1, through the last deglaciation. Lines show the 3-D viscosity (red), the 3-D viscosity with VILMA2's toroidal coupling on (dark red), and the 1-D viscosity (blue), all at $\ell_\max = 170$ on the same reference state. (a) RMS difference over the global grid. (b) The same, as a percentage of the largest absolute relative sea level that VILMA2 produces at that time. (c) The degree-0 (solid) and degree-1 (dash-dotted) parts of the difference, from an area-weighted least-squares fit. (d) Fraction of grid cells on which the ocean functions of the two runs differ. Sea level is relative to each run's own present day, so the difference is zero at 0 ka and (b) is undefined there. Model 907bc74, levante; to be regenerated.](figures/deglac-v2v1-summary.png){#fig-deglac-v2v1-summary}
+-->
+
+The two maps figures use a separate color scale for the difference column. On
+the scale of the model columns, the difference would not be visible. The
+summary figure shows the difference through time, and its panel (c) is the
+check that the degree-1 frame is matched.
+
+## Sources of difference
+
+Four sources of difference are documented. Three are understood and one is
+open.
+
+### 1. Load path within a coupling interval
+
+The two solvers reach the same load at the end of each 100 yr interval by
+different paths. VILMA2 ramps the load linearly across the interval and takes
+adaptive sub-steps to its own Maxwell stability limit. VILMA1 holds the load at
+the value of the interval and takes 12 uniform sub-steps of 8.33 yr. The
+difference is first order in the coupling interval. Its size has not been
+measured in isolation. An earlier test bounds the sub-step part alone: with 24
+and 48 sub-steps, VILMA1's result changed by 0.006 m.
+
+### 2. Radial discretisation
+
+The two codes integrate the same viscosity field and the same elastic layer
+table on their own radial element grids. An earlier test in this configuration
+gave VILMA1 a radial grid matched to VILMA2's, with a laterally uniform
+viscosity. At 21 ka the RMS difference in RSL changed by 0.08 m, and the RMS
+difference in present-day uplift rate changed by 0.01 mm/yr. That test predates the matched degree-1 frame and the
+LGM reference state, so the numbers indicate the size of the effect only.
+
+### 3. Degree-1 frame
+
+The two codes must report RSL in the same degree-1 frame. VILMA1 works in the
+center-of-mass frame and carries geocenter motion in its RSL. VILMA2's earlier
+default removed the rigid translation, so its RSL had no degree-1 part. With
+unmatched frames, degree 1 was 98 to 99.7 % of the difference in a disc-load
+test, and about half of the difference in the deglaciation. With
+`deg1_frame = "cm"` in VILMA2, the RMS difference in the disc-load test at
+10 kyr fell from 3.487 m to 0.690 m, and its degree-1 part fell from 4.4–4.9 m
+to 0.03–0.04 m. In the comparison on this page the frames are matched. The
+degree-0 and degree-1 parts of the difference stay below 0.72 m at all times
+in every pair (model 907bc74, levante; to be regenerated).
+
+### 4. Degree-2, order-1 pattern (not attributed)
+
+Most of the difference early in the deglaciation is one pattern of degree 2
+and order 1. This is the pattern of the rotational feedback. **Its cause is not
+yet attributed.** It is the same in the 3-D and the 1-D pair, so it does not
+depend on the lateral viscosity structure.
+
+An area-weighted least-squares fit of the degree-2, order-1 pair to the
+difference at 21 ka gives the following. The RMS values are area-weighted, so
+they differ from the grid RMS in the tables above.
+
+| pair | RMS [m] | degree-2, order-1 part [m] | RMS after removing it [m] |
+|---|---:|---:|---:|
+| 3-D | 8.91 | 7.74 | 4.41 |
+| 1-D | 7.93 | 7.86 | 1.04 |
+
+: Degree-2, order-1 content of the RSL difference at 21 ka. Model 907bc74, levante; to be regenerated. {#tbl-deglac-y21}
+
+Without this pattern, the 1-D pair agrees to 1.04 m at 21 ka. The remainder of
+the 3-D pair, 4.41 m, is the part that depends on the lateral structure. Until
+the pattern is attributed, the differences in the results section cannot be
+read as the difference between the two visco-elastic solvers alone.
+
+VILMA1 does not write its polar motion through this driver, so the two codes
+are not compared on polar motion here.
+
+## How to reproduce
+
+The experiment pipeline lives in the repository's `validation/` directory,
+which is being added. It stages the forcing, the reference state and the
+matched viscosity files, runs both solvers, and computes the tables and figures
+on this page.
+
+The VILMA1 runs need a build with `vilma_v1=1` and a VILMA1 install. VILMA1 is
+a precompiled library and is not a dependency of the default build. The build,
+the namelist keys and the constraints are described in
+[`doc/vilma-v1-backend.md`](https://github.com/fesmc/vilma2/blob/main/doc/vilma-v1-backend.md).
+`examples/deglac_vilma_v1.nml` is a low-resolution template for the backend. It
+is not the configuration of this page.
+
+```bash
+make clean
+make vilma vilma_v1=1 VILMA_V1_ROOT=/path/to/vilma1
+```

@@ -90,9 +90,16 @@ self-consistent, not a bolt-on correction.
 ## Validation
 
 The Liouville polar-motion solve is checked against **Spada et al. (2011) test
-3/2** [@Spada2011] (model fluid $k_s \approx 0.93$–$0.94$), and the
-rotation ↔ SLE per-step fixed point is exercised by `test_rotation_sle`. See the
-[validation ladder](../benchmarks/index.qmd).
+3/2** [@Spada2011]. The polar motion of a cap and a disc load matches Table 14
+of that paper to better than 1 % at all six tabulated times (see the
+[rotation benchmark](../benchmarks/rotation.qmd)). For M3–L70–V01 the model's
+fluid limit is $k_s = 0.967$, and the observed-flattening value is 0.944.
+
+No published benchmark covers the sea-level equation with rotation. The
+rotation ↔ SLE fixed point is therefore checked for consistency by
+`test_rotation_sle`: ocean mass conservation, the elastic relation of the
+rotational field, the direction of the pole shift, sub-cycling and the
+save/restore round trip.
 
 ::: {.callout-tip title="Where this lives in the code"}
 `vilma_rotation` holds the two degree-2 channels, the Liouville solve, and the

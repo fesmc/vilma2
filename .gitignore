@@ -2,7 +2,8 @@
 /Makefile
 /obj/
 /libvilma/
-/bin/
+/bin/*
+!/bin/.gitkeep
 *.o
 *.mod
 *.a
@@ -19,8 +20,9 @@
 # fesm-utils is symlinked in per-machine, not committed
 /fesm-utils
 
-# Disposable, worktree-local logs
-/logs/
+# Disposable, worktree-local logs (the directory itself is kept)
+/logs/*
+!/logs/.gitkeep
 
 # Editor / OS
 *~
@@ -28,20 +30,24 @@
 
 # Reference papers (copyrighted — never commit)
 *.pdf
-doc/refs/
+doc/refs/*
+!doc/refs/.gitkeep
 .claude/worktrees/
 
 # experiment run outputs (configs may be tracked under examples/)
-/runs/
+/runs/*
+!/runs/.gitkeep
 
 # Prebake run logs (regenerable)
 data/reference/*.log
 
 # generated analysis figures
-/analysis/figs/
+/analysis/figs/*
+!/analysis/figs/.gitkeep
 
-# coords remap weight cache
-maps/
+# coords remap weight cache (written to maps/ in the run directory)
+/maps/*
+!/maps/.gitkeep
 
 # analysis result caches (regenerable via analysis/*.jl)
 *.jld2

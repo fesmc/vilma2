@@ -5,6 +5,14 @@ built and where it departs from the plan; §1–§6 are the original scoping
 document, kept as written except where marked. It complements `design.md` (the
 Martinec FE method) and `formulation.md` (the equations as implemented).
 
+**Off by default.** `&vilma l_toroidal = .false.` is the default, and the reason
+is model speed: with it on, every genuinely 3-D element carries six memory
+channels instead of four and each step adds the W solve. The cost has not been
+measured, and neither has the effect of toroidal flow on a real solution (V6,
+V7 of §4 are not done). A production deglaciation run with `l_toroidal = .true.`
+is planned to quantify that effect. With the default the model is
+spheroidal-only.
+
 ## 0. As implemented
 
 | commit | content |
@@ -54,8 +62,9 @@ V2 six channels reproduce an arbitrary symmetric tensor to 9e-15 (four miss
 35 %), channel cross-talk at nlat = 2·lmax+2 ≤ 8e-13 (§6.4's aliasing is not
 there); V3 W = 0 exactly for axisymmetric configurations, off-pole W falls
 2.6e-4 → 1.5e-6 from lmax 16 to 32; V4 W driven, reflection selection rule to
-4e-16, W ∝ δ^0.987 and its uplift feedback ∝ δ^1.986. V6/V7 (VILMA1, the
-deglaciation) are the paper's, not this note's.
+4e-16, W ∝ δ^0.987 and its uplift feedback ∝ δ^1.986. V6 (the VILMA1
+cross-check) and V7 (the deglaciation with and without toroidal flow) are open:
+they are planned for the paper, not this note.
 
 **Context.** Volker Klemann, VILMA1's author, is part of the effort, and
 VILMA2 is developed as an open-source alternative to VILMA1. That reframes
@@ -66,6 +75,9 @@ it looks (§2.1).
 ---
 
 ## 1. What is missing, and why it may matter
+
+*(Scoping text, before the implementation of §0; the file and line references
+are those of the code at that time.)*
 
 VILMA2 has no toroidal degree of freedom anywhere:
 

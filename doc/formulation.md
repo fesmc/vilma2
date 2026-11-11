@@ -112,7 +112,9 @@ dense KKT border (rigid-mode removal) so it factors as a dense LU via the same c
   (skipped to avoid 0·∞). Verified: no empty rows, solver well-posed for j≥2.
 - **Surface:** the (j+1)F(a) exterior term + load RHS above.
 - **Uniqueness (j=1):** E_uniq removes the rigid translation null space — imposed
-  as a sparse KKT constraint wᵀd=0 (CM frame), not the dense penalty (see above).
+  as a sparse KKT constraint wᵀd=0, not the dense penalty (see above). This gauge
+  is centre-of-figure-like, not the CM frame; `response_deg1_to_cm` projects to
+  CM afterwards (see "Degree-1" below).
 - **Fluid core:** μ=0 region; free-slip emerges (no shear stress). No explicit CMB
   BC (Martinec meshes through the centre).
 
@@ -144,15 +146,16 @@ previously sat ~10% high (elastic) / ~11% low (fully relaxed). **RESOLVED:** thi
 was the elastic low-degree self-gravity bug (the U-F transpose, fixed above) — the
 disc is dominated by low–intermediate degrees where the elastic Love numbers were
 too soft. With the fix the per-degree elastic Love numbers match the benchmark to
-~0.1%, so the disc offset is closed at the source; a direct disc re-run to confirm
-<1% is a quick follow-up (the synthesis prototype lives in `/tmp/explore_disc*.f90`).
+~0.1%, so the disc offset is closed at the source. The disc is now a test
+(`test_benchmark_disc`): elastic profiles within 6% (u) and 4% (N), centre uplift
+at 1–10 kyr within 3%; the 100 kyr value is reported, not asserted.
 
 **Degree-1 (sparse KKT, solved):** `E_uniq` (eq 83) is a rank-1 penalty
 `(4π/3) w wᵀ` over every degree-1 (U,V) dof, so adding it to the operator densifies
-it (~870×870 dense ILU + solve — impractical for the time stepper). Two facts let
+it (~870×870 dense — impractical for the time stepper). Two facts let
 us keep it sparse: (i) `w` carries K³~∫ψr², so the penalty coefficient is ~1e16×
-the band, i.e. the penalty is already a hard constraint `wᵀd=0` (the CM/geocenter
-frame, Blewitt 2003) in all but name; (ii) a hard constraint borders the band with
+the band, i.e. the penalty is already a hard constraint `wᵀd=0` (zero
+volume-integrated displacement) in all but name; (ii) a hard constraint borders the band with
 one row/col instead of filling it. So `radial_operator` imposes it as a KKT saddle
 point
 
@@ -163,11 +166,19 @@ point
 
 (`with_uniq=.false.` builds the band; `uniq_weight` is the border). The solve runs
 at `ndof+1` internally but `load_rhs`/`solve_vec` keep their physical `ndof`
-interface, so `vilma_viscoelastic` needs no j=1 special case. Converges in 2 GMRES
-iterations; `build_dense_operator` still adds the dense penalty as the reference
-operator. Validated in `test_love` (4) and `test_relax` (5); see the validation
-list below. (The disc synthesis no longer needs to skip j=1 — it is the physical
-geocenter signal.)
+interface, so `vilma_viscoelastic` needs no j=1 special case. The bordered system
+is factored and solved directly by the pivoted band LU (`vilma_band`), as a dense
+LU for this one degree; `build_dense_operator` still adds the dense penalty as the
+reference operator. Validated in `test_love` (4) and `test_relax` (5); see the
+validation list below.
+
+**Degree-1 frame.** `wᵀd=0` is a centre-of-figure-like gauge: the solid Earth does
+not translate. The response therefore projects each solved degree-1 state into the
+centre-of-mass frame (Blewitt 2003) with `response_deg1_to_cm` (`vilma_response`):
+it adds the rigid-translation null mode with the amplitude that gives `F(a)=0`
+(`k₁=−1`). The displacement then carries geocenter motion and `N₁=0` follows. This
+is `deg1_frame = "cm"`, the default; `"cf"` keeps the displacement in the `wᵀd=0`
+gauge and sets `N₁=0`.
 
 ## Love numbers (§11; conventions verified)
 
@@ -239,7 +250,7 @@ relative to its own continuous eq 65, faithfully copied — eq 65 is the arbiter
    "Elastic low-degree discrepancy (FIXED)" above.
 4. Internal: operator finite (centre I⁷ guard); B=Bᵀ; **full operator symmetric
    (energy Hessian)**; gravity R_k reconstruction (`test_assembly`). ✅
-5. **Degree-1 (sparse KKT):** the j=1 solve converges (non-singular), removes the
+5. **Degree-1 (sparse KKT):** the j=1 system is non-singular (direct LU), removes the
    rigid mode (`wᵀd/|w||d|`~1e-23), satisfies the band operator off the gauge
    direction (`‖r⊥w‖/‖r‖`~1e-11) and on the F rows, and gives a finite geocenter
    response (`test_love` (4)); `ve_degree` steps stably at j=1 (`test_relax` (5)). ✅
