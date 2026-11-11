@@ -7,17 +7,20 @@
 #   ./run.sh A         block A: community benchmarks                  (13 jobs, minutes)
 #   ./run.sh B         block B: lateral-viscosity benchmark, bench_visc3d (6 chains of 5 jobs; C-i ~20 h each)
 #   ./run.sh ref       the LGM reference: 26 ka load held 30 kyr, lmax 170
+#   ./run.sh prep      export the LGM reference, write the shared viscosity files
 #   ./run.sh D         deglaciation, VILMA2, 3-D and 1Db, lmax 170
 #   ./run.sh V1        the same through the VILMA1 backend
 #   ./run.sh E         sensitivity: lmax 64/128/256 and visc3d_tol
 #   ./run.sh reduce    runs/ -> data/published/
 #   ./run.sh analyse   figures (docs/benchmarks/figures, figures/) and tables/
-#   ./run.sh submit <stages...>   run the given stages in one SLURM job (reduce, analyse)
+#   ./run.sh submit <stages...>   run the given stages in one SLURM job (prep, reduce, analyse)
 #
-# The run stages submit to SLURM and return. `ref` must have finished before
-# D, V1 or E are submitted; D and V1 export the reference themselves:
+# The run stages submit to SLURM and return; submit them from a login node
+# (staging records the model commit with git). `ref` must have finished before
+# prep, and prep before D, V1 or E:
 #
-#     ./run.sh build A ref        # wait for the queue
+#     ./run.sh build A B ref      # wait for the queue
+#     ./run.sh submit prep        # wait (a few minutes)
 #     ./run.sh D V1               # wait again
 #     ./run.sh submit reduce analyse
 #
@@ -145,11 +148,23 @@ ensure_matched_inputs() {
   ln -sfn ../../data/reference/visko_bagge.inp "$VF/visko_bagge.inp"
 }
 
+stage_prep() { ensure_reference; ensure_matched_inputs; }
+
+# D, V1 and E only check that prep has been done: its Julia steps read and
+# write files of a few hundred MB and belong in a job (./run.sh submit prep).
+require_prep() {
+  [ -f "$REF_NC" ] && [ "$REF_NC" -nt "$REF_RUN/job.submit" ] || \
+    die "no current LGM reference $REF_NC -- run './run.sh submit prep' after 'ref' has finished"
+  local f
+  for f in bagge2021_uniform_vilma2.nc unif_vilma2grid.nc bagge_vilma2grid.nc; do
+    [ -f "data/reference/$f" ] || die "data/reference/$f missing -- run './run.sh submit prep'"
+  done
+}
+
 # ---------------------------------------------------------------- D, V1, E
 # i_eq = 2 throughout: the reference is the glacial state, so there is no spin-up.
 stage_D() {
-  ensure_reference
-  ensure_matched_inputs
+  require_prep
   say "deglaciation, VILMA2 (3D and 1Db, lmax $LMAX)"
   SCHEME=fe LMAX_D=$LMAX STRUCTS="3D 1Db" DEG1=cm \
     IEQ=2 ZEQ="$REF_NC" HEQ="$REF_NC" EQUIL=0.0 PRE1D=.false. \
@@ -157,13 +172,13 @@ stage_D() {
 }
 
 stage_V1() {
-  ensure_reference
+  require_prep
   [ -x "$V1_EXE" ] || die "$V1_EXE missing -- run './run.sh build'"
   # runme records the model's current commit whatever binary runs; refuse a
-  # VILMA1 binary older than HEAD.
-  [ "$(stat -c %Y "$V1_EXE")" -ge "$(cd "$MODEL" && git log -1 --format=%ct HEAD)" ] || \
-    die "$V1_EXE predates the model's HEAD -- run './run.sh build'"
-  ensure_matched_inputs
+  # VILMA1 binary older than the last commit that changed the model's sources.
+  [ "$(stat -c %Y "$V1_EXE")" -ge "$(cd "$MODEL" && git log -1 --format=%ct HEAD -- src config)" ] || \
+    die "$V1_EXE predates the model's last source change -- run './run.sh build'"
+  ensure_matched_inputs                   # links only, once prep has run
   say "deglaciation, VILMA1 backend (3D and 1Db, matched to the D-V2 rows)"
   MODEL_TAG=D-V1 NML_TAG=dV1 EXE="$V1_EXE" LMAX_D=$LMAX STRUCTS="3D 1Db" \
     IEQ=2 ZEQ="$REF_NC" HEQ="$REF_NC" \
@@ -171,7 +186,7 @@ stage_V1() {
 }
 
 stage_E() {
-  ensure_reference
+  require_prep
   say "sensitivity: truncation and visc3d_tol"
   RUNS_BLOCKD="$HERE/runs/blockE" SCHEME=fe LMAX_LIST_D="64 128 256" DEG1=cm \
     IEQ=2 ZEQ="$REF_NC" HEQ="$REF_NC" EQUIL=0.0 PRE1D=.false. \
@@ -187,12 +202,18 @@ stage_E() {
 #     julia --project=../analysis analysis/make_reduced.jl A
 stage_reduce()  { say "reduce — runs/ -> data/published/"; jl analysis/make_reduced.jl; }
 
-ANALYSIS=(run_blockA.jl run_blockB.jl run_deglac_maps.jl run_blockD_diags.jl
-          check_v2v1.jl v2v1_series_maps.jl run_blockE.jl)
+# script:published input it needs; a script whose input is absent is skipped.
+ANALYSIS=(run_blockA.jl:blockA.nc run_blockB.jl:bench_visc3d
+          run_deglac_maps.jl:blockD run_blockD_diags.jl:blockD
+          check_v2v1.jl:v2v1.nc v2v1_series_maps.jl:v2v1.nc run_blockE.jl:blockE.nc)
 stage_analyse() {
-  local s failed=()
+  local e s failed=()
   [ -d data/published ] || die "data/published/ is missing -- run './run.sh reduce'"
-  for s in "${ANALYSIS[@]}"; do
+  for e in "${ANALYSIS[@]}"; do
+    s=${e%%:*}
+    if [ ! -e "data/published/${e#*:}" ]; then
+      say "analysis/$s: skipped (no data/published/${e#*:})"; continue
+    fi
     say "analysis/$s"
     jl "analysis/$s" || failed+=("$s")
   done
@@ -218,6 +239,7 @@ while [ $# -gt 0 ]; do
     A)       stage_A ;;
     B)       stage_B ;;
     ref)     stage_ref ;;
+    prep)    stage_prep ;;
     D)       stage_D ;;
     V1)      stage_V1 ;;
     E)       stage_E ;;

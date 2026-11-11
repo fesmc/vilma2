@@ -32,7 +32,8 @@ spin-up. `experiments/nml/blockDV1.nml.tmpl` is the VILMA1 counterpart.
 cd validation
 ./run.sh build              # model, benchmark drivers, VILMA1-backend binary (login node)
 ./run.sh A B ref            # submit; wait for the queue
-./run.sh D V1               # exports the LGM reference, prepares the shared viscosity files, submits
+./run.sh submit prep        # one SLURM job: export the LGM reference, write the shared viscosity files
+./run.sh D V1               # submit (from a login node: staging records the model commit with git)
 ./run.sh submit reduce analyse      # one SLURM job: runs/ -> data/published/ -> figures and tables
 ```
 
