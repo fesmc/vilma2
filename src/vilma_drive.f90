@@ -36,15 +36,22 @@ module vilma_drive
    use vilma_control,   only: vilma_ctl_class, vilma_ctl_load, vilma_ctl_print
    use vilma_sht,       only: sht_grid, sht_grid_destroy, sht_grid_init
    use vilma_coupling,  only: solid_earth_finalize, solid_earth_update, solid_earth_init, solid_earth, &
-                           solid_earth_spinup, solid_earth_check_solver, VILMA_UNSET
+                           solid_earth_spinup, solid_earth_check_solver, solid_earth_set_time, VILMA_UNSET
    use vilma_remap,     only: remap_ll_gauss, remap_init, remap_to_gauss, gauss_axes_rows, rows_copy, ROWS_NONE
-   use vilma_io,        only: vilma_write_step, vilma_restart_write, vilma_restart_read, vilma_write_horizontal
-   use ncio,         only: nc_read, nc_size, nc_exists_var, nc_set_lossless
+   use vilma_io,        only: vilma_write_step, vilma_restart_write, vilma_restart_read, vilma_write_horizontal, &
+                              vilma_restart_time
+   use ncio,         only: nc_read, nc_size, nc_exists_var, nc_set_lossless, nc_exists_attr, nc_read_attr
    use iso_fortran_env, only: error_unit
    implicit none
    private
 
    public :: vilma_run
+   public :: forcing_window
+
+   !! A &ctl time_init at or below this [years] is "unset" (the code default is -huge, the
+   !! shipped vilma.nml writes -1e30): the window starts at the first forcing slice, or at
+   !! the restart's time when resuming.
+   real(wp), parameter :: TIME_UNSET_YR = -1.0e29_wp
 
    ! diagnostic surface fields written each output step (the prognostic memory is
    ! written separately via vilma_restart_write when a restart is wanted)
@@ -80,9 +87,10 @@ contains
       type(remap_ll_gauss)     :: rmap
       real(wp), allocatable  :: z_bed_eq(:,:), h_ice_eq(:,:), h_ice(:,:), ice_lgm(:,:)
       real(wp), allocatable  :: src(:,:), tyr(:)
-      real(wp) :: t0, dt
+      real(wp) :: dt, t_rst
       integer  :: nt, k, k0, k1, np, nl, nlon, nls
-      logical  :: remap
+      logical  :: remap, resume, win_ok
+      character(len=400) :: msg
       character(len=:), allocatable :: rundir
       character(len=8), allocatable :: out_names(:)   ! OUT_VARS, + polar motion if active
       integer(kind=8) :: pc0, pc1, prate          ! PROFILE: per-step phase timers
@@ -132,8 +140,22 @@ contains
       ! --- forcing time axis (years) + window -----------------------------------
       nt = nc_size(c%file_forcing, trim(c%name_time))
       allocate(tyr(nt));  call nc_read(c%file_forcing, trim(c%name_time), tyr)
-      call select_window(tyr*sec_per_year, c%time_init, c%time_end, k0, k1)
-      if (k1 <= k0) error stop 'vilma_run: forcing window contains < 2 time slices'
+      ! A restart continues where it left off: its time is the window start (see
+      ! forcing_window), so its state is never replayed under another stretch of forcing.
+      resume = len_trim(c%restart_in_file) > 0
+      if (resume) then
+         call require_file(c%restart_in_file, 'restart_in_file')
+         t_rst  = vilma_restart_time(trim(c%restart_in_file))
+         win_ok = forcing_window(tyr, c%time_init/sec_per_year, c%time_end/sec_per_year, k0, k1, msg, &
+                                 t_restart=t_rst, restart_reset=c%restart_time_reset)
+      else
+         win_ok = forcing_window(tyr, c%time_init/sec_per_year, c%time_end/sec_per_year, k0, k1, msg)
+      end if
+      if (.not. win_ok) then
+         write(error_unit,'(a)') ' vilma: '//trim(msg)
+         flush(error_unit)
+         error stop 'vilma_run: no admissible forcing window (see message above)'
+      end if
       write(*,'(a,i0,a,f0.1,a,f0.1,a)') ' vilma: ', k1-k0+1, ' slices, t = ', &
            tyr(k0), ' -> ', tyr(k1), ' yr'
 
@@ -146,14 +168,16 @@ contains
       ! and <rundir>/final at the end, where rundir is the directory of file_out.
       rundir = dir_of(c%file_out)
       call system_clock(pc0, prate)
-      se%par = p; call solid_earth_init(se, z_bed_eq, h_ice_eq)              ! reference, memory 0
-      if (len_trim(c%restart_in_file) > 0) then                              ! resume saved memory + clock
+      se%par = p; call solid_earth_init(se, z_bed_eq, h_ice_eq, time=tyr(k0))   ! reference, memory 0
+      if (resume) then                                                        ! resume saved memory + clock
          ! KNOWN GAP: a VILMA2 restart file carries the NATIVE solver's
          ! prognostic memory, which has no VILMA1 counterpart. VILMA1 restarts through
          ! its own files (r_restart / w_restart), which this driver does not wire up.
          if (se%use_vilma_v1) &
             error stop 'vilma_run: restart_in_file is not supported with solver="v1" (see doc/vilma-v1-backend.md)'
          call vilma_restart_read(se, trim(c%restart_in_file))
+         ! the file's time is the window start, unless the state is reused at another time
+         if (c%restart_time_reset) call solid_earth_set_time(se, tyr(k0))
       end if
       if (p%pre_spinup_1d .or. p%equil_time_max > 0.0_wp) then
          ! LGM-memory spin-up: relax under the start-slice ice while HOLDING the
@@ -188,8 +212,8 @@ contains
       if (se%rotation%enabled)   out_names = [out_names, ROT_OUT_VARS]
 
       ! --- march the transient --------------------------------------------------
-      t0 = tyr(k0)*sec_per_year
-      se%time = tyr(k0);  se%resp%time = t0          ! coupling clock in years; response clock in SI
+      ! the model clock is at the window start: set at init, held by the spin-up, and
+      ! equal to the restart's time (forcing_window)
       call vilma_write_step(se, c%file_out, se%time, nms=out_names, init=.true.)
       if (len_trim(c%file_hor) > 0) then
          if (se%use_vilma_v1) error stop 'vilma_run: file_hor is not available with solver="v1" '// &
@@ -417,6 +441,19 @@ contains
       end if
    end subroutine require_var
 
+   subroutine require_file(file, what)
+      !! error stop (nonzero, flushed) if 'file' does not exist; 'what' is its config key.
+      character(len=*), intent(in) :: file, what
+      logical :: ok
+      inquire(file=trim(file), exist=ok)
+      if (ok) return
+      write(error_unit,'(a)') ' vilma: input validation FAILED'
+      write(error_unit,'(a)') '   config "'//trim(what)//'": file not found'
+      write(error_unit,'(a)') '   file: '//trim(file)
+      flush(error_unit)
+      error stop 'vilma_run: input file not found (see message above)'
+   end subroutine require_file
+
    subroutine require_axes(c, file, what)
       !! The lon/lat axes (c%name_lon, c%name_lat) of a 2-D input file must be present.
       type(vilma_ctl_class), intent(in) :: c
@@ -620,19 +657,65 @@ contains
       end if
    end subroutine build_grid
 
-   subroutine select_window(tsec, t_init, t_end, k0, k1)
-      !! First/last forcing indices inside [t_init, t_end] (all in seconds).
-      real(wp), intent(in)  :: tsec(:), t_init, t_end
-      integer,  intent(out) :: k0, k1
-      integer :: k
-      k0 = 0;  k1 = 0
-      do k = 1, size(tsec)
-         if (tsec(k) >= t_init .and. tsec(k) <= t_end) then
+   logical function forcing_window(tyr, t_init, t_end, k0, k1, msg, t_restart, restart_reset) result(ok)
+      !! The slices k0..k1 of the forcing axis tyr [years, ascending] the run marches over:
+      !! those within [t_init, t_end] (t_init <= TIME_UNSET_YR: from the first slice).
+      !!
+      !! t_restart (optional): the run resumes a restart written at that time [years]. A
+      !! restart continues where it left off, so the window must start AT it: with t_init
+      !! unset the window starts at the restart's time, which must be a forcing slice; a
+      !! t_init that selects another start slice is refused. restart_reset = .true. lifts
+      !! this (the restart's state is taken as the state at the window start), and the
+      !! window is then the one t_init gives.
+      !!
+      !! .false. with the reason in msg when there is no such window of at least two slices.
+      real(wp),         intent(in)  :: tyr(:), t_init, t_end
+      integer,          intent(out) :: k0, k1
+      character(len=*), intent(out) :: msg
+      real(wp), optional, intent(in) :: t_restart
+      logical,  optional, intent(in) :: restart_reset
+      real(wp) :: t_lo, tol
+      logical  :: resume, explicit
+      integer  :: k
+      ok = .false.;  msg = '';  k0 = 0;  k1 = 0
+      resume = present(t_restart)
+      if (resume .and. present(restart_reset)) resume = .not. restart_reset
+      explicit = t_init > TIME_UNSET_YR
+      t_lo = t_init;  tol = 0.0_wp
+      if (resume) then
+         tol = 1.0e-6_wp*max(1.0_wp, abs(t_restart))
+         if (.not. explicit) t_lo = t_restart - tol
+      end if
+      do k = 1, size(tyr)
+         if (tyr(k) >= t_lo .and. tyr(k) <= t_end) then
             if (k0 == 0) k0 = k
             k1 = k
          end if
       end do
-      if (k0 == 0) error stop 'vilma_run: no forcing times within [time_init, time_end]'
-   end subroutine select_window
+      if (k0 == 0) then
+         write(msg,'(a,es12.4,a,es12.4,a)') 'no forcing times within [', t_lo, ',', t_end, &
+              '] yr (time_init, or the restart time, to time_end)'
+         return
+      end if
+      if (resume) then
+         if (abs(tyr(k0) - t_restart) > tol .and. explicit) then
+            write(msg,'(a,f0.3,a,f0.3,a,f0.3,a)') 'the restart is at t = ', t_restart, &
+                 ' yr but the window starts at ', tyr(k0), ' yr (time_init = ', t_init, &
+                 '). A restart continues where it left off: leave time_init unset or set it to the '// &
+                 'restart time, or set restart_time_reset = .true. to take its state as the one at time_init.'
+            return
+         else if (abs(tyr(k0) - t_restart) > tol) then
+            write(msg,'(a,f0.3,a,f0.3,a)') 'the restart time ', t_restart, &
+                 ' yr is not a slice of the forcing time axis (the next slice is ', tyr(k0), &
+                 ' yr). Set restart_time_reset = .true. and time_init to reuse its state at another time.'
+            return
+         end if
+      end if
+      if (k1 <= k0) then
+         write(msg,'(a,f0.3,a)') 'the forcing window contains < 2 time slices (it starts at ', tyr(k0), ' yr)'
+         return
+      end if
+      ok = .true.
+   end function forcing_window
 
 end module vilma_drive

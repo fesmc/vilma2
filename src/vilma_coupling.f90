@@ -7,7 +7,7 @@ module vilma_coupling
    !! grid — the host never sees the Gauss grid.
    !!
    !!   call vilma_par_load(se%par, cfg, defaults)        ! configuration -> se%par
-   !!   call solid_earth_init(se, z_bed_eq, h_ice_eq, grid=host_grid)   ! reference state
+   !!   call solid_earth_init(se, z_bed_eq, h_ice_eq, grid=host_grid, time=t0)   ! reference state, start time
    !!   ...
    !!   call solid_earth_update(se, h_ice, dt_yr)      ! advance dt_yr [years]; fills se%rsl, se%z_bed
    !!   ...
@@ -44,6 +44,11 @@ module vilma_coupling
    !! d_ice = 0, rsl = 0, z_bed = z_bed_eq. Departures from the reference ice load
    !! drive the deformation and sea-level change incrementally. The reference
    !! topography z_bed_eq doubles as the SLE's reference topo0.
+   !!
+   !! Clock. se%time [years] is the model time: solid_earth_init sets it (time=, default 0),
+   !! every update advances it by dt_yr, the spin-up holds it (it relaxes the state OF the
+   !! start time), and a restart read restores the time the file was written at.
+   !! solid_earth_set_time relabels it. No caller writes se%time.
    use vilma_precision,       only: wp, is_finite
    use vilma_constants,       only: sec_per_year, pi, kyr
    use vilma_params,          only: vilma_param_class
@@ -60,7 +65,7 @@ module vilma_coupling
    use vilma_remap,           only: remap_ll_gauss, remap_init, remap_to_gauss, remap_to_ll, &
                                     gauss_axes_rows, rows_copy, ROWS_NONE, ROWS_NORTH_FIRST
    use vilma_v1,           only: vilma_v1_backend, vilma_v1_init, vilma_v1_update, vilma_v1_finalize, &
-                                 vilma_v1_require
+                                 vilma_v1_require, vilma_v1_set_time
    use coords,             only: grid_class
    implicit none
    private
@@ -68,6 +73,7 @@ module vilma_coupling
    public :: solid_earth, gauss_state, host_state
    public :: solid_earth_init, solid_earth_update, solid_earth_finalize
    public :: solid_earth_enable_visc_3d, solid_earth_sync_host, solid_earth_spinup
+   public :: solid_earth_set_time
    public :: solid_earth_check_solver, solid_earth_host_check
    public :: VILMA_UNSET
 
@@ -174,7 +180,7 @@ module vilma_coupling
       real(wp), allocatable    :: C(:,:)         !! ocean function [1], host grid (total with host terms)
 
       ! clock + diagnostics
-      real(wp) :: time = 0.0_wp               !! model time [years]
+      real(wp) :: time = 0.0_wp               !! model time [years]; read-only for a caller (see "Clock")
       real(wp) :: worst_mass_resid = 0.0_wp   !! worst SLE mass residual over the last interval
       real(wp) :: dphi = 0.0_wp               !! uniform sea-surface shift Δφ [m] (the part of dz_ss that is not N)
       real(wp) :: bsl = 0.0_wp                !! barystatic sea level vs reference [m]: ocean mean of C·rsl
@@ -193,7 +199,7 @@ module vilma_coupling
 
 contains
 
-   subroutine solid_earth_init(self, z_bed_eq, h_ice_eq, grid, h_ice_init, w, I_g, C)
+   subroutine solid_earth_init(self, z_bed_eq, h_ice_eq, grid, h_ice_init, w, I_g, C, time)
       !! Build the model from its parameter record (self%par, set by the host before
       !! this call) and set the reference state. The model builds and owns its Gauss
       !! transform grid (from self%par%lmax/nlat/nphi) and, when `grid` differs from
@@ -212,7 +218,9 @@ contains
       !! h_ice_init. On a lon-lat host grid the host must be global (the remap's mass factor
       !! is a full-sphere one).
       real(wp),             intent(in), optional :: w(:,:), I_g(:,:), C(:,:)
+      real(wp),             intent(in), optional :: time           !! model time of this state [years]; default 0
       real(wp), allocatable :: F0(:,:)
+      real(wp) :: t_start
       integer  :: np, nl
       logical  :: hosted, hcover
 
@@ -229,7 +237,6 @@ contains
       allocate(self%sht)
       call build_sht(self%par, self%sht)
       np = self%sht%nphi;  nl = self%sht%nlat
-      self%time = 0.0_wp
 
       ! host<->Gauss remap: build it when a host grid is supplied that is not the Gauss
       ! grid; otherwise the host fields are on the Gauss grid already, in the row order of
@@ -338,7 +345,28 @@ contains
                             self%gg%z_bed_eq, self%gg%h_ice_eq, self%gg%h_ice)
          self%worst_mass_resid = VILMA_UNSET      ! no analogue in VILMA1; see the type
       end if
+
+      t_start = 0.0_wp;  if (present(time)) t_start = time
+      call solid_earth_set_time(self, t_start)
    end subroutine solid_earth_init
+
+   subroutine solid_earth_set_time(self, time)
+      !! Set the model clock to `time` [years] without touching the state: the coupling
+      !! clock and the clocks of the sub-solvers that keep one (response and rotation,
+      !! in seconds; VILMA1, which takes it only before its first advancing update).
+      !! The physics depends on time differences alone, so this relabels the state; it
+      !! is how init and a restart read place the model on the caller's time axis.
+      type(solid_earth), intent(inout) :: self
+      real(wp),          intent(in)    :: time
+      if (.not. is_finite(time)) error stop 'solid_earth_set_time: time is not finite'
+      self%time = time
+      if (self%use_vilma_v1) then
+         call vilma_v1_set_time(self%vilma_v1, time)
+      else
+         self%resp%time     = time*sec_per_year
+         self%rotation%time = time*sec_per_year
+      end if
+   end subroutine solid_earth_set_time
 
    subroutine solid_earth_check_solver(par)
       !! Validate &vilma solver and, for "v1", that this binary actually HAS the
@@ -646,13 +674,17 @@ contains
       !! w, I_g, C, F (optional, together): host-resolved terms of the start slice, held over
       !! every pass like the ice (see solid_earth_update); h_ice_lgm is then the ice of the
       !! 1 − w part. Present if and only if they were at init.
+      !!
+      !! The clock is held: the spin-up relaxes the state of the current model time, it is
+      !! not a stretch of the run, so se%time is the same on return (a restart written
+      !! after it carries the time the state is valid for).
       type(solid_earth), intent(inout) :: self
       real(wp),           intent(in)    :: h_ice_lgm(:,:)   !! start-slice (LGM) ice [m] (host grid)
       real(wp),           intent(in), optional :: w(:,:), I_g(:,:), C(:,:), F(:,:)
       real(wp), allocatable :: visc_node(:,:), visc_unif(:,:)
       integer :: r, nh
       logical :: pre_1d
-      real(wp) :: t_max
+      real(wp) :: t_max, t_hold
 
       pre_1d = self%par%pre_spinup_1d
       t_max  = self%par%equil_time_max/sec_per_year          ! par stores SI; relax works in years
@@ -674,6 +706,7 @@ contains
          error stop 'solid_earth_spinup: unsupported with solver="v1" (see message above)'
       end if
 
+      t_hold = self%time
       call solid_earth_update(self, h_ice_lgm, 0.0_wp, w, I_g, C, F)   ! seed the entering ice = start (LGM) ice
 
       if (pre_1d) then
@@ -694,6 +727,7 @@ contains
       end if
 
       if (t_max > 0.0_wp) call relax_hold(self, h_ice_lgm, t_max, "full", w, I_g, C, F)
+      call solid_earth_set_time(self, t_hold)
    end subroutine solid_earth_spinup
 
    subroutine relax_hold(self, h_ice_lgm, t_cap, label, w, I_g, C, F)

@@ -34,13 +34,14 @@ module vilma_io
                               response_horizontal, response_horizontal_toroidal
    use vilma_sht,          only: sht_grid_sph_synthesis, sht_grid_tor_synthesis
    use vilma_rotation,     only: rotation_ne, rotation_get_memory, rotation_set_memory, ROT_NCOMP
-   use vilma_coupling,     only: solid_earth, solid_earth_sync_host, VILMA_UNSET
+   use vilma_coupling,     only: solid_earth, solid_earth_sync_host, solid_earth_set_time, VILMA_UNSET
    use ncio
    use variable_io
    implicit none
    private
 
    public :: vilma_restart_write, vilma_restart_read, vilma_write_step, vilma_io_set_table
+   public :: vilma_restart_time
    public :: vilma_write_horizontal
 
    ! The full time-varying variable set a restart writes, split by response kind.
@@ -525,10 +526,7 @@ contains
          call restore_host(self, filename, n, np, nl)
       end select
 
-      ! restore the clock and the adaptive controller's step-size seed. self%time is
-      ! in years (file units); the response's internal clock is in SI seconds.
-      self%resp%time = tvals(n)*sec_per_year
-      self%time      = tvals(n)
+      ! restore the adaptive controller's step-size seed.
       ! dt_try_s is the seed itself, in seconds. dt_try is the same in years, for reading: years
       ! and back is not exact, and the adaptive (implicit) stepper sub-steps by it, so a file
       ! from before dt_try_s continues to round-off only.
@@ -544,10 +542,25 @@ contains
       if (self%rotation%enabled .and. nc_exists_var(filename, "rot_m_re")) &
          call read_rotation(self, filename, n)
 
+      ! the clock: the time the file's state was written at (years, the file's units)
+      call solid_earth_set_time(self, tvals(n))
+
       ! the restart restores the Gauss-grid state (gg) + memory; re-derive the
       ! host-grid outputs (rsl, z_bed) from it so the host reads a consistent state.
       call solid_earth_sync_host(self)
    end subroutine vilma_restart_read
+
+   function vilma_restart_time(filename) result(time)
+      !! The model time [years] of the last snapshot in a restart file: the time a run
+      !! resumed from it continues at (vilma_restart_read sets the clock to it).
+      character(len=*), intent(in) :: filename
+      real(wp) :: time
+      real(wp), allocatable :: tvals(:)
+      integer :: nt
+      nt = nc_size(filename, "time")
+      allocate(tvals(nt));  call nc_read(filename, "time", tvals)
+      time = tvals(nt)
+   end function vilma_restart_time
 
    subroutine read_rotation(self, filename, n)
       !! Restore the rotation solver's prognostic state at slice n: the polar motion
@@ -571,7 +584,6 @@ contains
       call nc_read(filename, "rot_m_im", mim, start=[n], count=[1])
       m = cmplx(mre, mim, wp)
       call rotation_set_memory(self%rotation, m, load_mem, tidal_mem)
-      self%rotation%time = self%time
    end subroutine read_rotation
 
    subroutine read_ve_state(self, filename, n, np, nl)

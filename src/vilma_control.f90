@@ -51,7 +51,8 @@ module vilma_control
       ! --- forcing time window --------------------------------------------------
       ! Time fields are SI [s] in the record; the nml supplies them in YEARS and
       ! vilma_ctl_load converts on read (so the in-memory record is uniformly SI).
-      real(wp) :: time_init = -huge(1.0_wp)  !! start time [years] (default: first forcing slice)
+      real(wp) :: time_init = -huge(1.0_wp)  !! start time [years] (default, and any value <= -1e29:
+                                             !! unset = the first forcing slice, or the restart's time)
       real(wp) :: time_end  =  huge(1.0_wp)  !! end time   [years] (default: last  forcing slice)
 
       ! --- online lon-lat -> Gauss remap of the forcing -------------------------
@@ -87,6 +88,11 @@ module vilma_control
          !! full-state restart (vilma_restart.nc) to resume from: solid_earth_init at the
          !! reference, then restore the saved memory/clock. A lower-resolution restart is
          !! interpolated up to the model grid.
+      logical :: restart_time_reset = .false.
+         !! A restart continues where it left off: the window starts at the restart's time
+         !! (time_init unset), and a time_init that selects another start slice stops the
+         !! run. .true. takes the restart's state as the state AT the window start instead,
+         !! whatever time the file carries (a memory state reused for another experiment).
    end type vilma_ctl_class
 
 contains
@@ -161,6 +167,9 @@ contains
       ! restart-in path
       call nml_read(filename, g, "restart_in_file", c%restart_in_file)
       c%restart_in_file = expand_path(c%restart_in_file)
+      ! optional (default .false.), so existing run configs keep working
+      if (nml_has_param(filename, g, "restart_time_reset")) &
+         call nml_read(filename, g, "restart_time_reset", c%restart_time_reset)
    end subroutine vilma_ctl_load
 
    subroutine vilma_ctl_print(c, unit)
@@ -181,6 +190,8 @@ contains
       if (c%write_lossless) write(u,'(a)') '   write_lossless: diagnostics written without rounding'
       if (len_trim(c%restart_in_file) > 0) &
          write(u,'(a,a)')  '   restart:  ', trim(c%restart_in_file)
+      if (len_trim(c%restart_in_file) > 0 .and. c%restart_time_reset) &
+         write(u,'(a)')    '   restart_time_reset: the restart is taken as the state at the window start'
    end subroutine vilma_ctl_print
 
 end module vilma_control

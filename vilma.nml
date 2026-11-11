@@ -27,7 +27,8 @@
     file_hor      = ""     ! horizontal displacement (total + toroidal) to its own file; "" = off
     write_lossless = .false. ! .true.: no output rounding (the prec column of input/vilma-variables.md);
                              ! restarts are always lossless
-    time_init     = -1.0e30            ! [years] (<= forcing start => full range)
+    time_init     = -1.0e30            ! [years] (<= -1e29 => unset: from the first forcing slice,
+                                       !          or from the restart's time when resuming)
     time_end      =  1.0e30            ! [years] (>= forcing end   => full range)
 
     ! --- online lon-lat -> Gauss remap of the forcing -----------------
@@ -53,6 +54,9 @@
     ! --- restart-in path ----------------------------------------------
     restart_in_file = ""     ! full-state restart to resume from (skips/precedes spin-up);
                              ! lower-res restart is interpolated up to the model grid
+    restart_time_reset = .false. ! .false.: the run continues at the restart's time (time_init unset or
+                                 ! equal to it; any other start stops). .true.: take the restart's
+                                 ! state as the one at time_init, whatever time the file carries
 /
 
 &vilma
