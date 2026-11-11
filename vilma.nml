@@ -19,7 +19,7 @@
 
     ! --- legacy Gauss-grid reference file (remap_input=.false.) -------
     file_ref      = ""                 ! reference state (z_bed_eq, h_ice_eq)
-    name_zbed_eq  = "z_bed_eq"
+    name_z_bed_start = "z_bed_eq"   ! i_eq=0 bed: in file_forcing (lon,lat,time), or file_ref if not remapping
 
     ! --- step output --------------------------------------------------
     file_out      = "vilma_out.nc"

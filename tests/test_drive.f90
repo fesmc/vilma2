@@ -291,7 +291,7 @@ contains
       write(u,'(a)')    '    name_ice     = "h_ice"'
       write(u,'(a)')    '    name_time    = "time"'
       write(u,'(a)')    '    file_ref     = "'//ref//'"'
-      write(u,'(a)')    '    name_zbed_eq = "z_bed_eq"'
+      write(u,'(a)')    '    name_z_bed_start = "z_bed_eq"'
       write(u,'(a)')    '    file_out     = "'//out//'"'
       write(u,'(a)')    '    file_hor     = "'//hor//'"'
       write(u,'(a)')    "    write_lossless = .true."

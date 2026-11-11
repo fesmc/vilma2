@@ -57,7 +57,7 @@
     name_ice      = "ice_thickness"
     name_time     = "time"
     file_ref      = ""
-    name_zbed_eq  = "z_bed_eq"
+    name_z_bed_start = "z_bed_eq"
     remap_input   = .true.
     name_lon      = "lon"
     name_lat      = "lat"

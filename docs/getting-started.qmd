@@ -190,7 +190,7 @@ A few conventions worth knowing:
 - **Reference state** is chosen by `i_eq` (`&ctl`). Relative sea level is
   measured against this relaxed reference.
   - `0`: the state at the start of the run window is the equilibrium: the
-    forcing's ice at that slice and the bed `name_zbed_eq`, read from
+    forcing's ice at that slice and the bed `name_z_bed_start`, read from
     `file_forcing` (lon, lat, time) or, with `remap_input = .false.`, from
     the 2-D `file_ref`.
   - `1` (default): a present-day reference from `z_bed_ref_file` and
@@ -300,7 +300,7 @@ numerics pages describe most of them in context. The remaining ones are:
 | | `name_lon`, `name_lat` | longitude and latitude axes of every 2-D input file [deg], in both modes; with `remap_input = .false.` they must be the Gauss grid's (longitudes from 0) |
 | | `time_init`, `time_end` | run window [yr]; default the first and the last forcing slice |
 | | `remap_input` | `.true.` (default): remap lon-lat input online; `.false.`: input already on the Gauss grid |
-| `&ctl` start-slice bed (`i_eq = 0`) | `name_zbed_eq`, `file_ref` | bed variable, read from `file_forcing` (lon, lat, time), or from the 2-D Gauss-grid `file_ref` with `remap_input = .false.` |
+| `&ctl` start-slice bed (`i_eq = 0`) | `name_z_bed_start`, `file_ref` | bed variable, read from `file_forcing` (lon, lat, time), or from the 2-D Gauss-grid `file_ref` with `remap_input = .false.` |
 | `&ctl` restart | `restart_in_file`, `restart_time_reset`, `restart_other_visc` | see above |
 | `&ctl` output | `file_out`, `file_hor`, `write_lossless` | see above |
 
