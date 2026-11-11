@@ -101,4 +101,6 @@ dropped, giving 720 longitudes on a uniform 0.5 deg grid spanning exactly
 360 deg; `lat`, `r` and every retained `eta` value are untouched. **The same
 defect is present upstream** in
 `isostasy_data/earth_structure/viscosity/pan2022.nc`, so re-staging from there
-will reintroduce it.
+will reintroduce it. The attribute `eta:units` was also corrected from
+"Pascal seconds" to "log10(Pa s)", since the values are log10 of the
+viscosity.
