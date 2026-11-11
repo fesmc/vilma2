@@ -39,8 +39,8 @@ according to the memory scheme (see [Rheology](../physics/rheology.qmd#memory-ti
   is split into equal sub-steps of at most that length. `dt_max` lowers the
   sub-step further. `dt_min` raises it, also above the stability ceiling, so
   it should stay at its default of 0 (none) for this scheme. A guard rolls a
-  sub-step back and halves it if the memory norm becomes non-finite or grows
-  more than $10^{3}$-fold. It is a safety net and normally never fires.
+  sub-step back and halves it if the memory norm becomes non-finite. It is a
+  safety net and normally never fires.
 - **`"trap"`**: each candidate step is taken once at $\Delta t$ and once as two
   $\Delta t/2$ halves. Their difference estimates the local error of the
   memory, which is compared with `atol` $+$ `rtol` $\times$ the memory norm

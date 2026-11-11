@@ -30,6 +30,9 @@ The spectral–finite-element, time-domain method and its rotational extension:
 
 - @Farrell1972 — load Love numbers and the deformation of the Earth by surface
   loads.
+- @Peltier1974 — the impulse response of a Maxwell Earth (normal-mode Love
+  numbers).
+- @FarrellClark1976 — the sea-level equation.
 - @Mitrovica2005 — revised rotational stability theory (fixing $k_f$ from the
   observed flattening).
 - @Blewitt2003 — reference frames, geocenter, and degree-1 surface loading.

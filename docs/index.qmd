@@ -44,6 +44,9 @@ paths are therefore the same solver**.
 
 - **[Install & run](getting-started.qmd)** — building with `configme`, the
   `&vilma` namelist, the drivers, and staging runs with `runme`.
+- **[Tutorial](tutorial.qmd)** — a conceptual tour for new users: the Maxwell
+  mantle, spherical harmonics, Love numbers, the sea-level equation, rotation
+  and time stepping, each linked to its detailed page.
 - **[Physics](physics/governing-equations.qmd)** — the governing equations
   (momentum, Poisson, incompressibility), the Maxwell rheology and its memory
   stress, toroidal flow under lateral viscosity, the sea-level equation, and
