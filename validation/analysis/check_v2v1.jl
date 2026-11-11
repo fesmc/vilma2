@@ -219,9 +219,9 @@ function summary_figure(series)
         in the `cm` frame degrees 0 and 1 stay below
         $(@sprintf("%.2f", d01)) m in every pair, against a peak rms of
         $(join([@sprintf("%.1f m (%s)", maximum(s.rms), PAIR_STYLE[tag].lab)
-                for (tag, s) in series], ", ")). Most of what (a) shows early in the
-        deglaciation is one degree-2, order-1 pattern, the same in every pair: the
-        rotational-feedback signature, not yet attributed.
+                for (tag, s) in series], ", ")). The degree-2, order-1 pattern of the
+        rotational feedback that dominated earlier passes is gone since the rotation
+        fixes of 304f4cb (`tables/v2v1.md`).
         Sea level is referenced to each run's own present day, so the residual at 0 ka
         is zero by construction and (b) is undefined there.
         """,
@@ -290,9 +290,8 @@ function toroidal_figure(tr, nt, v, SC)
         notes = """
         The run with the toroidal coupling is the production 3-D run, so the middle
         column is the 3-D pair of the V2−V1 figures.
-        Most of the residual common to the left and middle columns early in the
-        deglaciation is one degree-2, order-1 pattern, the rotational-feedback
-        signature, which the toroidal coupling does not touch.
+        The residual that the toroidal coupling leaves (middle column) has no
+        dominant low-degree part (`tables/v2v1.md`).
         """,
         source = @__FILE__,
         runs = [tr.path, nt.path, v.path])
