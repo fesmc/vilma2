@@ -23,4 +23,16 @@ module vilma_precision
    ! the compiler rejects it.
    real(kind=merge(wp, -1, wp == c_double)), private :: enforce_wp_eq_c_double
 
+contains
+
+   elemental logical function is_finite(x)
+      !! Not NaN or Inf, by the exponent bits. The optimised builds assume finite
+      !! arithmetic (-ffast-math, -Ofast), which lets the compiler fold x == x,
+      !! x <= huge(x) and ieee_is_finite away, so every non-finite check in the
+      !! model goes through this.
+      real(wp), intent(in) :: x
+      integer(int64), parameter :: EXPO = int(z'7FF0000000000000', int64)
+      is_finite = (iand(transfer(x, 0_int64), EXPO) /= EXPO)
+   end function is_finite
+
 end module vilma_precision

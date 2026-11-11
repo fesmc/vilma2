@@ -5,6 +5,13 @@ built and where it departs from the plan; §1–§6 are the original scoping
 document, kept as written except where marked. It complements `design.md` (the
 Martinec FE method) and `formulation.md` (the equations as implemented).
 
+**On by default** (since 2026-11). V7 of §4 was run: in the 3-D last
+deglaciation at ℓmax 170 the toroidal field changes relative sea level by
+2–3 m rms and up to 92 m locally, halves the difference to VILMA1, and costs a
+factor of 1.47 in run time (`validation/tables/toroidal.md`). `l_toroidal =
+.false.` gives the spheroidal-only model, for quicker runs that do not depend on
+local sea level near the ice sheets.
+
 ## 0. As implemented
 
 | commit | content |
@@ -54,8 +61,9 @@ V2 six channels reproduce an arbitrary symmetric tensor to 9e-15 (four miss
 35 %), channel cross-talk at nlat = 2·lmax+2 ≤ 8e-13 (§6.4's aliasing is not
 there); V3 W = 0 exactly for axisymmetric configurations, off-pole W falls
 2.6e-4 → 1.5e-6 from lmax 16 to 32; V4 W driven, reflection selection rule to
-4e-16, W ∝ δ^0.987 and its uplift feedback ∝ δ^1.986. V6/V7 (VILMA1, the
-deglaciation) are the paper's, not this note's.
+4e-16, W ∝ δ^0.987 and its uplift feedback ∝ δ^1.986. V6 (the VILMA1
+cross-check) and V7 (the deglaciation with and without toroidal flow) are open:
+they are planned for the paper, not this note.
 
 **Context.** Volker Klemann, VILMA1's author, is part of the effort, and
 VILMA2 is developed as an open-source alternative to VILMA1. That reframes
@@ -66,6 +74,9 @@ it looks (§2.1).
 ---
 
 ## 1. What is missing, and why it may matter
+
+*(Scoping text, before the implementation of §0; the file and line references
+are those of the code at that time.)*
 
 VILMA2 has no toroidal degree of freedom anywhere:
 

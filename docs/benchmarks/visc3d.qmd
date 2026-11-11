@@ -3,12 +3,29 @@ title: "Benchmark: lateral viscosity"
 search: false
 ---
 
+::: {.callout-warning appearance="minimal"}
+**Pre-publication page.** This page is not linked from the navigation and is
+excluded from the site search. It is reachable by direct link only.
+:::
+
 ::: {.callout-note appearance="minimal"}
 **Reference:** community benchmark of GIA codes with laterally heterogeneous
 earth structure, setup note by Klemann et al. [@Klemann2022setup]
 (`doc/refs/klemann-visc3d-benchmarks-setup.pdf`). **Driver:**
-`bench_visc3d` (not in `make check`). **Status:** 🔧 set up and run at
-low resolution; no reference solutions published yet.
+`bench_visc3d` (not in `make check`). **Status:** 🔧 A-i and B-i run to
+100 kyr at $\ell_\max$ = 64, 128 and 256 (model f0c4678, albedo); C-i to be
+rerun with the current model. No reference solutions are published yet, so the
+driver has no pass/fail; A-i is checked against its exact normal-mode solution.
+:::
+
+::: {.callout-important}
+**What validates the 3-D path today.** The 3-D viscosity path is cross-checked
+against two things only: VILMA1, on the last deglaciation
+([deglaciation page](deglaciation.qmd)), and the low-viscosity-zone case of
+Weerdesteijn et al. (2023) [@Weerdesteijn2023] ([LVZ page](lvz.qmd)). No
+multi-code 3-D benchmark has been run yet. This page describes the setup that
+VILMA2 contributes to such a benchmark. It produces the protocol files and
+compares them with nothing.
 :::
 
 The benchmark follows @Spada2011 and @Martinec2018 but adds a
@@ -42,6 +59,9 @@ with half-width $\vartheta_w = 12°$, edge width $d = 1°$ and centre viscosity
 $\eta_c = 10^{18}$ Pa s. That is a drop of 3 orders of magnitude in the mantle
 and 12 in the 60–70 km lithosphere, which the note asks to reach the same centre
 value.
+
+**Grid.** The Gauss grid has $2\ell_\max + 2$ latitudes. It has $4\ell_\max$
+longitudes for C and 2 for the axisymmetric A and B.
 
 **Load.** A cap of radius $\alpha = 10°$ with a square-root profile,
 
@@ -99,6 +119,11 @@ The files follow the protocol (tab-delimited, `#` header):
 - `gcm_VILMA2_<T>-i_<forcing>.txt`: time [kyr] and the geocentre offset
   $u_\text{gcm} = u_\text{CF} - u_\text{CM}$ ($x, y, z$ [m]).
 
+The driver does not compare these files with a reference, and it returns no
+pass or fail. The only check it prints is the load mass, from the degree-0
+coefficient, next to its closed form. It also prints $u_r$ at the structure
+centre at each output epoch.
+
 Conventions:
 
 - **Frame.** Displacements are in the CM frame (`deg1_frame = "cm"`). Then
@@ -115,7 +140,8 @@ Conventions:
 
 The run config is `examples/bench_visc3d.nml`. Its `&benchv3d` group sets `test`
 (`A`/`B`/`C`), `forcing` (`heav`/`ramp`) and `time_end` [years]. From `&vilma`
-only `lmax` (default 128), `l_toroidal` (on) and `visc3d_tol` are read. The
+only `lmax`, `l_toroidal` and `visc3d_tol` are read. The example config sets
+`lmax = 128` and `l_toroidal = .true.`, and `visc3d_tol` keeps its default. The
 earth model, memory scheme, degree-1 frame and grid are fixed by the benchmark.
 The protocol files are written to the working directory.
 
@@ -129,19 +155,23 @@ runme -o runs/bench_visc3d -e visc3d -n examples/bench_visc3d.nml --omp 64 \
 ```
 
 Use `-r` instead of `-s` to run locally, and add e.g. `vilma.lmax=64
-benchv3d.time_end=2000` for a short test. At $\ell_\max \ge 128$ the 3-D path
-needs a large stack: the SLURM template sets it, but a local run needs
-`ulimit -s unlimited` and `OMP_STACKSIZE=256M` in the calling shell. Then plot
-the cross-sections and the geocentre motion from the ensemble directory:
+benchv3d.time_end=2000` for a short test. The validation suite runs the
+benchmark as its stage `B` and draws the figures and tables on this page
+(`validation/README.md`):
 
 ```bash
-julia --project=analysis analysis/plot_bench_visc3d.jl runs/bench_visc3d heav
+cd validation
+./run.sh B                          # A-i, B-i, C-i, both forcings, l_max 128
+LMAX=64 CASES="A B" ./run.sh B      # truncation series; also LMAX=256
+./run.sh submit reduce analyse      # tables/blockB.md and the figures
 ```
 
 **Restart.** A run longer than one job is split into segments. `restart_out`
 saves the memory state at `time_end`, and `restart_in` resumes from it. Time is
 counted in global steps, so a chain of segments reproduces one uninterrupted run
-byte for byte; each segment appends to the protocol files. For 20-kyr segments:
+byte for byte. Each segment appends to the protocol files and skips the epochs
+already written. A restart from another test, forcing, $\ell_\max$ or
+$\Delta t$ is refused. For 20-kyr segments:
 
 ```fortran
 &benchv3d  test = "C"  forcing = "heav"  time_end = 40.0e3
@@ -151,24 +181,62 @@ byte for byte; each segment appends to the protocol files. For 20-kyr segments:
 The step count is set by $\eta_c$: 223 000 steps to 100 kyr. At
 $\ell_\max = 64$ with 8 threads (laptop), a C run costs about 53 ms per step,
 or about 3.3 h. A and B, with $m_\max = 0$, take minutes. The target
-resolution is $\ell_\max = 128$.
+resolution is $\ell_\max = 128$, where the driver's header estimates 10 to
+19 h for C. That is why C runs in restart segments.
 
 ## Result
 
-Only a short test so far ($\ell_\max = 64$, to 2 kyr). The load mass matches the
-closed form exactly. The geocentre offset is about $-4$ m along the load axis,
-which is the expected size for $3.6\times10^{18}$ kg of ice, and for C it points
-towards the load's longitude. At $\ell_\max = 64$, B shows Gibbs ringing with a
-~3° period and a bulge at the structure edge: the 1° edge width is not resolved.
-The full runs at $\ell_\max = 128$ are to follow.
+All six cases (A-i, B-i, C-i, each with heav and ramp forcing) have been run to
+100 kyr at $\ell_\max = 128$ with the toroidal field on, as five 20-kyr
+restart segments each. A and B were also run at $\ell_\max = 64$ and 256. The
+load mass matches the closed form exactly. The A-i and B-i numbers are from
+`validation/tables/blockB.md` (model f0c4678, albedo) and equal those of the
+earlier model 907bc74 to the printed digits. The C-i rows are from 907bc74
+(levante) and are being rerun.
+
+| test | forcing | $u_r$ at load, 0.1 kyr | 10 kyr | 100 kyr | max $u_r$ at 100 kyr | $\lvert u_\text{gcm}\rvert$ at 100 kyr |
+|---|---|:-:|:-:|:-:|:-:|:-:|
+| A-i | heav | $-39.35$ m | $-307.76$ m | $-366.67$ m | 17.90 m | 8.709 m |
+| B-i | heav | $-67.91$ m | $-357.80$ m | $-386.07$ m | 20.76 m | 8.769 m |
+| C-i | heav | $-67.11$ m | $-360.55$ m | $-386.46$ m | 15.40 m | 8.829 m |
+| A-i | ramp | $-0.36$ m | $-219.71$ m | $-365.64$ m | 18.02 m | 8.676 m |
+| B-i | ramp | $-0.55$ m | $-309.13$ m | $-385.60$ m | 21.02 m | 8.739 m |
+| C-i | ramp | $-0.53$ m | $-308.11$ m | $-386.02$ m | 15.49 m | 8.797 m |
+
+: Vertical displacement at the load center, the peripheral bulge and the geocentre offset. C-i: model 907bc74, rerun pending. {#tbl-visc3d}
+
+The low-viscosity column under the load (B-i) deepens the depression at
+0.1 kyr by about 70 % and at 100 kyr by about 5 %. These numbers have no
+reference yet.
+
+**Test A-i against an exact solution.** A-i has no lateral structure, so its
+exact solution is the normal-mode response of M3–L70–V01 at the same
+truncation. VILMA2 matches it to within 0.05 m in $u_r$ (of 39–367 m at the
+load center), 0.016 m in $u_\vartheta$ and 1.6 mm in the geocentre offset, at
+0.1, 1, 10 and 100 kyr and for both forcings.
+
+**Truncation.** The rms difference of $u_r$ along the section between A-i and
+the normal-mode solution to degree 256 is 1.3 m at $\ell_\max = 64$,
+0.05 m at 128 and 0.01 m at 256 (100 kyr, heav). For B-i against its own
+$\ell_\max = 256$ run it is 1.9 m at 64 and 0.1 m at 128. At
+$\ell_\max = 64$ the 1° edge of the structure is not resolved and B-i shows
+Gibbs ringing with a period of about 3°.
+
+**Cost of the toroidal field.** C-i at $\ell_\max = 128$ took 10.5 h to
+100 kyr with the toroidal field off and 18.6 h with it on (64 threads, model
+907bc74, levante), a factor of 1.8.
 
 ## Figures
 
-*Figures to be added: $u_r$, $u_\vartheta$, $u_\varphi$, $\delta\phi$ along the
-section for A/B/C; geocentre motion; comparison with the other codes once
-available.*
+The figures show VILMA2 only. A comparison with other codes follows once their
+results are available.
 
-<!--
-![Cross-sections, heav](figures/visc3d_sections_heav.png)
-![Geocentre motion](figures/visc3d_gcm.png)
--->
+![Cross-sections for the Heaviside load: $u_r$, $u_\vartheta$, $u_\varphi$ and $\delta\phi$ along the section from the structure center through the load center to the antipode, for tests A-i, B-i and C-i at the output epochs. VILMA2 only, with no reference solution.](figures/visc3d-sections-heav.png){#fig-visc3d-sections-heav}
+
+![As the previous figure, for the load ramped over 0–10 kyr.](figures/visc3d-sections-ramp.png){#fig-visc3d-sections-ramp}
+
+![Geocentre motion $u_\text{gcm} = u_\text{CF} - u_\text{CM}$ ($x$, $y$, $z$ components [m]) against time for tests A-i, B-i and C-i. VILMA2 only, with no reference solution.](figures/visc3d-geocentre.png){#fig-visc3d-geocentre}
+
+![Test A-i against its exact normal-mode solution at the same truncation ($\ell_\max = 128$): displacement and potential along the section, and their differences.](figures/visc3d-A-normal-mode.png){#fig-visc3d-A-normal-mode}
+
+![Truncation: rms difference of $u_r$ along the section, test A-i against the normal-mode solution to degree 256 and test B-i against its own $\ell_\max = 256$ run, at $\ell_\max$ = 64, 128 and 256.](figures/visc3d-lmax.png){#fig-visc3d-lmax}

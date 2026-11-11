@@ -27,7 +27,6 @@ program test_host_convergence
    use vilma_precision, only: wp
    use vilma_constants, only: pi, sec_per_year
    use vilma_params,    only: vilma_param_class
-   use vilma_radial_fe, only: radial_fe_finalize
    use vilma_sht,       only: sht_grid, sht_grid_init, sht_grid_destroy, sht_grid_surface_integral
    use vilma_sle,       only: ocean_function
    use vilma_remap,     only: remap_ll_gauss, remap_init, remap_to_gauss
@@ -60,10 +59,8 @@ program test_host_convergence
    write(*,'(a)') ''
    if (ok) then
       write(*,'(a)') ' PASS: host-resolved terms converge to the host geometry; the own path to them'
-      call radial_fe_finalize()
    else
       write(*,'(a)') ' FAIL: convergence of the host-resolved terms'
-      call radial_fe_finalize()
       error stop 1
    end if
 

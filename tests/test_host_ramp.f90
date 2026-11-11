@@ -5,8 +5,8 @@ program test_host_ramp
    !! Checks:
    !!   (1) elastic response, one step: the step is one solve at t1, so it equals
    !!       sle_solve with host1 and ice1;
-   !!   (2) dt = 0 seed: equals a report-only sle_solve with host1 and ice0, and not the
-   !!       one with host0;
+   !!   (2) dt = 0 update: equals a report-only sle_solve with host1 and ice1 (the terms and
+   !!       the ice handed in), and not the one with host0 and the ice the model carries;
    !!   (3) ramp: one advance over four sub-steps (forward Euler, Maxwell sphere) equals four
    !!       advances over the quarter intervals with the ice and host terms interpolated to
    !!       their ends, and differs from holding the host terms at host0;
@@ -17,7 +17,6 @@ program test_host_ramp
    use vilma_precision,       only: wp
    use vilma_constants,       only: pi, sec_per_year
    use vilma_earth_structure, only: earth_model, earth_layer, build_M3L70V01, RHEOL_MAXWELL
-   use vilma_radial_fe,       only: radial_fe_finalize
    use vilma_response,        only: response_destroy, response_prime_sigma, response_memory_norm, response, &
                                     response_init_elastic, response_init_ve
    use vilma_viscoelastic,    only: SCHEME_TRAP
@@ -56,10 +55,8 @@ program test_host_ramp
    call sht_grid_destroy(sht)
    if (ok) then
       write(*,'(a)') ' PASS: host terms ramp with the ice, seed at host1 and prime at host0'
-      call radial_fe_finalize()
    else
       write(*,'(a)') ' FAIL: host terms in the stepper'
-      call radial_fe_finalize()
       error stop 1
    end if
 
@@ -185,9 +182,9 @@ contains
       rsl = 0.0_wp;  rsl1 = 0.0_wp;  rsl0 = 0.0_wp
       call stepper_advance(st, sht, resp, s, topo0, icep, ice1, zero, 0.0_wp, 0.0_wp, rsl, C, &
                            host_ref=hr, host0=h0, host1=h1)
-      call sle_solve(s2, sht, resp, icep, icep, topo0, rsl1, C1, res, report_only=.true., host=h1, host_ref=hr)
+      call sle_solve(s2, sht, resp, ice1, ice1, topo0, rsl1, C1, res, report_only=.true., host=h1, host_ref=hr)
       call sle_solve(s3, sht, resp, icep, icep, topo0, rsl0, C1, res, report_only=.true., host=h0, host_ref=hr)
-      write(*,'(a)') ' (2) dt = 0: seed with host1 and ice0'
+      write(*,'(a)') ' (2) dt = 0: solve with host1 and ice1'
       write(*,'(a,es10.2,a,es10.2)') '     |drsl - solve(host1)| =', maxval(abs(rsl - rsl1)), &
            ' m   |drsl - solve(host0)| =', maxval(abs(rsl - rsl0))
       if (maxval(abs(rsl - rsl1)) > 1.0e-9_wp) then

@@ -17,9 +17,15 @@ program test_tensor_sh
    !!   (4) cross-talk at the PRODUCTION grid (nlat = 2 lmax + 2, nphi = 4 lmax):
    !!       each channel alone through synth→analysis, the leak into every other
    !!       channel reported. Z⁴⊥Z⁶ and Z²⊥Z³ are exact only as far as the grid
-   !!       quadrature is (B12), which is where silent aliasing would live.
+   !!       quadrature is (B12), which is where silent aliasing would live;
+   !!   (5) a second tensor_sh_init on the same grid keeps the transformer (the
+   !!       per-thread SHTns configs are not dropped and rebuilt);
+   !!   (6) round trip with an order stride (mres = 3): the degrees below mres
+   !!       carry m = 0 only, and their spin-2 channels (Z⁶, Z⁴ at l = 2) must not
+   !!       be lost.
    use vilma_precision, only: wp
    use vilma_constants, only: pi
+   use, intrinsic :: iso_c_binding, only: c_ptr, c_associated
    use vilma_sht,       only: sht_grid, sht_grid_init, sht_grid_lmidx, sht_grid_destroy
    use vilma_tensor_sh, only: tensor_sh, TLAM, TLAM_SPH, DY_RR, DY_RT, DY_RP, DY_TT, DY_TP, DY_PP, &
                            tensor_sh_init, tensor_sh_synth, tensor_sh_analysis, tensor_sh_destroy
@@ -34,6 +40,7 @@ program test_tensor_sh
    real(wp) :: err, dd_phys, dd_spec, leak(TLAM,TLAM), scale
    integer  :: nt, i, j, seed
    logical  :: ok
+   type(c_ptr) :: cfg1
 
    ok = .true.
    call sht_grid_init(sht, LMAX, nlat=4*LMAX, nphi=4*LMAX, mmax=LMAX)
@@ -117,6 +124,35 @@ program test_tensor_sh
       ok = .false.
    end if
 
+   ! (5) init again on the same grid: the same transformer, no config dropped
+   cfg1 = tsh%pool(1)%cfg
+   call tensor_sh_init(tsh, sht)
+   if (c_associated(tsh%pool(1)%cfg, cfg1)) then
+      write(*,'(a)') ' (5) a repeated tensor_sh_init keeps the per-thread configs'
+   else
+      write(*,'(a)') ' (5) FAIL: a repeated tensor_sh_init replaced the per-thread configs'
+      ok = .false.
+   end if
+
+   ! (6) order stride: orders 0, 3, 6, 9 only, so degree 2 has m = 0 alone
+   call tensor_sh_destroy(tsh);  call sht_grid_destroy(sht)
+   call sht_grid_init(sht, LMAX, nlat=4*LMAX, nphi=4*LMAX, mmax=LMAX/3, mres=3)
+   call tensor_sh_init(tsh, sht)
+   deallocate(c, c2, dyad)
+   allocate(c(TLAM,sht%nlm), c2(TLAM,sht%nlm), dyad(sht%nphi,sht%nlat,6))
+   seed = 3
+   call random_coeffs(sht, LMAX, c, seed)
+   call tensor_sh_synth(tsh, sht, c, dyad)
+   call tensor_sh_analysis(tsh, sht, dyad, c2)
+   err = maxval(abs(c2 - c))
+   i = sht_grid_lmidx(sht, 2, 0)
+   write(*,'(a,es11.2,a,2es11.2)') ' (6) mres = 3 round-trip max|analysis(synth(c)) - c| =', err, &
+        '   |Z6|, |Z4| at l = 2:', abs(c2(4,i)), abs(c2(6,i))
+   if (err > 1.0e-9_wp) then
+      write(*,'(a)') '     FAIL: the dyadic transform does not round-trip with an order stride'
+      ok = .false.
+   end if
+
    write(*,'(a)') ''
    if (ok) then
       write(*,'(a)') ' PASS: general-order tensor-SH dyadic transforms validated, incl. toroidal'
@@ -137,7 +173,7 @@ contains
       integer,        intent(inout) :: seed
       integer :: l, m, lm, lam
       c = (0.0_wp,0.0_wp)
-      do m = 0, lmax
+      do m = 0, sht%mmax*sht%mres, sht%mres        ! the orders the grid carries
          do l = m, lmax
             lm = sht_grid_lmidx(sht, l,m)
             do lam = 1, size(c,1)

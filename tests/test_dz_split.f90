@@ -13,7 +13,6 @@ program test_dz_split
    use vilma_precision, only: wp
    use vilma_constants, only: pi
    use vilma_params,    only: vilma_param_class
-   use vilma_radial_fe, only: radial_fe_finalize
    use vilma_sht,       only: sht_grid, sht_grid_init, sht_grid_destroy
    use vilma_coupling,  only: solid_earth, solid_earth_init, solid_earth_update, solid_earth_finalize
    use coords,          only: grid_class, grid_init
@@ -47,10 +46,8 @@ program test_dz_split
       write(*,'(a)') ' PASS: rsl = dz_ss - dz_bed to round-off on the Gauss and host grids'
    else
       write(*,'(a)') ' FAIL: dz_bed / dz_ss split'
-      call radial_fe_finalize()
       error stop 1
    end if
-   call radial_fe_finalize()
 
 contains
 

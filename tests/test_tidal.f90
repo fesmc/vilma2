@@ -17,7 +17,7 @@ program test_tidal
    use vilma_earth_structure, only: earth_gravity_at, earth_model, earth_layer, build_M3L70V01, &
                                  RHEOL_ELASTIC
    use vilma_radial_fe,       only: radial_operator_tidal_rhs, radial_operator_destroy, radial_operator_solve_vec, radial_operator_assemble, radial_mesh_build, radial_mesh, radial_operator, tidal_love, &
-                                 radial_fe_finalize, idx_u, idx_v, idx_f
+                                 idx_u, idx_v, idx_f
    implicit none
 
    real(wp), parameter :: km = 1.0e3_wp
@@ -83,10 +83,8 @@ program test_tidal
       write(*,'(a)') '       sphere tidal Love-number limits (fluid, rigid, Kelvin)'
    else
       write(*,'(a)') ' FAIL: tidal Love-number validation did not all pass'
-      call radial_fe_finalize()
       error stop 1
    end if
-   call radial_fe_finalize()
 
 contains
 

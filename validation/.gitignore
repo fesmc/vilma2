@@ -1,0 +1,21 @@
+# run output, staging shims, out-of-band binaries
+/runs/
+/experiments/.stage/
+/experiments/bin/*.x
+
+# inputs and reduced output: untracked, see README.md for where they live
+/data/input/
+/data/published/
+/data/reference/*.nc
+
+# figures other than the docs set (docs/benchmarks/figures/)
+/figures/
+
+# links to the machine's VILMA1 inputs and generated viscosity files
+/experiments/vilma1_input_vilma2grid/*
+!/experiments/vilma1_input_vilma2grid/densi.inp
+
+# earlier passes, kept for comparison (see RESULTS.md)
+/runs_*/
+/data/published_*/
+/data/reference_*/

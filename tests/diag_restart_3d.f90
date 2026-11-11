@@ -14,7 +14,6 @@ program diag_restart_3d
    use vilma_precision, only: wp
    use vilma_constants, only: pi
    use vilma_params,    only: vilma_param_class
-   use vilma_radial_fe, only: radial_fe_finalize
    use vilma_sht,       only: sht_grid, sht_grid_init
    use vilma_coupling,  only: solid_earth, solid_earth_init, solid_earth_update, solid_earth_spinup, &
                               solid_earth_finalize
@@ -92,7 +91,6 @@ program diag_restart_3d
    end do
    write(*,'(a,i0,a,i0)') ' updates differing after the restore: ', nbad, ' of ', k2
    inquire(file=trim(file), exist=ex)
-   call radial_fe_finalize()
    if (nbad /= 0) error stop 'diag_restart_3d: the restarted run is not bit-identical'
    write(*,'(a)') ' BIT-IDENTICAL'
 

@@ -12,7 +12,6 @@ program test_host_bitident
    use vilma_precision, only: wp
    use vilma_constants, only: pi, sec_per_year
    use vilma_params,    only: vilma_param_class
-   use vilma_radial_fe, only: radial_fe_finalize
    use vilma_response,  only: response_memory_norm
    use vilma_coupling,  only: solid_earth, solid_earth_init, solid_earth_update, solid_earth_spinup, &
                               solid_earth_finalize
@@ -35,10 +34,8 @@ program test_host_bitident
    write(*,'(a)') ''
    if (ok) then
       write(*,'(a)') ' PASS: zero host terms are bit-identical to no host terms'
-      call radial_fe_finalize()
    else
       write(*,'(a)') ' FAIL: zero host terms differ from no host terms'
-      call radial_fe_finalize()
       error stop 1
    end if
 

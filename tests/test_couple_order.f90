@@ -35,7 +35,7 @@ program test_couple_order
    use vilma_precision,       only: wp
    use vilma_constants,       only: pi, grav_G, sec_per_year
    use vilma_earth_structure, only: earth_model, earth_layer, RHEOL_MAXWELL
-   use vilma_radial_fe,       only: radial_mesh_build, radial_mesh, radial_operator, radial_fe_finalize
+   use vilma_radial_fe,       only: radial_mesh_build, radial_mesh, radial_operator
    use vilma_viscoelastic,    only: ve_step_double, ve_destroy, ve_step, ve_init, ve_degree, SCHEME_FE, SCHEME_TRAP, SCHEME_BE
    implicit none
 
@@ -158,9 +158,8 @@ program test_couple_order
       write(*,'(a)') '       the coupling with a 1st-order rule stays 1st-order (one lever, not two).'
    else
       write(*,'(a)') ' FAIL: coupling-order characterization did not all pass'
-      call radial_fe_finalize();  error stop 1
+      error stop 1
    end if
-   call radial_fe_finalize()
 
 contains
 

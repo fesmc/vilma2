@@ -220,8 +220,7 @@ test_etd1: vilma-static | $(bindir)
 	@echo "    $(bindir)/test_etd1.x is ready."
 
 # Coupling-order characterization (§3c): measures the convergence order of the
-# strain<->memory coupling. Standalone like test_etd1 -- a dt-sweep diagnostic,
-# intentionally NOT in TESTS / `make check`. Build + run directly.
+# strain<->memory coupling. A dt sweep, in SLOW (`make check-slow`).
 test_couple_order: vilma-static | $(bindir)
 	$(FC) $(DFLAGS) $(CPPFLAGS) $(FFLAGS) $(testdir)/test_couple_order.f90 \
 		-o $(bindir)/test_couple_order.x $(objdir)/libvilma.a $(LFLAGS)
@@ -229,16 +228,14 @@ test_couple_order: vilma-static | $(bindir)
 
 # SLE<->memory coupling-order characterization (§3c 3b): drives a fast-evolving load
 # through the full sea-level driver and measures the order restored by co-converging
-# the ocean load σ and the end-of-step memory τ. Standalone dt-sweep diagnostic, like
-# test_couple_order -- intentionally NOT in TESTS / `make check`. Build + run directly.
+# the ocean load σ and the end-of-step memory τ. A dt sweep, in SLOW (`make check-slow`).
 test_sle_couple_order: vilma-static | $(bindir)
 	$(FC) $(DFLAGS) $(CPPFLAGS) $(FFLAGS) $(testdir)/test_sle_couple_order.f90 \
 		-o $(bindir)/test_sle_couple_order.x $(objdir)/libvilma.a $(LFLAGS)
 	@echo "    $(bindir)/test_sle_couple_order.x is ready."
 
 # Adaptive-Δt controller (§3c): field step-doubling estimate order + the adaptive
-# stepper converging to a fine reference with far fewer steps. Standalone diagnostic,
-# NOT in `make check`.
+# stepper converging to a fine reference with far fewer steps. In SLOW (`make check-slow`).
 test_timestep: vilma-static | $(bindir)
 	$(FC) $(DFLAGS) $(CPPFLAGS) $(FFLAGS) $(testdir)/test_timestep.f90 \
 		-o $(bindir)/test_timestep.x $(objdir)/libvilma.a $(LFLAGS)
@@ -424,9 +421,8 @@ test_marine_reference: vilma-static | $(bindir)
 		-o $(bindir)/test_marine_reference.x $(objdir)/libvilma.a $(LFLAGS)
 	@echo "    $(bindir)/test_marine_reference.x is ready."
 
-# Standalone SLE benchmark (Martinec-2018 case E2): ~750 steps at lmax=128, runs
-# in minutes -- intentionally NOT in TESTS / `make check`. Build with `make
-# openmp=1 test_benchmark_sle` and run $(bindir)/test_benchmark_sle.x directly.
+# SLE benchmark (Martinec 2018 cases C2, D3, E2, F1; the case is the argument):
+# lmax 128, minutes per case, so in SLOW (`make check-slow`), not in TESTS.
 test_benchmark_sle: vilma-static | $(bindir)
 	$(FC) $(DFLAGS) $(CPPFLAGS) $(FFLAGS) $(testdir)/test_benchmark_sle.f90 \
 		-o $(bindir)/test_benchmark_sle.x $(objdir)/libvilma.a $(LFLAGS)
@@ -467,6 +463,12 @@ diag_visc3d_paths: vilma-static | $(bindir)
 		-o $(bindir)/diag_visc3d_paths.x $(objdir)/libvilma.a $(LFLAGS)
 	@echo "    $(bindir)/diag_visc3d_paths.x is ready."
 
+# Radial-mesh resolution study (tables, no pass/fail; not in check).
+diag_mesh_spacing: vilma-static | $(bindir)
+	$(FC) $(DFLAGS) $(CPPFLAGS) $(FFLAGS) $(testdir)/diag_mesh_spacing.f90 \
+		-o $(bindir)/diag_mesh_spacing.x $(objdir)/libvilma.a $(LFLAGS)
+	@echo "    $(bindir)/diag_mesh_spacing.x is ready."
+
 # 3-D lateral-viscosity benchmark (protocol output, no pass/fail; not in check).
 bench_visc3d: vilma-static | $(bindir)
 	$(FC) $(DFLAGS) $(CPPFLAGS) $(FFLAGS) $(testdir)/bench_visc3d.f90 \
@@ -475,22 +477,42 @@ bench_visc3d: vilma-static | $(bindir)
 
 TESTS = test_params test_drive test_band test_sht test_earth test_mesh test_integrals test_assembly test_love test_relax test_tidal test_rotation test_rotation_sle test_response test_sle test_sle_host test_host_ramp test_host_bitident test_host_terms test_restart_host test_host_convergence test_flotation test_flotation_load test_marine_reference test_etd1 test_ve_response test_tensor_sh test_response_3d test_toroidal test_sle_ve test_benchmark_love test_coupling test_dz_split test_bsl test_density test_couple_remap test_host_orient test_spinup test_restart test_restart_3d test_io_prec test_benchmark_disc test_benchmark_martinec test_field test_sle_subgrid test_visc_load test_visc_lid test_rotinv test_remap
 
-check: $(TESTS)
+# Run a suite to the end and summarise. $(1): the items, each `<test>` or
+# `<test>:<argument>`; $(2): shell commands run before each test (in a subshell);
+# $(3): the suite's name. Every item runs whatever the ones before it returned;
+# the recipe fails at the end, naming the items that failed.
+define run_suite
 	@echo ""
-	@echo "=== Running VILMA2 test suite ==="
-	@for t in $(TESTS); do \
-		echo "--- $$t ---"; \
-		$(bindir)/$$t.x || exit 1; \
-	done
-	@echo ""
-	@echo "=== All tests passed ==="
+	@echo "=== Running VILMA2 $(3) ==="
+	@n=0; failed=""; \
+	for item in $(1); do \
+		t=$${item%%:*}; arg=""; \
+		case $$item in *:*) arg=$${item#*:};; esac; \
+		n=$$((n+1)); \
+		echo "--- $$t $$arg ---"; \
+		( $(2) $(bindir)/$$t.x $$arg ) || failed="$$failed $$item"; \
+	done; \
+	echo ""; \
+	if [ -n "$$failed" ]; then \
+		echo "=== $(3): FAILED:$$failed  ($$n run) ==="; exit 1; \
+	else \
+		echo "=== $(3): all $$n passed ==="; \
+	fi
+endef
 
-# Slow quantitative benchmarks: full-resolution, multi-minute runs kept OUT of
+check: $(TESTS)
+	$(call run_suite,$(TESTS),,test suite)
+
+# Slow tests: full-resolution benchmarks and convergence-order sweeps kept OUT of
 # `make check`. Build with `make openmp=1 check-slow` (the per-step solve is ~100x
 # faster threaded). The SLE benchmark sweeps all four Martinec migrating-coast cases;
 # test_rotinv re-runs the off-pole rotational-invariance check at full resolution
-# (lmax 128, vs lmax 16 in `make check`).
-SLOW = test_benchmark_sle test_rotinv test_benchmark_lvz
+# (lmax 128, vs lmax 16 in `make check`); the three order tests sweep the step size
+# (strain-memory coupling, SLE-memory coupling, adaptive step controller).
+SLOW = test_benchmark_sle test_rotinv test_benchmark_lvz test_couple_order test_sle_couple_order test_timestep
+# What check-slow runs: `<test>` or `<test>:<argument>`.
+SLOW_RUNS = test_benchmark_sle:C2 test_benchmark_sle:D3 test_benchmark_sle:E2 test_benchmark_sle:F1 \
+            test_rotinv:128 test_benchmark_lvz test_couple_order test_sle_couple_order test_timestep
 # STACK: the 3-D tensor path (vilma_tensor_sh) holds several whole-grid automatic
 # arrays per thread. At lmax >= 128 that overruns the default 8 MB stack and the
 # run dies with SIGSEGV at an address just below the stack top -- a failure that
@@ -500,21 +522,7 @@ SLOW = test_benchmark_sle test_rotinv test_benchmark_lvz
 BIGSTACK = ulimit -s unlimited 2>/dev/null || ulimit -s 262144 2>/dev/null || true
 
 check-slow: $(SLOW)
-	@echo ""
-	@echo "=== Running VILMA2 slow benchmarks ==="
-	@for c in C2 D3 E2 F1; do \
-		echo "--- test_benchmark_sle $$c ---"; \
-		( $(BIGSTACK); OMP_STACKSIZE=$${OMP_STACKSIZE:-256M} \
-		  $(bindir)/test_benchmark_sle.x $$c ) || exit 1; \
-	done
-	@echo "--- test_rotinv (lmax 128) ---"
-	@( $(BIGSTACK); OMP_STACKSIZE=$${OMP_STACKSIZE:-256M} \
-	   $(bindir)/test_rotinv.x 128 ) || exit 1
-	@echo "--- test_benchmark_lvz (Weerdesteijn 2023 LVZ, lmax 512) ---"
-	@( $(BIGSTACK); OMP_STACKSIZE=$${OMP_STACKSIZE:-256M} \
-	   $(bindir)/test_benchmark_lvz.x ) || exit 1
-	@echo ""
-	@echo "=== All slow benchmarks passed ==="
+	$(call run_suite,$(SLOW_RUNS),$(BIGSTACK); export OMP_STACKSIZE=$${OMP_STACKSIZE:-256M};,slow suite)
 
 # --- Housekeeping ------------------------------------------------------------
 .PHONY: usage check check-slow clean showconfig vilma vilma-static

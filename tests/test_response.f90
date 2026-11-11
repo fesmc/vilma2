@@ -15,7 +15,6 @@ program test_response
    use vilma_constants,       only: pi, grav_G
    use vilma_earth_structure, only: earth_model, earth_layer, build_M3L70V01, &
                                  RHEOL_ELASTIC
-   use vilma_radial_fe,       only: radial_fe_finalize
    use vilma_response,        only: response_apply, response_destroy, response, response_init_elastic, response_init_ve, response_init_null
    use vilma_sht,             only: sht_grid, sht_grid_init, sht_grid_lmidx, sht_grid_destroy
    implicit none
@@ -74,10 +73,8 @@ program test_response
       write(*,'(a)') '       and applies per-degree gains to a spectral load'
    else
       write(*,'(a)') ' FAIL: response-operator validation did not all pass'
-      call radial_fe_finalize()
       error stop 1
    end if
-   call radial_fe_finalize()
 
 contains
 

@@ -10,9 +10,36 @@ operator that is the Hessian of the energy functional.
 ## Mesh and bases
 
 The mesh spans the **whole sphere** $\langle 0, a\rangle$ — the inviscid core is
-meshed too — with piecewise-constant $\rho_k,\mu_k$ per element. The benchmark
-M3–L70–V01 model uses 218 nodes (VEGA 5/10/40 km radial spacing). Two
-finite-element bases are used (Martinec 2000, §6):
+meshed too — with piecewise-constant $\rho_k,\mu_k$ per element. Each
+element's size follows the target for its own depth (default 5 km above 70 km,
+10 km to 670 km, 40 km below, after VEGA; namelist `mesh_dr`, `mesh_depth`,
+`mesh_dr_scale`). Layer interfaces are always nodes, and within a layer the
+elements share $\int \mathrm{d}r/h$ equally, so a thick layer is meshed like a
+stack of thin ones. M3–L70–V01 uses 218 nodes (217 elements), the 11-layer
+PREM 220 nodes (219 elements).
+
+The table below shows how the solution converges with the mesh. It scales the
+whole spacing by `mesh_dr_scale` and compares the elastic Love numbers of
+M3–L70–V01 with the normal-mode table (see [Love numbers](../benchmarks/love-numbers.qmd))
+and the displacement of the low-viscosity-zone benchmark (see
+[LVZ](../benchmarks/lvz.qmd)). It is produced by `make diag_mesh_spacing` and
+`bin/diag_mesh_spacing.x love|lvz3d`.
+
+| `mesh_dr_scale` | elements | max error $h/\ell/k$, $j \le 48$ [%] | max error $\ell/k$, $j \le 256$ [%] | LVZ $U$ at 200 yr [m] |
+|:-:|:-:|:-:|:-:|:-:|
+| 2 | 110 | 0.05 / 0.40 / 0.76 | 29 / 46 | −1.2079 |
+| 1 (default) | 217 | 0.06 / 0.15 / 0.25 | 7.6 / 11.7 | −1.2180 |
+| 0.5 | 434 | 0.06 / 0.08 / 0.11 | 1.95 / 2.97 | −1.2186 |
+| 0.25 | 867 | 0.06 / 0.07 / 0.08 | 0.54 / 0.79 | — |
+
+: Convergence with the radial mesh (M3–L70–V01). {#tbl-mesh}
+
+The high-degree errors of $\ell$ and $k$ fall by about a factor of four each
+time the spacing is halved. They are therefore a second-order discretization
+error of the mesh, not a limit of the reference. The vertical number $h$ and
+the low degrees are converged at the default spacing.
+
+Two finite-element bases are used (Martinec 2000, §6):
 
 - **P1 "tent" functions** $\psi_k(r)$ for the nodal fields:
   $U,V,F = \sum_k [\,\cdot\,]_k\,\psi_k$ (continuous, one value per node).

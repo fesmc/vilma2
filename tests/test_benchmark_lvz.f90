@@ -24,7 +24,6 @@ program test_benchmark_lvz
    use vilma_precision,       only: wp
    use vilma_constants,       only: kyr
    use vilma_earth_structure, only: earth_model, build_M3L70V01
-   use vilma_radial_fe,       only: radial_fe_finalize
    use vilma_response,        only: response, response_init_elastic, response_init_ve, response_init_null, &
                                  response_apply, response_begin_step, response_commit_step, &
                                  response_enable_lateral_visc, response_destroy
@@ -82,10 +81,10 @@ program test_benchmark_lvz
       write(*,'(a)') ' PASS: lateral-viscosity deformation matches Weerdesteijn 2023'
    else
       write(*,'(a)') ' FAIL: rung-6b LVZ benchmark out of tolerance'
-      call sht_grid_destroy(sht);  call radial_fe_finalize()
+      call sht_grid_destroy(sht)
       error stop 1
    end if
-   call sht_grid_destroy(sht);  call radial_fe_finalize()
+   call sht_grid_destroy(sht)
 
 contains
 
@@ -125,6 +124,7 @@ contains
                end do
             end if
          end do
+         ve%toroidal = .true.
          call response_enable_lateral_visc(ve, sht, pert)
          deallocate(pert)
       end if
@@ -189,32 +189,6 @@ contains
    end subroutine cap_coeffs
 
 
-   subroutine dump_cols(name, header, a)
-      !! Write a column table to $VILMA_BENCH_DUMP/<name> for the analysis scripts.
-      !!
-      !! No-op unless VILMA_BENCH_DUMP names a directory, so `make check` and any
-      !! plain run behave exactly as before — the dump is opt-in and costs
-      !! nothing when off. `header` names the columns and is written as a leading
-      !! `#` comment line, so the file is self-describing and readable with any
-      !! delimited-text reader.
-      character(*), intent(in) :: name, header
-      real(wp),     intent(in) :: a(:,:)          ! (nrow, ncol)
-      character(512) :: dir, path
-      integer :: u, i, st
-      call get_environment_variable('VILMA_BENCH_DUMP', dir, status=st)
-      if (st /= 0 .or. len_trim(dir) == 0) return
-      path = trim(dir)//'/'//name
-      open(newunit=u, file=trim(path), status='replace', action='write', iostat=st)
-      if (st /= 0) then
-         write(*,'(3a)') '   WARNING: cannot write ', trim(path), ' (dump skipped)'
-         return
-      end if
-      write(u,'(2a)') '# ', header
-      do i = 1, size(a,1)
-         write(u,'(*(es24.16,1x))') a(i,:)
-      end do
-      close(u)
-      write(*,'(3a,i0,a,i0,a)') '   dumped ', trim(path), ' (', size(a,1), ' x ', size(a,2), ')'
-   end subroutine dump_cols
+   include "bench_dump.inc"
 
 end program test_benchmark_lvz

@@ -16,7 +16,6 @@ program test_restart_host
    use vilma_precision, only: wp
    use vilma_constants, only: pi
    use vilma_params,    only: vilma_param_class
-   use vilma_radial_fe, only: radial_fe_finalize
    use vilma_sht,       only: sht_grid, sht_grid_init
    use vilma_coupling,  only: solid_earth, solid_earth_init, solid_earth_update, solid_earth_finalize
    use vilma_io,        only: vilma_restart_write, vilma_restart_read
@@ -54,10 +53,8 @@ program test_restart_host
    write(*,'(a)') ''
    if (ok) then
       write(*,'(a)') ' PASS: host terms round-trip through the restart, mismatches stop'
-      call radial_fe_finalize()
    else
       write(*,'(a)') ' FAIL: restart with host terms'
-      call radial_fe_finalize()
       error stop 1
    end if
 

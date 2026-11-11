@@ -16,7 +16,6 @@ program test_sle_eustatic
    use vilma_precision,       only: wp
    use vilma_constants,       only: pi, kyr, rho_ice, rho_water
    use vilma_earth_structure, only: earth_model, build_M3L70V01
-   use vilma_radial_fe,       only: radial_fe_finalize
    use vilma_response,        only: response_destroy, response, response_init_elastic, response_init_ve, response_init_null
    use vilma_sht,             only: sht_grid_destroy, sht_grid_eval_point, sht_grid_analysis, sht_grid_surface_integral, sht_grid_init, sht_grid
    use vilma_sle,             only: sle_solve, sle_solver, sle_result, sle_result_grids
@@ -35,6 +34,7 @@ program test_sle_eustatic
    real(wp) :: dt, rho_ratio, ice_int, C_int, bary, defo, Nsouth, ss_south
    integer  :: i, j, istep
    real(wp) :: th
+   logical  :: ok
 
    dt = 0.02_wp*kyr
    call sht_grid_init(sht, LMAX, nlat=2*LMAX, nphi=4*LMAX)
@@ -87,5 +87,15 @@ program test_sle_eustatic
    write(*,'(a,f12.5)')  '   sea-surface (N+dphi) at S pole [m]  = ', ss_south
    write(*,'(a,f12.5)')  '   (barystatic for comparison) [m]     = ', bary
 
-   call response_destroy(resp);  call sht_grid_destroy(sht);  call radial_fe_finalize()
+   ! Pass/fail: the ocean is exactly the southern hemisphere (Gauss weights are
+   ! symmetric), the solve conserves mass, and the uniform offset is the barystatic
+   ! term minus the ocean-mean deformation, to round-off.
+   ok = abs(res%ocean_frac - 0.5_wp) < 1.0e-12_wp .and. abs(res%mass_resid) < 1.0e-9_wp &
+        .and. abs(res%esl - (bary - defo)) < 1.0e-9_wp*abs(bary)
+   call response_destroy(resp);  call sht_grid_destroy(sht)
+   if (.not. ok) then
+      write(*,'(a)') ' FAIL: ocean fraction, mass residual or the eustatic split'
+      error stop 1
+   end if
+   write(*,'(a)') ' PASS: ocean area, mass and the eustatic split are exact'
 end program test_sle_eustatic

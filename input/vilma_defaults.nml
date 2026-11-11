@@ -74,9 +74,21 @@
     !   eta      = 1.0e40,   4.0e20,   4.0e20,   4.0e20,   4.0e20,   1.0e22,   1.0e22,   1.0e22,   1.0e22,   1.0e22,      0.0
     !   rheology = 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2
 
+    ! --- radial mesh (vilma_radial_fe) ------------------------------------
+    ! Target element size by the element's depth: mesh_dr(k) between the depths
+    ! mesh_depth(k-1) and mesh_depth(k) (from the surface for k = 1, to the centre
+    ! for the last), so n sizes take n-1 depths (at most 8 sizes). Layer
+    ! interfaces are always element boundaries. The element count is part of the
+    ! restart format: a restart file is read only on the mesh that wrote it.
+    ! Meshes before mesh_dr sized each layer by its mid-depth; the defaults give
+    ! the same mesh for M3-L70-V01, and for the PREM block below with
+    ! mesh_depth = 80.0e3, 670.0e3 (220 elements, against 219 with the default).
+    mesh_dr       = 5.0e3, 10.0e3, 40.0e3   ! [m] 5 km to 70 km depth, 10 km to 670 km, 40 km below
+    mesh_depth    = 70.0e3, 670.0e3         ! [m]
+    mesh_dr_scale = 1.0                     ! factor on every mesh_dr (0.5 halves the element size)
+
     ! --- viscoelastic memory scheme (vilma_response) ---------------------
-    scheme          = "fe"     ! fe | etd1 | trap | be  (fe = 1st-order explicit, default; trap = 2nd-order adaptive)
-    max_couple_iter = 20       ! SLE<->memory co-convergence cap (implicit schemes)
+    scheme          = "fe"     ! fe | trap  (fe = 1st-order explicit, default; trap = 2nd-order adaptive)
 
     ! --- response kind selector (vilma_response) -------------------------
     earth_response  = "ve"     ! ve | elastic | null  (ve = full Martinec FE, default)
@@ -103,7 +115,7 @@
     safety     = 0.9
     grow_max   = 5.0
     shrink_min = 0.2
-    cfl        = 1.0           ! explicit (fe) sub-step Maxwell-number ceiling M=mu*dt/eta
+    cfl        = 1.0           ! explicit (fe) sub-step Maxwell-number ceiling M=mu*dt/eta, in (0, 2)
 
     ! --- rotational feedback (vilma_rotation) ----------------------------
     rotation = .true.          ! TPW feedback: on for real runs; set .false. for
@@ -146,7 +158,10 @@
     f_visc_sd      = 0.0     ! perturbation in units of sigma (0 = mean field)
     f_visc_rel     = 0.1     ! relative sigma = f_visc_rel*log10(eta) when no sd var
     visc_shift_file = ""     ! "" = none; else dlog10_visc(lon, lat, r) [dex, r radius in m] added to the
-                             ! 3-D field after f_visc_sd, before the clamp and the lid rule (needs l_visc_3d)
+                             ! 3-D field after f_visc_sd, before the clamp and the lid rule (needs l_visc_3d).
+                             ! The shift is zero at radii outside the file's r range (a file for the upper
+                             ! mantle shifts nothing below it); inside, it is interpolated linearly in r.
+    ! The viscosity, sigma and shift fields must be free of NaN, Inf and fill values: the run stops on one.
     visc_log10_min = 19.5    ! floor on log10(eta) after read + perturbation [dex]
     visc_log10_max = 30.0    ! ceiling on log10(eta) after read + perturbation [dex]
     visc3d_lid_depth    = 0.0   ! [m] 0 = off. Maxwell elements lying wholly above this depth whose
@@ -155,8 +170,9 @@
     visc3d_tol     = 1.0e-3  ! lateral log10(eta) spread [dex] above which an element is genuinely
                              ! 3-D (pays the dyadic SHT round-trip); higher => fewer 3-D elements,
                              ! cheaper memory advance, at the cost of approximating weak lateral structure
-    l_toroidal     = .false. ! carry the toroidal field once an element is genuinely 3-D; off by default
-                             ! (slower, effect not yet shown: design-toroidal.md V7)
+    l_toroidal     = .true.  ! carry the toroidal field once an element is genuinely 3-D. .false. is ~1.5x
+                             ! faster with lateral viscosity, for quick runs that do not need local sea
+                             ! level near the ice sheets (it changes it by up to ~90 m; design-toroidal.md V7)
 
     ! --- VILMA1 backend (solver = "v1" only; vilma_v1) --------------
     ! INERT unless solver = "v1". Mirrors what CLIMBER-X's VILMA1 wrapper

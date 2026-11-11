@@ -34,7 +34,6 @@ program diag_visc3d_paths
    use vilma_constants,       only: kyr
    use vilma_params,          only: vilma_param_class
    use vilma_earth_structure, only: earth_model, build_earth, load_visc_3d
-   use vilma_radial_fe,       only: radial_fe_finalize
    use vilma_response,        only: response, response_init_ve, response_destroy, &
                                  response_enable_lateral_visc_from_nodes, &
                                  response_begin_step, response_apply, response_commit_step
@@ -122,7 +121,7 @@ program diag_visc3d_paths
    end do
 
    call response_destroy(v1);  call response_destroy(v3)
-   call sht_grid_destroy(sht);  call radial_fe_finalize()
+   call sht_grid_destroy(sht)
 
 contains
 

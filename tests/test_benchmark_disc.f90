@@ -8,7 +8,7 @@ program test_benchmark_disc
    !!
    !! This test confirms the per-degree response (validated to ~0.1% against the
    !! Love table in test_benchmark_love) SYNTHESIZES into the correct spatial
-   !! field, and pins the degree-1 geoid frame decision (N_1 = 0, CM frame; see
+   !! field, and pins the degree-1 geoid frame decision (N_1 = 0, the "cf" convention; see
    !! vilma_response): the geoid matches only once N_1 is dropped.
    !!
    !!   (1) ELASTIC profile: u(theta), N(theta) over the full grid vs column 1,
@@ -22,7 +22,7 @@ program test_benchmark_disc
    use vilma_precision,       only: wp
    use vilma_constants,       only: pi, kyr
    use vilma_earth_structure, only: earth_gravity_at, earth_model, build_M3L70V01
-   use vilma_radial_fe,       only: radial_mesh_build, radial_mesh, radial_fe_finalize
+   use vilma_radial_fe,       only: radial_mesh_build, radial_mesh
    use vilma_viscoelastic,    only: ve_destroy, ve_step, ve_init, ve_degree
    use vilma_response,        only: response_destroy, response, response_init_elastic, response_init_ve, response_init_null
    implicit none
@@ -65,9 +65,8 @@ program test_benchmark_disc
       write(*,'(a)') ' PASS: Spada-2011 disc u/N profile + VE centre transient match'
    else
       write(*,'(a)') ' FAIL: disc benchmark validation did not all pass'
-      call radial_fe_finalize();  error stop 1
+      error stop 1
    end if
-   call radial_fe_finalize()
 
 contains
 
@@ -244,36 +243,6 @@ contains
    end subroutine die
 
 
-   subroutine dump_cols(name, header, a)
-      !! Write a column table to $VILMA_BENCH_DUMP/<name> for the analysis scripts.
-      !!
-      !! No-op unless VILMA_BENCH_DUMP names a directory, so `make check` and any
-      !! plain run behave exactly as before — the dump is opt-in and costs
-      !! nothing when off. `header` names the columns and is written as a leading
-      !! `#` comment line, so the file is self-describing and readable with any
-      !! delimited-text reader.
-      character(*), intent(in) :: name, header
-      real(wp),     intent(in) :: a(:,:)          ! (nrow, ncol)
-      character(512) :: dir, path
-      integer :: u, i, st
-      call get_environment_variable('VILMA_BENCH_DUMP', dir, status=st)
-      if (st /= 0 .or. len_trim(dir) == 0) return
-      path = trim(dir)//'/'//name
-      open(newunit=u, file=trim(path), status='replace', action='write', iostat=st)
-      if (st /= 0) then
-         write(*,'(3a)') '   WARNING: cannot write ', trim(path), ' (dump skipped)'
-         return
-      end if
-      ! Full double precision (17 significant digits). es18.10 rounded the
-      ! values, which destroys structure a consumer may rely on -- the Spada disc
-      ! reference is exactly piecewise linear, and rounding turned its ~40 true
-      ! breakpoints into ~114 spurious ones.
-      write(u,'(2a)') '# ', header
-      do i = 1, size(a,1)
-         write(u,'(*(es24.16,1x))') a(i,:)
-      end do
-      close(u)
-      write(*,'(3a,i0,a,i0,a)') '   dumped ', trim(path), ' (', size(a,1), ' x ', size(a,2), ')'
-   end subroutine dump_cols
+   include "bench_dump.inc"
 
 end program test_benchmark_disc

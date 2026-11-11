@@ -14,7 +14,6 @@ program test_host_terms
    use vilma_precision, only: wp
    use vilma_constants, only: pi, sec_per_year, rho_ice, rho_water
    use vilma_params,    only: vilma_param_class
-   use vilma_radial_fe, only: radial_fe_finalize
    use vilma_sht,       only: sht_grid, sht_grid_init, sht_grid_surface_integral
    use vilma_sle,       only: ocean_function
    use vilma_remap,     only: remap_ll_gauss, remap_init, remap_to_gauss
@@ -55,10 +54,8 @@ program test_host_terms
    write(*,'(a)') ''
    if (ok) then
       write(*,'(a)') ' PASS: host terms through the coupling: checks, ramp, mass balance, remap, sums'
-      call radial_fe_finalize()
    else
       write(*,'(a)') ' FAIL: host terms through the coupling'
-      call radial_fe_finalize()
       error stop 1
    end if
 

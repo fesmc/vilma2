@@ -19,9 +19,19 @@ module vilma_params
    private
 
    public :: vilma_param_class, vilma_par_load, vilma_par_print, expand_path
-   public :: MAX_LAYER
+   public :: scheme_name_valid, cfl_valid
+   public :: MAX_LAYER, MAX_MESH_ZONE, MESH_DR_DEFAULT, MESH_DEPTH_DEFAULT
 
    integer, parameter :: MAX_LAYER = 16   !! cap on custom earth-structure layers
+
+   ! Radial-mesh target sizes (vilma_radial_fe radial_mesh_build), after VEGA
+   ! (Martinec et al. 2018): 5 km above 70 km depth, 10 km to 670 km, 40 km
+   ! below. A table of depth zones, surface first; unused entries are 0.
+   integer,  parameter :: MAX_MESH_ZONE = 8   !! cap on radial-mesh depth zones
+   real(wp), parameter :: MESH_DR_DEFAULT(MAX_MESH_ZONE) = &
+        [5.0e3_wp, 10.0e3_wp, 40.0e3_wp, 0.0_wp, 0.0_wp, 0.0_wp, 0.0_wp, 0.0_wp]
+   real(wp), parameter :: MESH_DEPTH_DEFAULT(MAX_MESH_ZONE) = &
+        [70.0e3_wp, 670.0e3_wp, 0.0_wp, 0.0_wp, 0.0_wp, 0.0_wp, 0.0_wp, 0.0_wp]
 
    type :: vilma_param_class
       ! --- solid-earth solver backend --------------------------------------------
@@ -62,9 +72,18 @@ module vilma_params
       real(wp) :: eta(MAX_LAYER)   = 0.0_wp    !! custom: layer viscosities [Pa s]
       integer  :: rheology(MAX_LAYER) = 1      !! custom: 0=elastic 1=Maxwell 2=fluid
 
+      ! --- radial mesh (vilma_radial_fe radial_mesh_build) --------------------------
+      ! The target element size is a function of the element's depth: zone k has
+      ! size mesh_dr(k) and reaches from depth mesh_depth(k-1) (the surface for
+      ! k = 1) down to mesh_depth(k); the last zone reaches the centre, so n sizes
+      ! take n-1 depths. Layer interfaces are always element boundaries. Changing
+      ! the element count makes restart files of the old mesh unreadable.
+      real(wp) :: mesh_dr(MAX_MESH_ZONE)    = MESH_DR_DEFAULT     !! [m] target element size per depth zone
+      real(wp) :: mesh_depth(MAX_MESH_ZONE) = MESH_DEPTH_DEFAULT  !! [m] depth of the base of each zone but the last
+      real(wp) :: mesh_dr_scale = 1.0_wp       !! factor on every mesh_dr (0.5 halves the element size)
+
       ! --- viscoelastic memory scheme (vilma_response / vilma_viscoelastic) ------------
-      character(len=8) :: scheme = "fe"        !! fe | etd1 | trap | be
-      integer  :: max_couple_iter = 20         !! SLE<->memory co-convergence cap (implicit schemes)
+      character(len=8) :: scheme = "fe"        !! fe | trap (scheme_name_valid)
 
       ! --- response kind selector (vilma_response) ----------------------------------
       character(len=8)  :: earth_response = "ve"  !! ve | elastic | null
@@ -142,8 +161,12 @@ module vilma_params
       ! dropped (Spada's tables and tests/test_benchmark_love start at degree 2).
       character(len=8) :: deg1_frame = "cm"   !! "cm" | "cf"
       logical  :: l_visc_3d   = .false.   !! load a lateral log10(eta) field
-      character(len=512) :: visc_3d_file  = ""       !! lon-lat-r log10(eta) field
-      integer  :: visc_3d_structure = 0     !! 0: visc_3d_file is a lon-lat-r field (name_visc*);
+      !! The 3-D field read when l_visc_3d: by default the FesmData Bagge (2021) product,
+      !! relative to the run folder (a `fesmdata` link). These defaults are those of
+      !! input/vilma_defaults.nml (test_params holds the two together), so a host that
+      !! fills the record in memory gets what the standalone driver gets.
+      character(len=512) :: visc_3d_file  = "fesmdata/Global/GLOBAL-T170/GLOBAL-T170_SolidEarth-Bagge2021.nc"
+      integer  :: visc_3d_structure = 6     !! 0: visc_3d_file is a lon-lat-r field (name_visc*);
          !! >= 1: it is the FesmData Bagge2021_visc.nc product (log10_visc on lon, lat, depth,
          !! structure; name_visc* ignored) and this is the structure to read (6 = v_1.0_s16)
       character(len=64)  :: name_visc     = "eta"    !! viscosity var (log10 Pa s)
@@ -167,9 +190,10 @@ module vilma_params
          !! element is treated as genuinely 3-D (pays the dyadic SHT round-trip); below it the
          !! element collapses to its lateral-mean scalar rate (cheap degree-diagonal path). Raising
          !! it demotes weakly-3-D elements to 1-D and cuts the memory-advance cost (the dominant cost).
-      logical  :: l_toroidal     = .false.  !! carry the toroidal degree of freedom once a 3-D element
-         !! exists (Martinec 2000 after eq 110). Off by default: it is slower and its effect on
-         !! the solution is not yet shown (design-toroidal.md V7). .false. is the spheroidal-only model.
+      logical  :: l_toroidal     = .true.   !! carry the toroidal degree of freedom once a 3-D element
+         !! exists (Martinec 2000 after eq 110). On by default: in a 3-D deglaciation it changes
+         !! local relative sea level by up to ~90 m (design-toroidal.md V7). .false. is the
+         !! spheroidal-only model, ~1.5x faster, for quick runs that do not need local sea level.
 
       ! --- VILMA1 backend (solver="v1" only; vilma_v1) -------------------------
       ! INERT unless solver="v1". These mirror the settings CLIMBER-X's VILMA1
@@ -263,9 +287,16 @@ contains
       call nml_read(filename, g, "eta",       p%eta,       defaults_file=df)
       call nml_read(filename, g, "rheology",  p%rheology,  defaults_file=df)
 
+      ! radial mesh. init: the entries a namelist does not list are 0 (unused),
+      ! so a shorter table than the default's can be given.
+      call nml_read(filename, g, "mesh_dr",       p%mesh_dr,       init=.true., defaults_file=df)
+      call nml_read(filename, g, "mesh_depth",    p%mesh_depth,    init=.true., defaults_file=df)
+      call nml_read(filename, g, "mesh_dr_scale", p%mesh_dr_scale, defaults_file=df)
+
       ! memory scheme
       call nml_read(filename, g, "scheme",          p%scheme,          defaults_file=df)
-      call nml_read(filename, g, "max_couple_iter", p%max_couple_iter, defaults_file=df)
+      if (.not. scheme_name_valid(p%scheme)) &
+         error stop 'vilma_params: scheme must be "fe" or "trap"'
 
       ! response kind selector
       call nml_read(filename, g, "earth_response",  p%earth_response,  defaults_file=df)
@@ -297,6 +328,8 @@ contains
       call nml_read(filename, g, "grow_max",   p%grow_max,   defaults_file=df)
       call nml_read(filename, g, "shrink_min", p%shrink_min, defaults_file=df)
       call nml_read(filename, g, "cfl",        p%cfl,        defaults_file=df)
+      if (.not. cfl_valid(p%cfl)) &
+         error stop 'vilma_params: cfl must lie in (0, 2): forward Euler is unstable for M >= 2'
 
       ! rotation
       call nml_read(filename, g, "rotation",   p%rotation,   defaults_file=df)
@@ -353,6 +386,22 @@ contains
       if (p%vilma_v1_nsub < 1) error stop 'vilma_params: vilma_v1_nsub must be >= 1'
    end subroutine vilma_par_load
 
+   pure logical function scheme_name_valid(name) result(valid)
+      !! Whether `name` is a memory scheme the model runs: "fe" (forward Euler,
+      !! explicit sub-stepping) or "trap" (trapezoidal, adaptive). The kernel's
+      !! other rules (ETD1, backward Euler) are not implemented in the field driver.
+      character(len=*), intent(in) :: name
+      valid = (trim(name) == "fe" .or. trim(name) == "trap")
+   end function scheme_name_valid
+
+   pure logical function cfl_valid(cfl) result(valid)
+      !! Whether `cfl`, the "fe" sub-step ceiling on the Maxwell number M = μΔt/η,
+      !! keeps the update stable: τ ← (1-M)τ decays only for 0 < M < 2 (at M = 2
+      !! it oscillates undamped, above it grows).
+      real(wp), intent(in) :: cfl
+      valid = (cfl > 0.0_wp .and. cfl < 2.0_wp)
+   end function cfl_valid
+
    function expand_path(path) result(out)
       !! Expand a leading `~/` or `$HOME/` in a file path using the HOME
       !! environment variable. Fortran `open` does no shell expansion, so nml
@@ -400,10 +449,15 @@ contains
                  '  rheol=', p%rheology(k)
          end do
       end if
+      write(u,'(a,*(f0.1,1x))') '   mesh:   dr [km] = ', pack(p%mesh_dr, p%mesh_dr /= 0.0_wp)*1.0e-3_wp
+      write(u,'(a,*(f0.1,1x))') '           below depths [km] = 0.0 ', &
+           pack(p%mesh_depth, p%mesh_depth /= 0.0_wp)*1.0e-3_wp
+      write(u,'(a,f0.3)')       '           dr scale = ', p%mesh_dr_scale
       write(u,'(a,a)')        '   response: ', trim(p%earth_response)
-      write(u,'(a,a,a,i0)')   '   scheme: ', trim(p%scheme), '   max_couple_iter=', p%max_couple_iter
-      write(u,'(a,i0,a,i0,a,es8.1,a,l1,a,l1)') &
+      write(u,'(a,a)')        '   scheme: ', trim(p%scheme)
+      write(u,'(a,i0,a,i0,a,i0,a,es8.1,a,l1,a,l1)') &
            '   sle:    n_outer=', p%sle_n_outer, '  n_inner=', p%sle_n_inner, &
+           '  max_mem_iter=', p%sle_max_mem_iter, &
            '  tol=', p%sle_tol, '  fixed_ocean=', p%sle_fixed_ocean, '  subgrid=', p%sle_subgrid
       write(u,'(a,f7.1,a,f7.1,a)') '   density: rho_ice=', p%rho_ice, '  rho_water=', p%rho_water, ' kg/m3'
       write(u,'(a,es9.2,a,es8.1,a,es8.1,a,f5.2)') &

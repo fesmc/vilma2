@@ -21,7 +21,7 @@ module vilma_viscoelastic
    !! laterally varying (3-D) case re-uses this same path with the memory update
    !! done pointwise on the Gauss grid (the project's 3-D goal, built on top).
    use vilma_precision,       only: wp
-   use vilma_earth_structure, only: earth_model
+   use vilma_earth_structure, only: earth_model, earth_layer_has_memory
    use vilma_radial_fe,       only: radial_operator_destroy, radial_operator_solve_vec, radial_operator_load_rhs, radial_operator_assemble, radial_operator, radial_mesh, &
                                  idx_u, idx_v, idx_f, ndof_of
    implicit none
@@ -97,8 +97,8 @@ contains
 
    subroutine ve_init(self, earth, mesh, j, dt)
       !! Assemble the elastic operator and set up the per-element Maxwell factors
-      !! M = μΔt/η. Elastic layers (η→∞) get M→0 (frozen, never relax); fluid
-      !! layers (μ=0) carry no memory stress.
+      !! M = μΔt/η. Only Maxwell layers carry memory (earth_layer_has_memory); the
+      !! elastic and fluid ones get M = 0, as in the field driver.
       type(ve_degree),  intent(inout) :: self
       type(earth_model), intent(in)    :: earth
       type(radial_mesh), intent(in)    :: mesh
@@ -119,10 +119,10 @@ contains
          lay = mesh%elem_layer(e)
          self%mu(e) = earth%layers(lay)%mu
          eta_e      = earth%layers(lay)%eta
-         if (eta_e > 0.0_wp) then
-            self%Mk(e) = self%mu(e)*dt/eta_e        ! ~0 for elastic (η huge)
+         if (earth_layer_has_memory(earth%layers(lay))) then
+            self%Mk(e) = self%mu(e)*dt/eta_e
          else
-            self%Mk(e) = 0.0_wp                     ! fluid (μ=0): no memory
+            self%Mk(e) = 0.0_wp                     ! elastic or fluid: no memory
          end if
       end do
 
@@ -250,14 +250,18 @@ contains
    end function scheme_order
 
    pure integer function scheme_from_name(name) result(scheme)
-      !! Map a namelist scheme string to its SCHEME_* code (see vilma_params).
+      !! Map the model's `scheme` setting (vilma_params) to its SCHEME_* code. The
+      !! field driver (vilma_response) and the stepper implement forward Euler and
+      !! the trapezoidal rule; ETD1 and backward Euler exist in the per-degree
+      !! kernel only (ve_degree, advance_memory), as the evidence of test_etd1 and
+      !! test_couple_order, and are not a setting of the model.
       character(len=*), intent(in) :: name
       select case (trim(name))
       case ("fe");   scheme = SCHEME_FE
-      case ("etd1"); scheme = SCHEME_ETD1
       case ("trap"); scheme = SCHEME_TRAP
-      case ("be");   scheme = SCHEME_BE
-      case default;  error stop 'scheme_from_name: unknown memory scheme (use fe|etd1|trap|be)'
+      case default
+         error stop 'scheme_from_name: scheme must be "fe" or "trap" '// &
+                    '(etd1 and be exist only in the per-degree kernel, ve_degree)'
       end select
    end function scheme_from_name
 

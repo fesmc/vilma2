@@ -9,13 +9,33 @@ drives **toroidal** flow $W$: horizontal, divergence-free motion with no
 radial component. That flow feeds back into the spheroidal field. VILMA2
 carries this toroidal degree of freedom in its 3D path, as VILMA1 does.
 
-::: {.callout-note title="Status: implemented, off by default"}
-The toroidal treatment is implemented and unit-tested (see
-[Validation](#validation)). It is switched **off by default**
-(`l_toroidal = .false.`): it makes the 3D memory advance more expensive, and
-its effect on a realistic deglaciation has not yet been quantified against
-VILMA1. With `l_toroidal = .false.` the model is the spheroidal-only 3D
-model. Radially symmetric and laterally uniform runs are unaffected either way.
+::: {.callout-note title="Status: implemented, on by default"}
+The toroidal treatment is implemented, unit-tested (see
+[Validation](#validation)) and **on by default** (`l_toroidal = .true.`),
+because it changes local relative sea level substantially (below).
+`l_toroidal = .false.` is the faster option for quick runs that do not depend
+on local sea level near the ice sheets. With the toroidal field on, every 3-D element synthesizes, advances and analyses six tensor channels
+instead of four, a second per-degree drift solve is added for $W$, and the
+memory state grows by about 50 %. In the lateral-viscosity benchmark (test
+C-i, $\ell_{\max} = 128$, 64 threads) a run takes 1.8 times as long with the
+toroidal field on (18.6 h against 10.5 h to 100 kyr; see
+[lateral viscosity](../benchmarks/visc3d.qmd)). A deglaciation at
+$\ell_{\max} = 170$ with 3-D viscosity takes 1.47 times as long (2.67 against
+1.82 min per kyr, 64 threads, model f0c4678). With `l_toroidal = .false.` the model is the
+spheroidal-only 3D model. Radially symmetric and laterally uniform runs are unaffected either way.
+
+**Effect on a realistic deglaciation.** In the last deglaciation (GLAC-1D,
+Bagge et al. 2021 viscosity, $\ell_\max = 170$, model f0c4678) the toroidal
+field changes relative sea level, measured against the LGM reference, by
+0.6 m rms over the globe at 21 ka, 2.1 m at 10 ka and 3.0 m at present day,
+and by up to 92 m locally (10 ka, around the margins of the Cordilleran,
+Laurentide and Fennoscandian ice sheets). The present-day uplift rate changes
+by 0.10 mm/yr rms and up to 2.6 mm/yr; the ocean-mean sea level by 0.06 m.
+For comparison, the whole lateral-viscosity signal (3-D minus radial mean) is
+17 m rms at 21 ka. With the toroidal field on, VILMA2 also agrees about twice
+as well with VILMA1, which carries it: the rms difference at 21 ka falls from
+4.1 to 2.2 m. Global quantities are insensitive to it; local sea level near the
+former ice sheets is not. The numbers are in `validation/tables/toroidal.md`.
 :::
 
 ## Why lateral viscosity drives toroidal flow
@@ -162,7 +182,7 @@ a step proceeds as follows:
    latter with the toroidal operator.
 2. The SLE fixed point calls `apply()` as usual. $W$ does not enter uplift or
    geoid directly, so the affine structure is unchanged.
-3. **`commit_step`** advances the memory. In each genuinely 3-D element all
+3. The **memory advance** follows. In each genuinely 3-D element all
    six dyadic components of memory and strain, spheroidal and toroidal, are
    synthesized on the Gauss grid and multiplied pointwise by
    $M(\theta,\varphi)$. The increment is analysed back into all six channels.
@@ -187,7 +207,7 @@ discard memory.
 
 | Parameter | Group | Default | Effect |
 |---|---|---|---|
-| `l_toroidal` | `&vilma` | `.false.` | carry $W$ and $\lambda = 3,4$ once a 3-D element exists |
+| `l_toroidal` | `&vilma` | `.true.` | carry $W$ and $\lambda = 3,4$ once a 3-D element exists |
 | `l_visc_3d` | `&vilma` | `.false.` | load a lateral viscosity field (required for any toroidal flow) |
 | `visc3d_tol` | `&vilma` | $10^{-3}$ dex | lateral spread above which an element is 3-D |
 | `file_hor` | `&ctl` | `""` | write the surface horizontal displacement |
@@ -208,16 +228,30 @@ consistency, symmetry and scaling tests:
 | `test_assembly` | $W$ stiffness equals the energy rebuilt from the strain rows and norms | $2\times10^{-16}$ |
 | `test_tensor_sh` | six channels reproduce an arbitrary symmetric tensor field; channel cross-talk at `nlat` $= 2\ell_{\max}+2$ | $9\times10^{-15}$ (four channels miss 35 %); $\le 8\times10^{-13}$ |
 | `test_sht` | toroidal synthesis is $\mathbf{e}_r\times\nabla_1 T$ (SHTns' native field is its negative) | round-off |
-| `test_toroidal` | $W = 0$ for an axisymmetric configuration | round-off |
-| `test_toroidal` | $W$ driven by a $\cos 2\varphi$ viscosity pattern; reflection selection rule | rule holds to $4\times10^{-16}$ |
-| `test_toroidal` | scaling with contrast $\delta$: $W \propto \delta$, uplift feedback $\propto \delta^2$ | slopes 0.987 and 1.986 |
+| `test_toroidal` | $W = 0$ for an axisymmetric configuration | asserted: $\lvert W\rvert/\lvert U\rvert \le 10^{-12}$ |
+| `test_toroidal` | $W$ driven by a $\cos 2\varphi$ viscosity pattern; reflection selection rule | asserted: $\lvert W\rvert > 10^{-6}\lvert U\rvert$; rule to $10^{-10}$ (measured $4\times10^{-16}$) |
+| `test_toroidal` | scaling with contrast $\delta$: $W \propto \delta$, uplift feedback $\propto \delta^2$ | asserted: slopes within 0.1 of 1 and 0.2 of 2 (measured 0.987 and 1.986) |
+| `test_toroidal` | with the toroidal field off, no $W$ is reported | exactly zero |
 | `test_rotinv` | coaxial cap and low-viscosity zone: $W = 0$ on the pole; off the pole $W/U$ at discretization level, falling with resolution | $2.6\times10^{-4}\to1.5\times10^{-6}$ ($\ell_{\max}$ 16 $\to$ 32) |
 | `test_restart` | restart with toroidal channels; four-channel file into a toroidal run | bit-for-bit continuation; spheroidal memory exact, toroidal zero |
 
-Every existing 1D and benchmark result is unchanged (bit-identical). The
-remaining steps are a cross-check of a toroidal-carrying configuration against
-VILMA1 through `solver = "v1"`, and a measurement of what the toroidal
-coupling changes in a 3D deglaciation. Until then it stays off by default.
+`test_toroidal` is an idealized case. It holds a degree-2, order-0 load on
+the M3-L70-V01 Earth at $\ell_{\max} = 12$ for 40 forward-Euler steps of 40 yr,
+with a viscosity contrast of 0.2 dex, and drives the response operator alone.
+It shows that the toroidal field is driven, has the right symmetry, scales as
+perturbation theory predicts and vanishes where it must. The measured values
+in the table are those recorded in `doc/design-toroidal.md`.
+
+The full model with the toroidal field on is checked against VILMA1, which
+carries it, in the last deglaciation (`validation/`, run V7): with it on, the
+rms difference in relative sea level between the two codes at 21 ka falls
+from 4.1 to 2.2 m (area-weighted), and the present-day uplift-rate difference
+from 0.13 to 0.08 mm/yr. The restart tests run it through the sea-level
+equation and assert reproducibility. No community benchmark exercises it, and
+its effect on horizontal displacement has not been compared with another code.
+
+Radially symmetric and laterally uniform runs carry no toroidal field, so
+their results do not depend on `l_toroidal`.
 
 ::: {.callout-tip title="Where this lives in the code"}
 `vilma_radial_fe` (`toroidal_operator`: assembly, fluid-node pinning,

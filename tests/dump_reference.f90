@@ -18,8 +18,7 @@ program dump_reference
                                  radial_operator_assemble, radial_operator_solve_vec, &
                                  radial_operator_load_rhs, radial_operator_tidal_rhs, &
                                  radial_operator_destroy, build_dense_operator, uniq_weight, &
-                                 shell_Rk, loading_love, tidal_love, idx_u, idx_v, idx_f, ndof_of, &
-                                 radial_fe_finalize
+                                 shell_Rk, loading_love, tidal_love, idx_u, idx_v, idx_f, ndof_of
    use vilma_viscoelastic,    only: ve_degree, ve_init, ve_step, ve_destroy, NLAM, SCHEME_FE, SCHEME_TRAP
    use vilma_sht,             only: sht_grid, sht_grid_init, sht_grid_destroy, sht_grid_lmidx, &
                                  sht_grid_synthesis, sht_grid_analysis, sht_grid_sph_synthesis, &
@@ -98,7 +97,6 @@ program dump_reference
    if (want(10)) call dump_visc3d(trim(outdir)//"/visc3d.nc")
    if (want(11)) call dump_martinec_sle(trim(outdir)//"/martinec_sle.nc")
 
-   call radial_fe_finalize()
    write(*,'(a)') ' dump_reference: done'
 
 contains
@@ -1220,6 +1218,7 @@ contains
             end do
          end do
       end do
+      ve3d%toroidal = .true.
       call response_enable_lateral_visc(ve3d, g, pert)
       call system_clock(tic3, trate3)
       call drive3d(ve3d, g, slm, NSTEP, u3, n3, tyr)
@@ -1227,7 +1226,7 @@ contains
       write(*,'(a,f9.4,a)') '  visc3d timing run A 3-D 35 elements: ', real(toc3-tic3,wp)/real(trate3,wp)/real(NSTEP,wp)*1.0e3_wp, ' ms/step'
       ! (B) uniform (zero) perturbation forced through the 3-D kernel
       call response_init_ve(veu, e, g, DT100)
-      veu%visc3d_tol = -1.0_wp
+      veu%visc3d_tol = -1.0_wp;  veu%toroidal = .true.
       pert = 0.0_wp
       call response_enable_lateral_visc(veu, g, pert)
       call system_clock(tic3, trate3)

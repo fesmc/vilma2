@@ -2,72 +2,135 @@
 title: "Benchmarks"
 ---
 
-VILMA2 is validated against the **published GIA community benchmarks** — the
-Charles University / Spada et al. (2011) intercomparison [@Spada2011] and the
-sea-level-equation intercomparison of Martinec et al. (2018) [@Martinec2018].
-Validation proceeds along a **ladder**: each rung is an independent benchmark
-that exercises one more piece of physics, so a failure localizes to the rung
-just added.
+VILMA2 is validated against the **published GIA community benchmarks**: the
+Charles University / Spada et al. (2011) intercomparison [@Spada2011], the
+sea-level-equation intercomparison of Martinec et al. (2018) [@Martinec2018]
+and, for lateral viscosity, the low-viscosity-zone case of Weerdesteijn et
+al. (2023) [@Weerdesteijn2023]. Validation proceeds along a **ladder**. Each
+rung is an independent benchmark that exercises one more piece of physics, so
+a failure localizes to the rung just added.
+
+Every benchmark is an executable test with a pass/fail exit. The pages below
+quote two numbers for each: the **tolerance** the test asserts, and the
+**difference measured** with the reference build (model 1790f86, ifx 2024.1,
+`-Ofast -march=znver2`, on the AWI cluster albedo). The tolerance is the claim
+the test suite protects. The measured difference shows how much margin there
+is.
 
 The reference datasets are vendored in the repository under
-`data/benchmarks/` with full provenance and licensing in
-`data/benchmarks/PROVENANCE.md`. None of it is VILMA2 output; it is external
-reference data, so the validation tests are self-contained.
+`data/benchmarks/` with provenance and licensing in
+`data/benchmarks/PROVENANCE.md`. None of it is VILMA2 output.
 
 ## Summary results
 
-| # | Benchmark | Physics exercised | Reference | Status | Agreement |
-|:-:|---|---|---|:-:|---|
-| 1 | SH transform round-trip | spectral kernel | — (analytic) | ✅ | $\sim 10^{-15}$ |
-| 2 | [Love numbers $h,\ell,k$](love-numbers.qmd) | elastic + fluid radial solve, self-gravity | M3–L70–V01 table [@Spada2011] | ✅ | $\sim 0.1\%$, all degrees 2–256 |
-| 3 | [Disc-load response](disc.qmd) | deformation + geoid, time relaxation | Spada disc test [@Spada2011] | ✅ | $u$ $\sim 1\%$ near-field; geoid $\sim 1\%$ ($\ell\ge2$) |
-| 4 | [Sea-level equation](sea-level.qmd) | migrating-coastline SLE, flotation, sub-grid | Martinec 2018 cases A/C2/D3/E2/F1 [@Martinec2018] | ✅ | within inter-code scatter (esl $\lesssim 5$ m; D3 $\sim 0.2$ m) |
-| 5 | [Rotation / polar motion](../physics/rotation.qmd) | rotational feedback (TPW) | Spada test 3/2 [@Spada2011] | ✅ | polar motion vs Spada 3/2; on by default |
-| 6 | 3D (lateral viscosity) [to do] | laterally varying $\eta$, [toroidal flow](../physics/toroidal.qmd) | [to do] | 🔧 | code path implemented + tested; cross-code validation ongoing |
+| # | Benchmark | Physics exercised | Reference | Test (suite) | Asserted | Measured |
+|:-:|---|---|---|---|---|---|
+| 1 | SH transform round trip | spectral kernel | analytic | `test_sht` (check) | $10^{-12}$ | $\sim 10^{-15}$ |
+| 2 | [Love numbers $h,\ell,k$](love-numbers.qmd) | elastic and fluid radial solve, self-gravity | M3–L70–V01 table [@Spada2011] | `test_benchmark_love` (check) | 1 %: elastic $h,k$ at degrees 2–48, fluid $h,\ell,k$ at 2–8 | $h$ ≤ 0.08 % to degree 256; $k$, $\ell$ exceed 1 % above degrees 96, 144 |
+| 3 | [Disc-load response](disc.qmd) | spatial synthesis, time relaxation | Spada disc test [@Spada2011] | `test_benchmark_disc` (check) | elastic profile 6 % ($u$), 4 % ($N$); center uplift 3 % at 1–10 kyr | 4.0 %, 2.8 %; ≤ 0.6 % |
+| 4a | [Cap loading, case A](sea-level.qmd) | vertical and horizontal displacement, geoid | Martinec 2018 fig. 10 [@Martinec2018] | `test_benchmark_martinec` (check) | 1.5 % ($u$, $v$), 3 % ($N$) | 0.5 %, 0.7 %, 1.9 % |
+| 4b | [Sea-level equation](sea-level.qmd) | migrating coastline, flotation, sub-grid coast | Martinec 2018 cases C2, D3, E2, F1 [@Martinec2018] | `test_benchmark_sle` (check-slow) | 30 % ($u$), 35 % ($v$), 12 % ($N$), 8 % (sea surface), 12 % (rsl) | D3, E2, F1: ≤ 7.6 %, rsl ≤ 1.8 %; C2: ≤ 28 %, rsl ≤ 7.2 % |
+| 5 | [Rotation / polar motion](rotation.qmd) | Liouville equation, tidal Love numbers | Spada test 3/2, Table 14 [@Spada2011] | `test_rotation` (check) | 3 % in $\lvert m(t)\rvert$, 2 % in rigid inertia | ≤ 0.9 %, ≤ 0.4 % |
+| 6 | [Low-viscosity zone](lvz.qmd) | laterally varying viscosity | ASPECT, Abaqus, TABOO [@Weerdesteijn2023] | `test_benchmark_lvz` (check-slow) | 8 % in center displacement | 2.6 %, 1.0 % |
 
-Legend: ✅ implemented and validated · 🔧 implemented, validation ongoing ·
-⏳ planned. "Agreement" quotes the representative relative error against the
-reference; see each page for the full breakdown.
+All percentages are relative to the peak of the reference along the compared
+profile, or to the reference value itself for single numbers. The per-benchmark
+pages define each measure and give the full tables.
+
+## What is validated and what is open
+
+**Validated.** The radial solver, the Maxwell time stepping, the spatial
+synthesis, the horizontal displacement, the sea-level equation with a fixed
+and a migrating coastline, the Liouville polar-motion solve and the laterally
+varying viscosity each pass a published benchmark at the tolerances above. The
+two migrating-coastline cases and the deep-basin fixed-ocean case agree with
+the reference to below 1 m in every field.
+
+**Open.**
+
+- **Case C2 of the sea-level benchmark.** The model differs from the reference
+  by a uniform 5.9 m in sea surface (4.9 % of the signal) and by a degree-1
+  pattern of about 7 m in uplift. The test passes only because its uplift and
+  horizontal tolerances are 30 % and 35 %. The cause is not attributed (see
+  [Sea-level equation](sea-level.qmd#what-the-numbers-mean)).
+- **Love numbers $k$ and $\ell$ at high degree.** They leave 1 % of the
+  normal-mode table above degrees 96 and 144 at the default radial mesh, while
+  $h$ stays within 0.1 %. The error is second order in the element size and
+  falls below 1 % to degree 256 with a mesh four times finer (see
+  [Love numbers](love-numbers.qmd#result)). The asserted range of the test
+  (degree 48) has not been extended.
+- **The disc response at 100 kyr and the uplift rate** are not compared (see
+  [Disc-load response](disc.qmd#reference-data-and-metrics)).
+- **Three-dimensional viscosity.** The only comparison with other codes is the
+  axisymmetric low-viscosity-zone case on a 200 yr time scale, and a
+  deglaciation comparison with VILMA1. No multi-code benchmark of a realistic
+  3-D structure at glacial time scales has been run.
+- **Toroidal flow.** No community benchmark exercises it. It is checked by
+  internal consistency, symmetry and scaling tests (see
+  [Toroidal flow](../physics/toroidal.qmd#validation)) and by the VILMA1
+  comparison of the last deglaciation, and is on by default. Its effect there
+  is up to 92 m of relative sea level locally, 2–3 m rms globally.
+- **Rotation coupled to the sea-level equation** has no published benchmark
+  and is checked for consistency only.
 
 ## How to read the rungs
 
-- **Rungs 1–2** isolate the *linear-algebra and radial physics*: the transform,
-  then the per-degree elastic and fluid Love numbers. The fluid limit is an
-  analytic anchor ($h_j\to-(2j+1)/3$, $k_j\to-1$); the elastic numbers are the
-  stringent test, and they exposed the [$U$–$F$ symmetry
-  bug](love-numbers.qmd).
+- **Rungs 1–2** isolate the linear algebra and the radial physics: the
+  transform, then the per-degree elastic and fluid Love numbers. The fluid
+  limit of a homogeneous sphere is an analytic anchor ($h_j\to-(2j+1)/3$,
+  $k_j\to-1$).
 - **Rung 3** integrates the per-degree response over a spatial load (the disc)
-  and adds the *time relaxation*, testing the spatial synthesis and the Maxwell
-  stepper together against a spatial reference.
-- **Rung 4** turns on the full *self-consistent sea-level equation* — ocean
-  function, mass conservation, coastline migration, flotation, and the sub-grid
-  sloping coast — against the dedicated SLE intercomparison. This is the
-  benchmark VILMA1 itself passed.
-- **Rung 5** (rotation) is implemented and coupled into the SLE, with the
-  Liouville polar-motion solve checked against Spada test 3/2. It is on by
-  default for real-Earth runs (off for the non-rotating benchmarks).
-  **Rung 6** (laterally varying viscosity) is implemented in the full
-  viscoelastic solver and exercised by unit tests, with cross-code validation
-  ongoing. No community benchmark exercises the toroidal field; it is checked
-  by internal consistency, symmetry and scaling tests (see
-  [Toroidal flow](../physics/toroidal.qmd#validation)).
+  and adds the time relaxation.
+- **Rung 4** adds the horizontal displacement (case A) and then the full
+  self-consistent sea-level equation: ocean function, mass conservation,
+  coastline migration, flotation, and the sub-grid sloping coast.
+- **Rung 5** adds the rotational feedback. It is on by default for real-Earth
+  runs and off in the non-rotating benchmarks.
+- **Rung 6** adds laterally varying viscosity.
 
-::: {.callout-note title="Analytic vs. inter-code benchmarks"}
-Rungs 2–3 are effectively *analytic* (normal-mode Love numbers and their spatial
-synthesis), so tight tolerances ($\sim 0.1$–$1\%$) are meaningful. Rung 4 is a
-*numerical inter-comparison* — the reference (giapy's SBK curves) is itself one
-code's output, not a closed-form solution — so agreement is assessed against the
-documented inter-code scatter rather than an exact match.
+::: {.callout-note title="Analytic and inter-code benchmarks"}
+Rungs 2, 3 and 5 compare with normal-mode solutions, which are accurate to
+their tabulated digits at low degree. Rungs 4b and 6 are comparisons between
+numerical codes. The reference is one code's output, and the published scatter
+between codes (a few percent) bounds what agreement can show.
 :::
+
+## Running the benchmarks
+
+```bash
+make check                  # the fast suite: rungs 1–3, 4a, 5 and the unit tests
+make openmp=1 check-slow    # rungs 4b and 6, test_rotinv at lmax 128, and three order tests
+```
+
+Both targets run every test, print a summary that names the failing tests,
+and return a non-zero exit status if any failed. `check-slow` takes about ten
+minutes on 32 threads. It raises the stack limit itself, since the 3-D path at
+$\ell_\max \ge 128$ needs more than the default 8 MB per thread.
+
+### Dumping the comparison data
+
+The benchmark tests can write the numbers behind their comparison. Set the
+environment variable `VILMA_BENCH_DUMP` to an existing directory, and each
+test writes plain-text column tables there (model and reference values on the
+reference abscissa, with a header line naming the columns):
+
+```bash
+mkdir -p dump
+VILMA_BENCH_DUMP=$PWD/dump bin/test_benchmark_love.x
+VILMA_BENCH_DUMP=$PWD/dump bin/test_benchmark_sle.x E2
+```
+
+Without the variable the tests write nothing. The figures on the benchmark
+pages are made from these tables by the scripts in the repository's
+`validation/` directory.
 
 ## Per-benchmark pages
 
-The pages below give the model setup, the comparison metrics, and a place for
-figures (to be added as the benchmark figures are generated):
-
-- **[Love numbers](love-numbers.qmd)** — elastic and fluid $h,\ell,k$ for
+- **[Love numbers](love-numbers.qmd)**: elastic and fluid $h,\ell,k$ for
   M3–L70–V01.
-- **[Disc-load response](disc.qmd)** — vertical displacement, geoid, and uplift
-  rate for the 10° disc.
-- **[Sea-level equation](sea-level.qmd)** — the five @Martinec2018 cases.
-- **Lateral viscosity** — [to do]
+- **[Disc-load response](disc.qmd)**: elastic profiles and the center uplift
+  for the 10° disc.
+- **[Sea-level equation](sea-level.qmd)**: the five @Martinec2018 cases.
+- **[Rotation](rotation.qmd)**: polar motion against Spada test 3/2.
+- **[Low-viscosity zone](lvz.qmd)**: lateral viscosity against
+  @Weerdesteijn2023.

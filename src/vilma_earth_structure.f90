@@ -11,7 +11,7 @@ module vilma_earth_structure
    !! log10-viscosity on the Gauss-Legendre spatial grid per radial node — how
    !! VILMA1 injects lateral heterogeneity (Albrecht et al. 2024). 1D runs leave it
    !! unallocated; the same solver path reduces to the spherically symmetric case.
-   use vilma_precision, only: wp
+   use vilma_precision, only: wp, is_finite
    use vilma_constants, only: pi, grav_G
    use vilma_params,    only: vilma_param_class, MAX_LAYER
    use vilma_sht,       only: sht_grid
@@ -28,7 +28,8 @@ module vilma_earth_structure
    integer, parameter, public :: RHEOL_FLUID   = 2   !! inviscid fluid (mu = 0)
 
    public :: earth_layer, earth_model, build_M3L70V01, build_earth, prem_rho_mu
-   public :: vilma_read_visc_3d, load_visc_3d
+   public :: earth_check, earth_validate, earth_layer_has_memory
+   public :: vilma_read_visc_3d, load_visc_3d, visc_values_valid
    public :: earth_n_layers, earth_rho_at, earth_mu_at, earth_eta_at, earth_mass_below, earth_total_mass, earth_gravity_at, earth_moi, earth_is_3d
 
    type :: earth_layer
@@ -37,8 +38,8 @@ module vilma_earth_structure
       real(wp) :: r_top = 0.0_wp   !! outer radius [m]
       real(wp) :: rho   = 0.0_wp   !! density [kg m^-3]
       real(wp) :: mu    = 0.0_wp   !! shear modulus / rigidity [Pa]
-      real(wp) :: eta   = 0.0_wp   !! viscosity [Pa s] (huge for elastic, 0 fluid)
-      integer  :: rheology = RHEOL_MAXWELL
+      real(wp) :: eta   = 0.0_wp   !! viscosity [Pa s]; used for a Maxwell layer only
+      integer  :: rheology = RHEOL_MAXWELL   !! what the layer is; see earth_layer_has_memory
    end type earth_layer
 
    type :: earth_model
@@ -53,6 +54,10 @@ module vilma_earth_structure
       ! the element's radial reference η — storing the absolute field here avoids a
       ! per-node reference ambiguity at layer interfaces.
       real(wp), allocatable :: visc_3d(:,:)
+      ! Radial-mesh target sizes by depth, for radial_mesh_build: mesh_dr(k) [m]
+      ! between the depths mesh_depth(k-1) and mesh_depth(k) [m] (surface first,
+      ! one depth fewer than sizes). Unallocated: the VEGA defaults.
+      real(wp), allocatable :: mesh_dr(:), mesh_depth(:)
    end type earth_model
 
 contains
@@ -64,6 +69,7 @@ contains
       !! assembled verbatim from the per-layer arrays (surface-first), or "PREM"
       !! — the same layer geometry/viscosity arrays, but with density and shear
       !! modulus auto-filled from the incompressible-PREM profile (see build_layered).
+      !! The model is validated here (earth_validate), where the layers enter.
       type(vilma_param_class), intent(in) :: p
       type(earth_model) :: em
 
@@ -77,12 +83,103 @@ contains
       case default
          error stop 'build_earth: unknown earth model "'//trim(p%earth)//'"'
       end select
+      ! The mesh table, without its unused (0) entries; radial_mesh_build checks it.
+      em%mesh_dr    = p%mesh_dr_scale*p%mesh_dr(1:count(p%mesh_dr /= 0.0_wp))
+      em%mesh_depth = p%mesh_depth(1:count(p%mesh_depth /= 0.0_wp))
+      call earth_validate(em)
    end function build_earth
+
+   pure logical function earth_layer_has_memory(layer) result(mem)
+      !! Whether a layer carries Maxwell memory (relaxes viscously). The rheology
+      !! flag decides, nothing else: an elastic layer has none whatever its eta
+      !! holds, a fluid layer has no shear stress at all. Every consumer (the field
+      !! driver, the per-degree stepper, the rotation channels) classifies its
+      !! elements with this function; a valid model (earth_check) has mu > 0 and
+      !! eta > 0 where it is .true., so the rate mu/eta is finite and positive.
+      type(earth_layer), intent(in) :: layer
+      mem = (layer%rheology == RHEOL_MAXWELL)
+   end function earth_layer_has_memory
+
+   function earth_check(self) result(msg)
+      !! What is wrong with a layered model, as a message naming the layer (index 1
+      !! = surface), or '' for a valid one. Valid means:
+      !!   geometry  surface-first, r_top(1) = r_earth, every r_top > r_bot, layers
+      !!             contiguous (r_bot(k) = r_top(k+1), to 1 m), innermost r_bot = 0
+      !!             — what radial_mesh_build assumes;
+      !!   density   rho > 0;
+      !!   rheology  Maxwell: mu > 0 and eta > 0; elastic: mu > 0 (eta not used);
+      !!             fluid: mu = 0 (eta not used).
+      !! A Maxwell layer with eta left at 0 would give an infinite rate, and a fluid
+      !! layer with mu > 0 would be assembled as elastic.
+      type(earth_model), intent(in) :: self
+      character(len=:), allocatable :: msg
+      character(len=16) :: ck
+      integer :: k, n
+      msg = ''
+      n = earth_n_layers(self)
+      if (n < 1) then
+         msg = 'the model has no layers';  return
+      end if
+      do k = 1, n
+         write(ck,'(i0)') k
+         associate (L => self%layers(k))
+            if (.not. (is_finite(L%r_bot) .and. is_finite(L%r_top) .and. is_finite(L%rho) &
+                       .and. is_finite(L%mu))) then
+               msg = 'layer '//trim(ck)//': r_bot, r_top, rho or mu is not finite'
+            else if (L%r_bot < 0.0_wp .or. L%r_top <= L%r_bot) then
+               msg = 'layer '//trim(ck)//': needs r_top > r_bot >= 0 (layers are surface-first)'
+            else if (L%rho <= 0.0_wp) then
+               msg = 'layer '//trim(ck)//': rho must be > 0'
+            else
+               select case (L%rheology)
+               case (RHEOL_MAXWELL)
+                  if (L%mu <= 0.0_wp) then
+                     msg = 'layer '//trim(ck)//': a Maxwell layer (rheology = 1) needs mu > 0'
+                  else if (.not. is_finite(L%eta) .or. L%eta <= 0.0_wp) then
+                     msg = 'layer '//trim(ck)//': a Maxwell layer (rheology = 1) needs eta > 0'
+                  end if
+               case (RHEOL_ELASTIC)
+                  if (L%mu <= 0.0_wp) &
+                     msg = 'layer '//trim(ck)//': an elastic layer (rheology = 0) needs mu > 0'
+               case (RHEOL_FLUID)
+                  if (L%mu /= 0.0_wp) &
+                     msg = 'layer '//trim(ck)//': a fluid layer (rheology = 2) needs mu = 0'
+               case default
+                  msg = 'layer '//trim(ck)//': rheology must be 0 (elastic), 1 (Maxwell) or 2 (fluid)'
+               end select
+            end if
+         end associate
+         if (len(msg) > 0) return
+         if (k < n) then
+            if (abs(self%layers(k)%r_bot - self%layers(k+1)%r_top) > 1.0_wp) then
+               msg = 'layer '//trim(ck)//': r_bot must equal r_top of the layer below (contiguous, surface-first)'
+               return
+            end if
+         end if
+      end do
+      if (abs(self%layers(1)%r_top - self%r_earth) > 1.0_wp) then
+         msg = 'layer 1: r_top must equal r_earth (layers are surface-first)'
+      else if (self%layers(n)%r_bot /= 0.0_wp) then
+         write(ck,'(i0)') n
+         msg = 'layer '//trim(ck)//': the innermost layer must reach r = 0'
+      end if
+   end function earth_check
+
+   subroutine earth_validate(self)
+      !! Stop, naming the layer, if the model is not valid (earth_check).
+      type(earth_model), intent(in) :: self
+      character(len=:), allocatable :: msg
+      msg = earth_check(self)
+      if (len(msg) == 0) return
+      write(*,'(a)') ' earth model "'//self%name//'": '//msg
+      error stop 'vilma_earth_structure: invalid earth model (see message above)'
+   end subroutine earth_validate
 
    function build_layered(p, use_prem) result(em)
       !! Assemble a layered model from the surface-first parameter arrays
       !! (n_layer, r_bot, r_top, eta, rheology). With use_prem=.false. ("custom")
-      !! every property — including rho and mu — is taken verbatim from the arrays.
+      !! every property — including rho and mu — is taken from the arrays as given;
+      !! build_earth then validates the result (earth_check).
       !! With use_prem=.true. ("PREM") the per-layer density and shear modulus are
       !! instead the r^2-weighted (mass-consistent) shell average of the
       !! incompressible-PREM profile over each layer (prem_shell_avg), so the rho/mu
@@ -341,8 +438,10 @@ contains
       !! (so the perturbation tracks the viscosity structure rather than a constant
       !! floor). Then visc_shift_file, if set, adds its dlog10_visc(lon, lat, r) [dex]
       !! (a shift by region and depth, e.g. per ensemble member), read and
-      !! interpolated as the field. The clamp also imposes the viscosity floor on the
-      !! raw field.
+      !! interpolated as the field, but ZERO at the radii outside the file's own
+      !! range: a shift given for the upper mantle does not reach below it. The
+      !! clamp also imposes the viscosity floor on the raw field. Every field read
+      !! must be free of NaN, Inf and fill values (vilma_read_visc_3d stops otherwise).
       !!
       !! With visc_3d_structure >= 1 the file is the FesmData Bagge2021_visc.nc
       !! product: the variable and coordinate names are the product's (log10_visc,
@@ -372,21 +471,28 @@ contains
       end if
       if (len_trim(p%visc_shift_file) > 0) then
          call vilma_read_visc_3d(p%visc_shift_file, sht, r_node, shift_node, varname='dlog10_visc', &
-              lonname='lon', latname='lat', rname='r')
+              lonname='lon', latname='lat', rname='r', zero_outside_r=.true.)
          visc_node = visc_node + shift_node
       end if
       visc_node = min(max(visc_node, p%visc_log10_min), p%visc_log10_max)
    end subroutine load_visc_3d
 
    subroutine vilma_read_visc_3d(filename, sht, r_node, visc_node, varname, &
-                              lonname, latname, rname, structure)
+                              lonname, latname, rname, structure, zero_outside_r)
       !! Read a real 3D viscosity field (lon, lat, radius) from netCDF and
       !! interpolate it onto the Gauss-Legendre grid × the FE radial nodes,
       !! returning ABSOLUTE log10(η [Pa·s]) as visc_node(nphi*nlat, nr). Horizontal
       !! interp is bilinear in log10(η) with periodic longitude; vertical interp is
-      !! linear in radius (clamped to the source range), also on log10(η). The
-      !! node→element bridge and the perturbation against the radial reference η
+      !! linear in radius, also on log10(η). At node radii outside the source range
+      !! the nearest source level is taken (a viscosity has to be defined at every
+      !! node), or, with zero_outside_r, the value is 0 — for a field that is an
+      !! increment (visc_shift_file), which must not act where the file says nothing.
+      !! The node→element bridge and the perturbation against the radial reference η
       !! happen later in ve_response (which owns the per-element rheology).
+      !!
+      !! The field must hold numbers: a NaN, an Inf or a fill value (visc_values_valid)
+      !! stops the run, naming the file and the variable. Interpolating or clamping
+      !! one would turn it into an ordinary-looking viscosity.
       !!
       !! The stored variable is assumed to already be log10(η). Coordinate names
       !! default to lon/lat/r; the radius coordinate must be metres. Any axis may
@@ -403,6 +509,9 @@ contains
       real(wp), allocatable, intent(out) :: visc_node(:,:)    !! (nphi*nlat, nr) log10(η)
       character(len=*), intent(in), optional :: varname, lonname, latname, rname
       integer,          intent(in), optional :: structure   !! FesmData form: structure index
+      logical,          intent(in), optional :: zero_outside_r  !! 0 outside the source radii (default: nearest level)
+      real(wp), parameter :: R_TOL = 1.0_wp      !! [m] a node this close to an end level is on it
+      logical :: zero_out
       character(len=64) :: vnm, lnm, tnm, rnm
       real(wp), allocatable :: lon_s(:), lat_s(:), r_s(:), eta_s(:,:,:)
       integer,  allocatable :: il0(:), il1(:), jl0(:), jl1(:)
@@ -438,6 +547,13 @@ contains
       else
          call nc_read(filename, trim(vnm), eta_s)        ! eta_s(lon, lat, r) = log10(η)
       end if
+      if (.not. visc_values_valid(eta_s)) then
+         write(*,'(a)') ' vilma_read_visc_3d: variable "'//trim(vnm)//'" of '//trim(filename)// &
+              ' holds NaN, Inf or fill values;'
+         write(*,'(a)') '   a log10 viscosity [dex] is needed at every point of the file.'
+         error stop 'vilma_read_visc_3d: non-finite or fill values in the field'
+      end if
+      zero_out = .false.;  if (present(zero_outside_r)) zero_out = zero_outside_r
 
       ! --- Normalise the source axes to ascending ------------------------------
       ! locate_clamped and locate_periodic both REQUIRE a strictly ascending axis
@@ -496,6 +612,10 @@ contains
 
       ! Per node: vertical bracket (clamped), then bilinear blend of the two levels.
       do k = 1, nr
+         if (zero_out .and. (r_node(k) < r_s(1) - R_TOL .or. r_node(k) > r_s(nr_s) + R_TOL)) then
+            visc_node(:, k) = 0.0_wp               ! outside the source radii: no increment
+            cycle
+         end if
          call locate_clamped(r_s, r_node(k), k0, k1, wr)
          do j = 1, nlat
             do i = 1, nphi
@@ -507,6 +627,18 @@ contains
          end do
       end do
    end subroutine vilma_read_visc_3d
+
+   pure logical function visc_values_valid(a) result(valid)
+      !! Whether every value of a log10-viscosity field (or of its sigma, or of a
+      !! shift) [dex] is a number that can be one: finite, not ncio's NaN marker
+      !! (nc_read returns a stored NaN as -9999), and below 1e10 in magnitude, which
+      !! every conventional fill value (1e20, 9.97e36, ...) and a viscosity given in
+      !! Pa s instead of log10 exceed.
+      real(wp), intent(in) :: a(:,:,:)
+      real(wp), parameter :: NCIO_NAN = -9999.0_wp, FILL_MIN = 1.0e10_wp
+      valid = all(is_finite(a))
+      if (valid) valid = .not. any(a == NCIO_NAN .or. abs(a) >= FILL_MIN)
+   end function visc_values_valid
 
    subroutine reverse_axis(a, dim)
       !! Reverse a 3-D field along one dimension through an explicit heap copy.

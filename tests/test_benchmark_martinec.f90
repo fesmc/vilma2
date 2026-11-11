@@ -20,7 +20,7 @@ program test_benchmark_martinec
    use vilma_precision,       only: wp
    use vilma_constants,       only: pi, kyr
    use vilma_earth_structure, only: earth_gravity_at, earth_model, build_M3L70V01
-   use vilma_radial_fe,       only: radial_mesh_build, radial_mesh, radial_fe_finalize
+   use vilma_radial_fe,       only: radial_mesh_build, radial_mesh
    use vilma_viscoelastic,    only: ve_destroy, ve_step, ve_init, ve_degree
    implicit none
    character(*), parameter :: REF = 'data/benchmarks/sle_martinec2018/A_fig10_SBK.dat'
@@ -31,6 +31,7 @@ program test_benchmark_martinec
    real(wp) :: Un(NMAX), Vn(NMAX), Nn(NMAX), sig(NMAX)
    real(wp) :: alpha, ca, g, dt, t1, ua, va, fa
    real(wp) :: colat(NROW), uref(NROW), href(NROW), gref(NROW)
+   real(wp) :: usyn(NROW), hsyn(NROW), gsyn(NROW)   ! VILMA2 along the same colatitudes
    real(wp) :: eu, eh, en
    logical  :: ok
    integer  :: n, istep
@@ -58,6 +59,8 @@ program test_benchmark_martinec
    end do
 
    call synth_and_compare(eu, eh, en)
+   call dump_cols('martinec_A.txt', 'colat_deg u_ref_m u_m h_ref_m h_m N_ref_m N_m', &
+        reshape([colat, uref, usyn, href, hsyn, gref, gsyn], [NROW, 7]))
    write(*,'(a)') ' (A) cap loading response after 10 kyr vs Martinec-2018 fig.10'
    write(*,'(a,f9.3,a,f6.2,a)') '      uplift     peak ', maxval(abs(uref)), ' m, max err ', 100*eu, ' %'
    write(*,'(a,f9.3,a,f6.2,a)') '      horizontal peak ', maxval(abs(href)), ' m, max err ', 100*eh, ' %'
@@ -71,15 +74,15 @@ program test_benchmark_martinec
       write(*,'(a)') ' PASS: Martinec-2018 case A (cap loading u/horizontal/geoid) matches'
    else
       write(*,'(a)') ' FAIL: Martinec-2018 case A validation did not all pass'
-      call radial_fe_finalize();  error stop 1
+      error stop 1
    end if
-   call radial_fe_finalize()
 
 contains
 
    subroutine synth_and_compare(eu, eh, en)
       !! Synthesize u(theta)=Sum sig_n U_n P_n, horizontal=Sum sig_n V_n dP_n/dth,
-      !! N=Sum sig_n N_n P_n along the reference colatitudes; peak-normalized error.
+      !! N=Sum sig_n N_n P_n along the reference colatitudes into usyn/hsyn/gsyn;
+      !! peak-normalized error.
       real(wp), intent(out) :: eu, eh, en
       real(wp) :: th, x, st, us, vs, ns, pn, pnm1, pnp1, dpn, du, dh, dg
       integer  :: i
@@ -99,6 +102,7 @@ contains
             pnp1 = (real(2*n+1,wp)*x*pn - real(n,wp)*pnm1)/real(n+1,wp)
             pnm1 = pn;  pn = pnp1
          end do
+         usyn(i) = us;  hsyn(i) = vs;  gsyn(i) = ns
          du = max(du, abs(us-uref(i)));  dh = max(dh, abs(vs-href(i)));  dg = max(dg, abs(ns-gref(i)))
       end do
       eu = du/maxval(abs(uref));  eh = dh/maxval(abs(href));  en = dg/maxval(abs(gref))
@@ -140,5 +144,7 @@ contains
       end do
       close(u)
    end subroutine read_ref
+
+   include "bench_dump.inc"
 
 end program test_benchmark_martinec

@@ -17,7 +17,6 @@ program test_host_orient
    use vilma_precision, only: wp
    use vilma_constants, only: pi, rad2deg
    use vilma_params,    only: vilma_param_class
-   use vilma_radial_fe, only: radial_fe_finalize
    use vilma_remap,     only: ROWS_NORTH_FIRST, ROWS_SOUTH_FIRST
    use vilma_coupling,  only: solid_earth, solid_earth_init, solid_earth_update, solid_earth_finalize
    use coords,          only: grid_class, grid_init, grid_init_gaussian
@@ -49,7 +48,6 @@ program test_host_orient
    call response_orient()
 
    write(*,'(a)') ''
-   call radial_fe_finalize()
    if (ok) then
       write(*,'(a)') ' PASS: host row order: exact reversing passthrough, same response as the remap path'
    else

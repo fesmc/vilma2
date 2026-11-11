@@ -64,3 +64,5 @@ prognostic state, the masks and the time series stay lossless.
 | 39 | fill_int_own | time          | m3     | Flooded-area fill, own part's share (a zeta0 (C_own - C0_own)) | -         |
 | 40 | dt_try_s     | time          | s      | Adaptive time-stepping next-step Δt suggestion, in seconds (exact; dt_try is the same in years) | -         |
 | 41 | bsl_ive_host | time          | m      | bsl_ive's host part: -(rho_i/rho_w) int(I_g - I_g_ref) dA / int C dA over the host columns; 0 without host terms | -         |
+| 42 | sle_resid    | time          | 1      | Worst sea-level inner residual max(abs(dS))/max(abs(S)) of the last interval (<= sle_tol when converged) | -         |
+| 43 | sle_n_cap    | time          | 1      | Sea-level solves of the last interval that ended at an iteration cap (inner, coastline or memory) | -         |

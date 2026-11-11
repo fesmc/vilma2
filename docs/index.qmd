@@ -4,11 +4,6 @@ subtitle: "A fast, open-source, time-domain spectral–finite-element solid-Eart
 toc: false
 ---
 
-::: {.callout-warning title="Under heavy development"}
-VILMA2 is not yet ready for use in a scientific production capacity. If you
-want to use VILMA1 for now, please contact Volker Klemann at GFZ.
-:::
-
 **VILMA2** is a fast, open-source 3D solid-Earth model: a
 self-gravitating, incompressible, Maxwell-viscoelastic sphere coupled to a
 self-consistent **sea-level equation** with migrating coastlines. It is
@@ -20,20 +15,23 @@ designed as an open-source alternative to VILMA1 inside the
 The numerical method follows the **spectral–finite-element, time-domain**
 approach of @Martinec2000: spherical harmonics horizontally, finite elements
 radially, and an explicit memory-stress integration of the Maxwell rheology in
-time. The solver is **3D-ready from the start** — laterally varying viscosity
-costs nothing extra — and is validated first in 1D against the published GIA
-community benchmarks [@Spada2011; @Martinec2018].
+time. The solver is **3D-ready from the start**: laterally varying viscosity
+uses the same per-degree solve as the 1-D model. It is validated against the
+published GIA community benchmarks [@Spada2011; @Martinec2018;
+@Weerdesteijn2023]. VILMA2 is free software under the GNU General Public
+License v3.0.
 
 ## Why this method
 
 The structural advantage of this approach is that, with an **explicit**
 Maxwell time scheme, the stiffness solve has **no angular coupling**. Each
 spherical-harmonic degree $\ell$ decouples into an independent, small, banded
-radial system. This makes the solver embarrassingly parallel and cheap, and
-lateral (3D) viscosity is free: it never couples the harmonics in the solve,
-entering only through the explicitly-known memory stress. That memory stress
-is evaluated pointwise on the Gauss–Legendre grid and transformed back to
-spectral space each step, a pseudo-spectral treatment. The **1D and 3D code
+radial system. This makes the solver embarrassingly parallel and cheap.
+Lateral (3D) viscosity never couples the harmonics in the solve. It enters only
+through the explicitly known memory stress, which is evaluated pointwise on the
+Gauss–Legendre grid and transformed back to spectral space each step (a
+pseudo-spectral treatment). Its cost lies in these transforms of the memory
+advance, which dominate the run time of a 3-D run. The **1D and 3D code
 paths are therefore the same solver**.
 
 | Method family | Examples | 3D viscosity | Speed | Fit for purpose |
@@ -53,25 +51,53 @@ paths are therefore the same solver**.
 - **[Discretization](discretization/spectral.qmd)** — the spectral reduction,
   the P1/P0 radial finite-element operator, the explicit time scheme, and the
   banded direct solver.
-- **[Benchmarks](benchmarks/index.qmd)** — a summary table of validation
-  results, with one page per benchmark (Love numbers, the disc-load response,
-  and the sea-level-equation intercomparison).
+- **[Benchmarks](benchmarks/index.qmd)** — the validation ladder, with one page
+  per benchmark (Love numbers, disc load, sea-level equation, rotation,
+  low-viscosity zone).
 - **[Implementation](implementation.qmd)** — the libraries the model builds
   on, and the codebases and datasets that informed the validation.
 
 ## Status
 
-VILMA2 is under heavy development and not yet ready for scientific
-production use. The core implemented so far includes the spectral–finite-element
-solver, the viscoelastic time stepping and response operator, the
-self-consistent migrating-coastline sea-level equation, rotational feedback
-(polar motion), and laterally varying (3D) viscosity, including the toroidal
-flow it drives (optional, off by default). It also supports
-restart and spin-up, online remapping of lon-lat forcing, and a host-coupling
-API.
+VILMA2 is validated against the published GIA benchmarks and is starting to be
+used for science. It is versioned 0.x, so the namelist and the host API may
+still change. The implemented model comprises the spectral–finite-element
+solver, the viscoelastic time stepping, the self-consistent sea-level equation
+with migrating coastlines, rotational feedback, laterally varying (3-D)
+viscosity, restart and spin-up, online remapping of lon-lat forcing, and a
+host-coupling API.
 
-Validation against the @Spada2011 and @Martinec2018 community benchmarks
-covers the radial solver, the disc-load response, and the sea-level equation.
-Rotation is checked against the Spada test 3/2. Cross-code validation of the
-3D viscosity path is ongoing (see the
-[validation ladder](benchmarks/index.qmd)).
+Each benchmark is an executable test with a pass/fail exit. The table gives the
+tolerance each test asserts and the difference measured with the reference
+build (ifx `-Ofast` on the AWI cluster albedo).
+
+| Benchmark | Asserted | Measured |
+|---|---|---|
+| [Love numbers](benchmarks/love-numbers.qmd), M3–L70–V01 [@Spada2011] | 1 % (elastic $h$, $k$ at degrees 2–48; fluid at 2–8) | $h$ ≤ 0.08 % to degree 256; $k$, $\ell$ exceed 1 % above degrees 96, 144 |
+| [Disc load](benchmarks/disc.qmd) [@Spada2011] | 6 % / 4 % of peak (elastic $u$ / $N$); 3 % (center uplift, 1–10 kyr) | 4.0 % / 2.8 %; ≤ 0.6 % |
+| [Cap load, case A](benchmarks/sea-level.qmd) [@Martinec2018] | 1.5 % ($u$, horizontal), 3 % (geoid) | 0.5 %, 0.7 %, 1.9 % |
+| [Sea-level equation](benchmarks/sea-level.qmd), C2/D3/E2/F1 [@Martinec2018] | 8–35 % of peak, by field | D3, E2, F1 ≤ 7.6 %, rsl ≤ 1.8 %; C2 up to 28 % |
+| [Polar motion](benchmarks/rotation.qmd), Spada test 3/2 [@Spada2011] | 3 % | ≤ 0.9 % |
+| [Low-viscosity zone](benchmarks/lvz.qmd) [@Weerdesteijn2023] | 8 % | 2.6 %, 1.0 % |
+
+The model builds and passes its test suite with ifx on albedo and with gfortran
+on macOS and Ubuntu (GitHub CI). It builds with ifx on DKRZ levante.
+
+What is still open:
+
+- **Sea-level case C2.** A uniform 5.9 m offset in sea surface and a degree-1
+  pattern of about 7 m in uplift, not yet attributed. The other three cases
+  agree to below 1 m.
+- **The 3-D viscosity path** is compared with other codes only in the
+  axisymmetric low-viscosity-zone case (200 yr) and with VILMA1 on the last
+  deglaciation. No multi-code benchmark of a realistic 3-D structure at glacial
+  time scales exists yet.
+- **Toroidal flow** driven by lateral viscosity is **on by default**
+  (`l_toroidal = .true.`). In the 3-D last deglaciation it changes relative sea
+  level by 2–3 m rms and up to 92 m near the former ice sheets.
+  `l_toroidal = .false.` makes 3-D runs 1.5–1.8 times faster, for quick runs
+  that do not depend on local sea level ([Toroidal flow](physics/toroidal.qmd)).
+- **Rotation coupled to the sea-level equation** has no published benchmark
+  and is checked for consistency only.
+
+See the [benchmarks](benchmarks/index.qmd) for the full validation ladder.

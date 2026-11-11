@@ -1,0 +1,107 @@
+# Headline numbers, written by validation/analysis/*.jl via FigStyle.record!.
+# Generated file — do not edit by hand.
+
+[blockB]
+A_heav_bulge_100kyr_m = 17.9
+A_heav_gcm_100kyr_m = 8.709
+A_heav_l128_rms_dur_100kyr_m = 0.0533
+A_heav_l256_rms_dur_100kyr_m = 0.0106
+A_heav_l64_rms_dur_100kyr_m = 1.3361
+A_heav_nm_max_dur_m = 0.062
+A_heav_ur_load_100kyr_m = -366.67
+A_nm_signal_m = 365.7
+A_ramp_bulge_100kyr_m = 18.02
+A_ramp_gcm_100kyr_m = 8.676
+A_ramp_l128_rms_dur_100kyr_m = 0.0533
+A_ramp_l256_rms_dur_100kyr_m = 0.0097
+A_ramp_l64_rms_dur_100kyr_m = 1.3361
+A_ramp_nm_max_dur_m = 0.048
+A_ramp_ur_load_100kyr_m = -365.64
+BA_ratio_heav_100kyr = 1.053
+BA_ratio_ramp_100kyr = 1.055
+B_heav_bulge_100kyr_m = 20.76
+B_heav_gcm_100kyr_m = 8.769
+B_heav_l128_rms_dur_100kyr_m = 0.0978
+B_heav_l64_rms_dur_100kyr_m = 1.8806
+B_heav_ur_load_100kyr_m = -386.07
+B_ramp_bulge_100kyr_m = 21.02
+B_ramp_gcm_100kyr_m = 8.739
+B_ramp_l128_rms_dur_100kyr_m = 0.0981
+B_ramp_l64_rms_dur_100kyr_m = 1.8826
+B_ramp_ur_load_100kyr_m = -385.6
+lmax = 128
+ncases = 4
+
+[blockD]
+"D-V2-1Db.l170.fe_closure_pct" = 103.2
+"D-V2-1Db.l170.fe_delivered_m" = 97.06
+"D-V2-1Db.l170.fe_target_m" = 94.08
+"D-V2-3D.l170.fe_closure_pct" = 102.9
+"D-V2-3D.l170.fe_delivered_m" = 96.9
+"D-V2-3D.l170.fe_target_m" = 94.21
+lateral_rsl_rms_21ka_m = 17.25
+lateral_uplift_max_mmyr = 24.22
+lateral_uplift_rms_mmyr = 0.633
+
+[v2v1]
+1db_bsl_max_dif_m = 0.238
+1db_deg0_21ka_m = -0.28
+1db_deg1_21ka_m = 0.06
+1db_largest_other_lm = "0,0"
+1db_largest_other_m = 0.28
+1db_ocean_mean_F_m = 97.06
+1db_ocean_mean_V_m = 96.83
+1db_ocean_mean_dif_m = 0.23
+1db_rel_21ka_pct = 0.1
+1db_rms_21ka_m = 0.63
+1db_rms_area_21ka_m = 0.59
+1db_rms_noy21_21ka_m = 0.45
+1db_rms_peak_ka = 24.0
+1db_rms_peak_m = 0.66
+1db_uplift_rms_mmyr = 0.03
+1db_y21_21ka_m = 0.37
+3d_bsl_max_dif_m = 0.367
+3d_deg0_21ka_m = 0.5
+3d_deg1_21ka_m = 0.36
+3d_largest_other_lm = "6,2"
+3d_largest_other_m = 0.7
+3d_ocean_mean_F_m = 96.9
+3d_ocean_mean_V_m = 96.55
+3d_ocean_mean_dif_m = 0.35
+3d_rel_21ka_pct = 1.1
+3d_rms_21ka_m = 5.14
+3d_rms_area_21ka_m = 4.08
+3d_rms_noy21_21ka_m = 4.05
+3d_rms_peak_ka = 23.0
+3d_rms_peak_m = 5.29
+3d_tor_bsl_max_dif_m = 0.298
+3d_tor_deg0_21ka_m = 0.12
+3d_tor_deg1_21ka_m = 0.3
+3d_tor_ocean_mean_F_m = 96.84
+3d_tor_ocean_mean_V_m = 96.55
+3d_tor_ocean_mean_dif_m = 0.29
+3d_tor_rel_21ka_pct = 0.6
+3d_tor_rms_21ka_m = 2.6
+3d_tor_rms_peak_ka = 23.0
+3d_tor_rms_peak_m = 2.67
+3d_tor_uplift_rms_mmyr = 0.096
+3d_uplift_rms_mmyr = 0.183
+3d_y21_21ka_m = 0.5
+
+[v7]
+closure_ctl_pct = 102.86
+closure_tor_pct = 102.82
+ocean_mean_pd_ctl_m = 96.899
+ocean_mean_pd_tor_m = 96.842
+tor_minus_ctl_rsl_max_0ka_m = 73.851
+tor_minus_ctl_rsl_max_10ka_m = 92.419
+tor_minus_ctl_rsl_max_21ka_m = 46.165
+tor_minus_ctl_rsl_rms_0ka_m = 2.9511
+tor_minus_ctl_rsl_rms_10ka_m = 2.082
+tor_minus_ctl_rsl_rms_21ka_m = 0.6293
+tor_minus_notor_rms_21ka_m = 3.86
+tor_minus_notor_uplift_rms_mmyr = 0.153
+v2v1_uplift_rms_notor_mmyr = 0.183
+v2v1_uplift_rms_tor_mmyr = 0.096
+wall_per_kyr_ctl_min = 1.82
+wall_per_kyr_tor_min = 2.67

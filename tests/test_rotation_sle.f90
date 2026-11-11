@@ -27,7 +27,6 @@ program test_rotation_sle
    use vilma_precision,       only: wp
    use vilma_constants,       only: omega_earth
    use vilma_earth_structure, only: earth_model, build_M3L70V01
-   use vilma_radial_fe,       only: radial_fe_finalize
    use vilma_response,        only: response_destroy, response, response_init_elastic, response_init_ve, response_init_null
    use vilma_sle,             only: sle_solve, sle_solver, sle_result
    use vilma_rotation,        only: rotation_destroy, rotation_s_rot, rotation_solve_m, rotation_begin_step, rotation_init, rotation_state, &
@@ -251,9 +250,9 @@ program test_rotation_sle
       write(*,'(a)') '       mass, fixed point, fingerprint, direction, stepping, inertia)'
    else
       write(*,'(a)') ' FAIL: rotation-SLE coupling did not all pass'
-      call sht_grid_destroy(sht);  call radial_fe_finalize();  error stop 1
+      call sht_grid_destroy(sht);  error stop 1
    end if
-   call rotation_destroy(rot);  call response_destroy(resp);  call sht_grid_destroy(sht);  call radial_fe_finalize()
+   call rotation_destroy(rot);  call response_destroy(resp);  call sht_grid_destroy(sht)
 
 contains
 

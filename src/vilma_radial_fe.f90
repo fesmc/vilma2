@@ -21,8 +21,9 @@ module vilma_radial_fe
    !!                       111-112), equilibrated and factored once per degree
    !!                       with the pivoted band LU in vilma_band, then reused for
    !!                       every order m, load and time step.
-   use vilma_precision, only: wp
+   use vilma_precision, only: wp, is_finite
    use vilma_constants, only: pi, grav_G
+   use vilma_params,    only: MESH_DR_DEFAULT, MESH_DEPTH_DEFAULT
    use vilma_earth_structure, only: earth_gravity_at, earth_n_layers, earth_model
    use vilma_radial_integrals, only: elem_i1, elem_i2, elem_i3, elem_i4, &
                                   elem_i5, elem_i6, elem_i7, &
@@ -32,22 +33,13 @@ module vilma_radial_fe
    private
 
    public :: radial_mesh, radial_operator, toroidal_operator
-   public :: loading_love, tidal_love, radial_fe_finalize
+   public :: loading_love, tidal_love
    ! Assembly building blocks (public so the unit tests can inspect them).
    public :: build_dense_operator, shell_Rk, uniq_weight
    public :: build_toroidal_operator, toroidal_dead_nodes, rotation_weights
    public :: toroidal_operator_assemble, toroidal_operator_solve_vec, toroidal_operator_destroy
    public :: idx_u, idx_v, idx_f, idx_p, ndof_of
    public :: radial_mesh_build, radial_operator_assemble, radial_operator_solve, radial_operator_solve_vec, radial_operator_load_rhs, radial_operator_tidal_rhs, radial_operator_destroy
-
-   ! Default radial element-size targets [m], after VEGA (Martinec et al. 2018):
-   ! 5 km in the lithosphere, 10 km in the upper mantle, 40 km in the lower
-   ! mantle. Selected by depth thresholds below.
-   real(wp), parameter :: DR_LITHO = 5.0e3_wp
-   real(wp), parameter :: DR_UPPER = 10.0e3_wp
-   real(wp), parameter :: DR_LOWER = 40.0e3_wp
-   real(wp), parameter :: DEPTH_LITHO =  70.0e3_wp   !! lithosphere base depth
-   real(wp), parameter :: DEPTH_UPPER = 670.0e3_wp   !! upper/lower mantle divide
 
    ! Degree-1 rigid-translation (E_uniq) penalty coefficient, Martinec (2000)
    ! eq 83: the removal term is UNIQ_COEFF · w wᵀ over the degree-1 (U,V) dofs.
@@ -137,32 +129,108 @@ contains
 
    ! --- Mesh ------------------------------------------------------------------
 
-   pure function dr_target(depth) result(dr)
-      !! Target radial element size at a given depth [m] (VEGA spacing).
-      real(wp), intent(in) :: depth
-      real(wp) :: dr
-      if (depth <= DEPTH_LITHO) then
-         dr = DR_LITHO
-      else if (depth <= DEPTH_UPPER) then
-         dr = DR_UPPER
+   subroutine mesh_zones(earth, dr, r_base)
+      !! The target element size as a function of depth, as a table of zones,
+      !! surface first: zone k has size dr(k) and reaches down to the radius
+      !! r_base(k) (0 for the last). From earth%mesh_dr / earth%mesh_depth (the
+      !! namelist's mesh_dr*mesh_dr_scale and mesh_depth), or the VEGA defaults
+      !! where the earth model carries none.
+      type(earth_model),     intent(in)  :: earth
+      real(wp), allocatable, intent(out) :: dr(:), r_base(:)
+      real(wp), allocatable :: depth(:)
+      integer :: k, nz
+
+      if (allocated(earth%mesh_dr) .neqv. allocated(earth%mesh_depth)) &
+         error stop 'radial_mesh_build: mesh_dr and mesh_depth must be given together'
+      if (allocated(earth%mesh_dr)) then
+         dr = earth%mesh_dr;  depth = earth%mesh_depth
       else
-         dr = DR_LOWER
+         dr    = pack(MESH_DR_DEFAULT,    MESH_DR_DEFAULT    /= 0.0_wp)
+         depth = pack(MESH_DEPTH_DEFAULT, MESH_DEPTH_DEFAULT /= 0.0_wp)
       end if
-   end function dr_target
+      nz = size(dr)
+      if (nz < 1) error stop 'radial_mesh_build: mesh_dr needs at least one element size'
+      if (size(depth) /= nz - 1) &
+         error stop 'radial_mesh_build: mesh_depth needs one entry fewer than mesh_dr'
+      do k = 1, nz
+         if (.not. is_finite(dr(k)) .or. dr(k) <= 0.0_wp) &
+            error stop 'radial_mesh_build: mesh_dr (times mesh_dr_scale) must be finite and > 0'
+      end do
+      do k = 1, nz - 1
+         if (.not. is_finite(depth(k)) .or. depth(k) <= 0.0_wp .or. depth(k) >= earth%r_earth) &
+            error stop 'radial_mesh_build: mesh_depth must lie between 0 and r_earth'
+         if (k > 1) then
+            if (depth(k) <= depth(k-1)) &
+               error stop 'radial_mesh_build: mesh_depth must increase'
+         end if
+      end do
+      allocate(r_base(nz))
+      r_base(1:nz-1) = earth%r_earth - depth
+      r_base(nz)     = 0.0_wp
+   end subroutine mesh_zones
+
+   subroutine layer_nodes(r0, r1, dr, r_base, r)
+      !! Interior and top nodes of one layer [r0, r1], ascending. With h(r) the
+      !! target size (the zone table), the layer holds n = ceiling(X) elements,
+      !! X = int dr'/h over the layer, and every element spans the same share X/n
+      !! of that integral: no element is larger than the target at its own depth
+      !! (one that straddles a zone boundary lies between the two targets), and a
+      !! zone boundary just inside a layer leaves no sliver element.
+      real(wp),              intent(in)  :: r0, r1
+      real(wp),              intent(in)  :: dr(:), r_base(:)
+      real(wp), allocatable, intent(out) :: r(:)
+      ! Round-off in X must not add an element to a layer that is an exact
+      ! multiple of the target (the element count is part of the restart format).
+      real(wp), parameter :: X_TOL = 1.0e-9_wp
+      real(wp) :: b(0:size(dr)), h(size(dr)), xc(0:size(dr)), t, r_zone_top
+      integer  :: k, n, ns, i
+
+      ! The layer's segments of constant target size, ascending in radius.
+      ns = 0;  b(0) = r0;  xc(0) = 0.0_wp
+      do k = size(dr), 1, -1
+         r_zone_top = r1
+         if (k > 1) r_zone_top = min(r1, r_base(k-1))
+         if (r_zone_top <= b(ns)) cycle
+         ns = ns + 1
+         b(ns) = r_zone_top;  h(ns) = dr(k)
+         xc(ns) = xc(ns-1) + (b(ns) - b(ns-1))/h(ns)
+      end do
+
+      n = max(1, ceiling(xc(ns) - X_TOL))
+      allocate(r(n))
+      if (ns == 1) then
+         ! One target throughout: uniform elements. (The general branch gives
+         ! the same nodes to round-off; this form keeps them bit-identical to the
+         ! meshes of the earlier per-layer rule.)
+         do k = 1, n
+            r(k) = r0 + real(k, wp)*((r1 - r0)/real(n, wp))
+         end do
+      else
+         i = 1
+         do k = 1, n - 1
+            t = real(k, wp)*xc(ns)/real(n, wp)
+            do while (t > xc(i) .and. i < ns)
+               i = i + 1
+            end do
+            r(k) = b(i-1) + (t - xc(i-1))*h(i)
+         end do
+         r(n) = r1
+      end if
+   end subroutine layer_nodes
 
    subroutine radial_mesh_build(self, earth)
       !! Build the radial mesh over the WHOLE sphere [0, r_earth], following
       !! Martinec (2000) eq. (71). Every layer — including the fluid core, which
-      !! carries μ=0 — is meshed; the innermost node sits at r=0. Each layer is
-      !! subdivided into uniform elements no larger than the depth-dependent
-      !! target, with nodes pinned to every material interface so no element
-      !! straddles a density/rigidity jump.
+      !! carries μ=0 — is meshed; the innermost node sits at r=0. Nodes are
+      !! pinned to every material interface so no element straddles a
+      !! density/rigidity jump, and within a layer the element size follows the
+      !! target for the element's own depth (mesh_zones, layer_nodes): a thick
+      !! layer is resolved like a stack of thin ones.
       type(radial_mesh), intent(inout) :: self
       type(earth_model),  intent(in)    :: earth
-      real(wp), allocatable :: r(:)
+      real(wp), allocatable :: r(:), rl(:), dr(:), r_base(:)
       integer,  allocatable :: lay(:)
-      integer :: i, k, ne_layer, ntot, off
-      real(wp) :: r0, r1, depth_mid, dr, h
+      integer :: i, nl
 
       ! This routine assumes the layer stack is surface-first, gap-free, bottomed
       ! at r = 0 and topped at r_earth: it hard-codes node 1 at r = 0, walks the
@@ -186,37 +254,19 @@ contains
                error stop 'radial_mesh_build: layers must be contiguous, r_bot(k) = r_top(k+1)'
          end if
       end do
-
-      ! Count elements per layer first.
-      ntot = 0
-      do i = 1, earth_n_layers(earth)
-         r0 = earth%layers(i)%r_bot
-         r1 = earth%layers(i)%r_top
-         depth_mid = earth%r_earth - 0.5_wp*(r0 + r1)
-         dr = dr_target(depth_mid)
-         ntot = ntot + max(1, ceiling((r1 - r0)/dr))
-      end do
-
-      self%ne = ntot
-      self%nr = ntot + 1
-      allocate(r(self%nr), lay(self%ne))
+      call mesh_zones(earth, dr, r_base)
 
       ! Lay down nodes layer by layer (innermost first), sharing interface nodes.
-      r(1) = 0.0_wp           ! centre of the Earth
-      off  = 1                ! index of the last node placed
-      do i = earth_n_layers(earth), 1, -1   ! innermost layer (core) first, ascending r
-         r0 = earth%layers(i)%r_bot
-         r1 = earth%layers(i)%r_top
-         depth_mid = earth%r_earth - 0.5_wp*(r0 + r1)
-         dr = dr_target(depth_mid)
-         ne_layer = max(1, ceiling((r1 - r0)/dr))
-         h = (r1 - r0)/real(ne_layer, wp)
-         do k = 1, ne_layer
-            r(off + k)   = r0 + real(k, wp)*h
-            lay(off + k - 1) = i
-         end do
-         off = off + ne_layer
+      r   = [0.0_wp]          ! centre of the Earth
+      lay = [integer ::]
+      do i = earth_n_layers(earth), 1, -1
+         call layer_nodes(earth%layers(i)%r_bot, earth%layers(i)%r_top, dr, r_base, rl)
+         nl  = size(rl)
+         r   = [r, rl]
+         lay = [lay, spread(i, 1, nl)]
       end do
+      self%ne = size(lay)
+      self%nr = self%ne + 1
       r(self%nr) = earth%r_earth   ! pin the surface exactly
 
       call move_alloc(r,   self%r)
@@ -891,10 +941,5 @@ contains
       l =  g*V_a/phi_t
       k = -F_a/phi_t - 1.0_wp
    end subroutine tidal_love
-
-   subroutine radial_fe_finalize()
-      !! No-op kept for API compatibility (callers invoke it at program end). The
-      !! banded-LU solver has no global runtime to release; LIS is no longer used.
-   end subroutine radial_fe_finalize
 
 end module vilma_radial_fe

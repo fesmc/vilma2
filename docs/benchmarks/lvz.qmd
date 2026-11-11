@@ -1,0 +1,85 @@
+---
+title: "Benchmark: low-viscosity zone (lateral viscosity)"
+---
+
+::: {.callout-note appearance="minimal"}
+**Reference:** Weerdesteijn et al. (2023), section 5.2, the short-timescale
+low-viscosity-region case computed with ASPECT, Abaqus and TABOO
+[@Weerdesteijn2023]. **Test:** `test_benchmark_lvz` (in `make check-slow`).
+**Asserted:** vertical displacement at the load center after 200 yr within 8 %
+of the published values, without and with the low-viscosity zone.
+**Measured** (ifx, albedo): 2.6 % and 1.0 %.
+:::
+
+This benchmark tests the **laterally varying viscosity** against published
+results of three-dimensional finite-element codes. It is the only test of the
+3-D path against codes other than VILMA1.
+
+## Load and setup
+
+- Earth model **M3–L70–V01**.
+- An axisymmetric ice disc of 100 km radius
+  ($\rho_\text{ice} = 931\ \mathrm{kg\,m^{-3}}$). Its height grows linearly
+  from 0 to 100 m over 100 yr and is then held to 200 yr.
+- A cylindrical **low-viscosity zone** (LVZ) under the load: radius 100 km,
+  depth 70–170 km, viscosity $10^{19}$ Pa s in an upper mantle of
+  $10^{21}$ Pa s. The shear modulus is unchanged.
+- Two runs: the homogeneous model (no LVZ) and the model with the LVZ.
+
+The load and the LVZ are axisymmetric, so the problem has order $m = 0$ only.
+The test runs with `mmax = 0` at $\ell_\max = 512$ (a shortest half-wavelength
+of about 40 km, against the 100 km radius of the disc) with a step of 2.5 yr.
+It drives the viscoelastic response with the ice load directly. There is no
+ocean and no sea-level equation.
+
+## Reference data and metrics
+
+The reference values are the vertical surface displacement at the load center
+at $t = 200$ yr: $-0.75$ m for the homogeneous model and $-1.23$ m with the
+LVZ. The published codes differ among themselves. ASPECT and Abaqus agree to
+1–3 %. ASPECT, which has no self-gravity, and TABOO, which has, agree to 0.3 %
+at the load center of the homogeneous model. Self-gravity is thus a
+sub-percent effect in this case, and the published numbers are a valid
+reference for a self-gravitating spherical model to within a few percent. The
+tolerance of the test is 8 %.
+
+## Result
+
+The numbers below are for model 1790f86 built with ifx on albedo.
+
+| Case | VILMA2 | Reference | Difference | Tolerance |
+|---|:-:|:-:|:-:|:-:|
+| homogeneous | $-0.731$ m | $-0.75$ m | 2.6 % | 8 % |
+| with LVZ | $-1.218$ m | $-1.23$ m | 1.0 % | 8 % |
+| amplification by the LVZ | 1.67 | 1.64 | 1.6 % | not asserted |
+
+: Vertical displacement at the load center at 200 yr. {#tbl-lvz}
+
+VILMA2 reproduces the displacement with the LVZ to 1 % and the homogeneous
+displacement to 2.6 %. Both differences are within the 1–3 % spread of the
+published codes. The low-viscosity zone increases the displacement by a
+factor of 1.67, against 1.64 in the reference.
+
+The scope of this benchmark is limited. It compares one number per run, the
+displacement at the load center, on a time scale of 200 yr. It has a single
+order ($m = 0$), so it does not exercise the coupling between orders or the
+toroidal flow, which vanishes for an axisymmetric problem. The
+rotational-invariance test `test_rotinv` complements it: the same kind of
+load and LVZ placed away from the pole gives the peak displacement of the
+on-pole case to 0.5 % at $\ell_\max = 128$ (tolerance 1 %, in
+`make check-slow`). A comparison of the 3-D path at glacial time scales exists
+only against VILMA1.
+
+## Figures
+
+![Low-viscosity-zone benchmark of Weerdesteijn et al. (2023): vertical displacement at the load center against time and the displacement profile at 200 yr, for the homogeneous model and the model with the low-viscosity zone, with the published values at the load center.](figures/lvz.png){#fig-lvz}
+
+With `VILMA_BENCH_DUMP` set, the test writes the center displacement against
+time and the profile at 200 yr of both runs (`lvz_homog_series.txt`,
+`lvz_homog_profile.txt`, `lvz_lvz_series.txt`, `lvz_lvz_profile.txt`); see
+[Benchmarks](index.qmd#dumping-the-comparison-data).
+
+## Provenance
+
+The reference values are quoted from @Weerdesteijn2023 (their section 5.2 and
+Table 4). No reference data file is needed.

@@ -2,78 +2,144 @@
 title: "Installation and running"
 ---
 
-::: {.callout-warning title="Under heavy development"}
-VILMA2 is not yet ready for use in a scientific production capacity. If you
-want to use VILMA1 for now, please contact Volker Klemann at GFZ.
-:::
-
-This page covers getting VILMA2 built and running a forced simulation. The
-build is driven by **configme** (one source of machine/compiler truth) and runs
-are staged by **runme** (single simulations and ensembles, locally or on SLURM).
+This page covers building VILMA2, testing the build, and running a forced
+simulation. The build is driven by **configme** (one source of machine and
+compiler settings) and runs are staged by **runme** (single simulations and
+ensembles, locally or on SLURM). The model is built and tested on three
+machines: a MacBook (gfortran), the AWI cluster albedo (ifx) and the DKRZ
+cluster levante (ifx). Production runs are currently made on albedo.
 
 ## Dependencies
 
-VILMA2 needs only a small, well-established stack:
-
 | Dependency | Provides | Source |
 |---|---|---|
-| **[fesm-utils](https://github.com/fesm-org/fesm-utils)** (branch `dev`) | FFTW, SHTns, the `fesmutils` helper library (precision, ncio, namelists), and the `coords` module used by the remapper | cloned/linked by configme |
-| **netCDF** (C + Fortran) | restart and output I/O | system package (Homebrew, modules, …) |
+| **[fesm-utils](https://github.com/fesmc/fesm-utils)**, branch `phase0-kryos` | FFTW, SHTns, the `fesmutils` helper library (precision, ncio, namelists) and the `coords` module used by the remapper | cloned and built by configme |
+| **netCDF** (C and Fortran) | input, output and restart files | system package (Homebrew, environment modules, apt) |
+| **configme**, **runme** | Makefile generation; run staging | [fesmc/configme](https://github.com/fesmc/configme), [fesmc/runme](https://github.com/fesmc/runme) (`pip install`) |
 
-The `dev` branch is pinned in `.configme/manifest.toml`, so the checkout
-self-describes the exact ref it needs. The `phase0-kryos` branch that kryos
-uses contains it.
+The fesm-utils branch is pinned in `.configme/manifest.toml`, so a checkout
+records the ref it needs. VILMA2 needs the `coords` routine
+`grid_init_gaussian`, which is in `phase0-kryos` but not yet in the fesm-utils
+`dev` branch: `src/vilma_remap.f90` does not compile against `dev` v1.4. The
+pin returns to `dev` once `phase0-kryos` is merged there.
 
-## Install with configme
+## Install
 
-`configme` clones (or reuses) the dependencies, generates the machine/compiler
-Makefile fragment, and links everything together:
+`configme install vilma2` clones fesm-utils into the checkout, builds its
+serial and OpenMP variants (FFTW, SHTns, LIS and libfesmutils; about 10
+minutes), and writes the top-level `Makefile` from `config/Makefile` and the
+machine and compiler fragments. `configme show <machine>` prints a fragment,
+`configme status` reports what is present and what is pending, and
+`configme config vilma2` regenerates the Makefile of an existing checkout
+without cloning. To reuse an existing fesm-utils checkout instead of cloning
+one, add `--link fesm-utils=/abs/path/to/fesm-utils`.
+
+The optimization flags differ by machine. The macbook fragment is the
+repository's own (`.configme/machines/macbook.mk`): gfortran
+`-O3 -mcpu=native -funroll-loops -ffast-math`. The clusters use configme's
+fragments: ifx `-Ofast -march=znver2 -traceback` on albedo (AMD EPYC 7702) and
+`-Ofast -march=znver3 -traceback` on levante (AMD EPYC 7763). The benchmark
+numbers in these pages were measured with the albedo build.
+
+### MacBook (gfortran)
 
 ```bash
-configme install vilma2
-```
-
-It resolves the machine and compiler from flags, your `~/.configme/config.toml`,
-hostname detection, or a prompt. To be explicit, or to reuse an existing
-fesm-utils checkout instead of cloning:
-
-```bash
-# pick machine + compiler explicitly
+brew install gcc netcdf netcdf-fortran
+pip install git+https://github.com/fesmc/configme.git git+https://github.com/fesmc/runme.git
+git clone git@github.com:fesmc/vilma2.git && cd vilma2
 configme install vilma2 -m macbook -c gfortran
-
-# symlink an on-disk fesm-utils rather than cloning it
-configme install vilma2 --link fesm-utils=/abs/path/to/fesm-utils
+make -j 8 vilma
+make check
 ```
 
-Supported machines include `awi_albedo`, `chinook`, `dkrz_levante`, `linux`,
-`macbook`, `pik_hpc2024`; compilers `gfortran`, `ifort`, `ifx`. Run
-`configme list` for the current set and `configme status` to see what is present
-versus pending. If you only need to (re)generate the Makefile for an
-already-present checkout, `configme config vilma2` does that without
-cloning.
+### AWI albedo (ifx)
+
+The system git has been removed from the login nodes, so load the git module
+first. The Intel compiler and netCDF modules must be loaded before configme
+runs, so that it finds `nf-config`.
+
+```bash
+module load git intel-oneapi-compilers netcdf-c netcdf-fortran
+git clone git@github.com:fesmc/vilma2.git && cd vilma2
+configme install vilma2 -m awi_albedo -c ifx
+make openmp=1 -j 8 vilma            # on the login node, at most -j 8
+```
+
+Compile on the login node and run the tests and the model through SLURM (see
+[Testing the build](#testing-the-build)). The compute nodes have no git. The
+build does not need it: the version string compiled into the model comes from
+`git describe` and falls back to `"unknown"` where git is missing.
+
+### DKRZ levante (ifx)
+
+```bash
+module load git intel-oneapi-compilers netcdf-c netcdf-fortran
+git clone git@github.com:fesmc/vilma2.git && cd vilma2
+configme install vilma2 -m dkrz_levante -c ifx
+make openmp=1 -j 8 vilma
+```
+
+The build on levante has been verified (ifx 2023.2, netCDF-Fortran 4.6.2). No
+runs have been made there yet.
 
 ## Build
-
-configme writes the compiler fragment into the `Makefile`; building is then
-plain `make`:
 
 ```bash
 make vilma        # -> bin/vilma.x        (standalone forced-run driver)
 make vilma_mkref  # -> bin/vilma_mkref.x  (build a Gauss-grid reference state)
 make vilma_remap  # -> bin/vilma_remap.x  (offline lon-lat -> Gauss remap)
-make check            # build + run the test suite
-make vilma-static     # -> libvilma/include/libvilma.a and the .mod files
+make vilma-static # -> libvilma/include/libvilma.a and the .mod files
+make bench_visc3d # -> bin/bench_visc3d.x (lateral-viscosity benchmark driver)
 ```
 
-`make vilma-static` is the library that a host (kryos) links: objects, `.mod`
-files and `libvilma.a` are written to `libvilma/include/`, and the archive is
-rebuilt only when an object changes. `openmp=0` and `openmp=1` share that
-directory; changing the setting rebuilds every object, and the host must use
-the matching fesm-utils variant (`include-serial` or `include-omp`).
+`make vilma-static` is the library that a host (kryos, CLIMBER-X) links:
+objects, `.mod` files and `libvilma.a` are written to `libvilma/include/`, and
+the archive is rebuilt only when an object changes. `openmp=0` and `openmp=1`
+share that directory. Changing the setting rebuilds every object, and the host
+must use the matching fesm-utils variant (`include-serial` or `include-omp`).
 
-Build switches: `debug = 0|1|2` (optimized / checks / profile) and
-`openmp = 0|1` (**default 1**). The threaded degree loop is what makes
-production resolutions fast — build `openmp=1` (see [Solver](discretization/solver.qmd)).
+Build switches: `debug = 0|1|2` (optimized, checks, profile), `openmp = 0|1`
+(**default 1**) and `vilma_v1 = 0|1` (the optional VILMA1 backend, see
+[`doc/vilma-v1-backend.md`](https://github.com/fesmc/vilma2/blob/main/doc/vilma-v1-backend.md)).
+The threaded degree loop is what makes production resolutions fast (see
+[Solver](discretization/solver.qmd)). After switching to another fesm-utils
+checkout, run `make clean`: objects compiled against the old module files can
+fail to rebuild.
+
+## Testing the build
+
+```bash
+make check                  # the test suite: about 50 tests, ~2 min
+make openmp=1 check-slow    # full-resolution benchmarks and order tests, ~10 min on 32 threads
+```
+
+Both targets run every test, print a summary that names the failing tests, and
+exit with a non-zero status if any failed. `check-slow` runs the four
+sea-level benchmark cases, the low-viscosity-zone benchmark, the off-pole
+rotational-invariance test at $\ell_\max = 128$ and three convergence-order
+tests (strain–memory coupling, sea-level–memory coupling, adaptive step
+control). It raises the stack limit itself. Setting `VILMA_BENCH_DUMP` to a
+directory makes the benchmark tests write their comparison tables there (see
+[Benchmarks](benchmarks/index.qmd#dumping-the-comparison-data)).
+
+On albedo, run both suites in a job, with the executables built beforehand on
+the login node (`make openmp=1 -j 8 check` builds them and then runs the tests;
+interrupt it once the build is done, or build the targets listed in `TESTS` and
+`SLOW` in `config/Makefile_vilma.mk`). A minimal job script:
+
+```bash
+#!/bin/bash
+#SBATCH --account=<project> --partition=smp --qos=12h --time=01:00:00
+#SBATCH --cpus-per-task=32 --mem=60G
+source ~/.bash_profile
+export OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK
+make openmp=1 check; make openmp=1 check-slow
+```
+
+**Known state.** With ifx `-Ofast` on albedo, all 49 tests of `make check` and
+all 9 runs of `make check-slow` pass, with the default stack settings. A GitHub workflow builds the model
+with gfortran on Ubuntu and runs `make check` on every push and pull request to
+`main`.
 
 ## Configuration: `&vilma` and `&ctl`
 
@@ -96,16 +162,20 @@ carries the full `&ctl` group plus only the `&vilma` parameters it overrides
 
 ```bash
 ./bin/vilma.x examples/deglac_lgm.nml    # default: vilma.nml
+./bin/vilma.x run.nml my_defaults.nml    # optional second argument: another defaults file
 ```
+
+`vilma_remap.x` and `vilma_mkref.x` take the same optional second argument.
 
 A few conventions worth knowing:
 
 - **Time fields** (`dt_*`, `time_*`) are given in **years** in the namelist and
-  converted to SI seconds on load; everything else is SI.
+  converted to SI seconds on load. Everything else is SI.
 - **Earth structure** is chosen by `earth`: a named built-in (`"M3-L70-V01"`,
   or `"PREM"`, which fills $\rho,\mu$ from shell averages of incompressible PREM
   on the given layer geometry) or `"custom"` to assemble from the surface-first
-  layer arrays.
+  layer arrays. The radial mesh follows the depth of each element (see
+  [Radial finite elements](discretization/radial-fe.qmd)).
 - **Response solver** is chosen by `earth_response`: `"ve"` (full viscoelastic,
   default), `"elastic"`, or `"null"`.
 - **Memory scheme** is chosen by `scheme`: `"fe"` (explicit, default) or
@@ -113,39 +183,123 @@ A few conventions worth knowing:
   [Rheology](physics/rheology.qmd#memory-time-schemes).
 - **Degree-1 frame** is chosen by `deg1_frame`: `"cm"` (default) or `"cf"`; see
   [Sea-level equation](physics/sea-level.qmd#reference-frame-and-degree-1).
-- **Reference state / spin-up** is controlled by `i_eq` (`&ctl`),
-  `equil_time_max`, `equil_rate_tol` (LGM-memory spin-up cap, relaxing to
-  bed-stationary equilibrium), `pre_spinup_1d` (run a cheap 1-D
-  pre-equilibration first), and `restart_in_file` (`&ctl`; resume full state,
-  interpolated up if lower-resolution).
+- **Reference state** is chosen by `i_eq` (`&ctl`). Relative sea level is
+  measured against this relaxed reference.
+  - `0`: the first forcing slice is the equilibrium.
+  - `1` (default): a present-day reference from `z_bed_ref_file` and
+    `h_ice_ref_file`, so that rsl is about zero at the present day.
+  - `2`: an equilibrium state read from `z_bed_eq_file` and `h_ice_eq_file`
+    (e.g. an LGM state).
+  - `3`: the present-day reference bed plus the rsl field of
+    `rsl_restart_file`.
+
+  The variable names in these files are set by `name_z_bed_ref`,
+  `name_h_ice_ref` and `name_rsl`.
+- **Spin-up** is controlled by `equil_time_max`, `equil_rate_tol` (the memory
+  is relaxed under the start-of-run load until the bed is stationary) and
+  `pre_spinup_1d` (a cheap 1-D pre-equilibration first); see
+  [Spin-up](discretization/time-stepping.qmd#spin-up).
 - **3-D viscosity** is enabled with `l_visc_3d = .true.` and a lateral
-  `log10(eta)` field (`visc_3d_file`); `visc3d_tol` sets which elements are
-  treated as genuinely 3-D. With `visc_3d_structure = n` (n >= 1) the file is
-  in the FesmData layout (`log10_visc` on `lon`, `lat`, `depth`, `structure`)
-  and structure `n` is read. The default is the FesmData product
+  `log10(eta)` field (`visc_3d_file`). With `visc_3d_structure = n` (n ≥ 1) the
+  file is in the FesmData layout (`log10_visc` on `lon`, `lat`, `depth`,
+  `structure`) and structure `n` is read. The default is the FesmData product
   `fesmdata/Global/GLOBAL-T170/GLOBAL-T170_SolidEarth-Bagge2021.nc`
-  (@Bagge2021; structure 6, `v_1.0_s16`); the path is relative to the run
-  folder, which needs a `fesmdata` link to the FesmData store (on Levante
-  `/work/ba1442/fesmdata`). The model does not ship a viscosity file.
-- **Rotational feedback** (`rotation`) is **on by default** for real-Earth runs;
-  set `rotation = .false.` for the non-rotating community benchmarks.
-  The secular Love number in the Liouville equation defaults to the model's own
+  (@Bagge2021; structure 6, `v_1.0_s16`). The path is relative to the run
+  folder, which needs a `fesmdata` link to the FesmData store (on levante
+  `/work/ba1442/fesmdata`). The model does not ship a viscosity file. The field
+  can be scaled by `f_visc_sd` (in units of its lateral standard deviation) and
+  shifted by region and depth with `visc_shift_file`. It is then clamped to
+  `visc_log10_min`–`visc_log10_max`, and `visc3d_lid_depth` and
+  `visc3d_lid_log10max` make its top effectively elastic. `visc3d_tol` sets
+  which elements are treated as genuinely 3-D. The order of these steps is given
+  in [Rheology](physics/rheology.qmd#visc3d-input).
+- **Toroidal flow** (`l_toroidal`) is **on by default**: with lateral
+  viscosity it changes local relative sea level near former ice sheets by up
+  to about 90 m in a deglaciation, though global means only by centimetres.
+  `l_toroidal = .false.` makes such runs 1.5–1.8 times faster, for quick runs
+  that do not depend on local sea level (see
+  [Toroidal flow](physics/toroidal.qmd)).
+- **Rotational feedback** (`rotation`) is **on by default** for real-Earth runs.
+  Set `rotation = .false.` for the non-rotating community benchmarks. The
+  secular Love number in the Liouville equation defaults to the model's own
   fluid limit; `rotation_k_s` (> 0) prescribes it and `rotation_c_minus_a` sets
   C − A (default 2.63e35 kg m²).
+- **Forcing.** The ice-thickness forcing is a lon-lat field (global or
+  regional) on a time axis in years (`kyr` is converted; ages and other units
+  stop the run) that must be strictly ascending. A regional source is remapped
+  with its mass conserved and no ice outside it; latitudes may be ascending or
+  descending. Missing, non-finite or out-of-range values stop the run (put
+  zero where there is no ice).
+- **Output.** `file_out` receives the diagnostic surface fields at every
+  forcing slice, including the convergence of the sea-level solve
+  (`sle_resid`, the worst relative inner residual of the interval, and
+  `sle_n_cap`, the number of solves that ended at an iteration cap; the model
+  also warns once per interval when a cap is hit). The folder of `file_out` is
+  created if needed. `file_hor` (optional) receives the horizontal surface
+  displacement.
+  The variables and their output precision are listed in
+  [`input/vilma-variables.md`](https://github.com/fesmc/vilma2/blob/main/input/vilma-variables.md).
+  Diagnostics are rounded to that precision. `write_lossless = .true.`
+  (`&ctl`) writes them lossless, as needed for bit-for-bit comparisons. Restart
+  files are always lossless.
+- **Restart.** The driver writes the full model state to
+  `spinup/vilma_restart.nc` after the spin-up and to `final/vilma_restart.nc`
+  at the end of the run, in the run directory. `restart_in_file` (`&ctl`)
+  resumes from such a file: the model is initialized at the reference and the
+  saved state is restored, so a resumed run continues the original one bit for
+  bit. A restart from a lower resolution is interpolated up to the model grid.
+  The run resumes at the restart's time: a `time_init` that selects another
+  start stops it, unless `restart_time_reset = .true.` (`&ctl`), which takes the
+  restart as the state at the start of the window. A restart from another
+  radial mesh is refused. A restart from another viscosity (radial profile or
+  3-D field, both stamped in the file) is refused unless
+  `restart_other_visc = .true.` (`&ctl`), which uses its memory as a seed. Restarts of the default
+  PREM model written before the depth-based mesh rule (220 instead of 219
+  elements) are therefore refused; `mesh_depth = 80e3, 670e3` rebuilds the old
+  mesh exactly. What the restart carries and what is checked on read is
+  described in
+  [Time stepping](discretization/time-stepping.qmd#memory-storage-and-restart).
 - **Backend** is chosen by `solver`: `"v2"` (this model, default) or `"v1"`,
   the VILMA1 library behind the same driver, forcing and output for
   like-for-like comparison (requires a build with `vilma_v1=1`).
+
+### Parameter reference
+
+Every `&vilma` parameter and its default is documented in
+[`input/vilma_defaults.nml`](https://github.com/fesmc/vilma2/blob/main/input/vilma_defaults.nml),
+and every `&ctl` parameter in `src/vilma_control.f90`. The physics and
+numerics pages describe most of them in context. The remaining ones are:
+
+| Group | Parameter | Meaning |
+|---|---|---|
+| `&vilma` grid | `lmax` | maximum spherical-harmonic degree (default 64) |
+| | `nlat`, `nphi` | Gauss latitudes and longitudes; 0 gives the de-aliased defaults $2\ell_\max + 2$ and $4\ell_\max$ |
+| | `mmax`, `mres` | maximum order (< 0: `lmax`) and order stride |
+| | `eps_polar` | SHTns polar-optimization threshold (< 0: library default) |
+| `&vilma` custom earth (`earth = "custom"` or `"PREM"`) | `n_layer`, `r_earth`, `r_core` | number of layers (surface first), surface and core radius [m] |
+| | `r_bot`, `r_top` | inner and outer radius of each layer [m] |
+| | `rho`, `mu`, `eta` | density, shear modulus and viscosity of each layer (`rho`, `mu` filled from PREM for `"PREM"`) |
+| | `rheology` | per layer: 0 elastic, 1 Maxwell, 2 fluid |
+| `&vilma` VILMA1 backend (`solver = "v1"` only) | `vilma_v1_jmax`, `vilma_v1_nsub` | VILMA1 degree and sub-steps per coupling interval |
+| | `vilma_v1_input_dir`, `vilma_v1_out_dir`, `vilma_v1_grid_file` | VILMA1 input directory, scratch directory and grid |
+| | `vilma_v1_visc_1d_file`, `vilma_v1_visc_3d_file`, `vilma_v1_l_prem` | VILMA1 viscosity files and earth-structure choice |
+| `&ctl` forcing | `file_forcing`, `name_ice`, `name_time` | ice-thickness forcing (lon, lat, time [yr]) and its variable names |
+| | `name_lon`, `name_lat` | longitude and latitude axes of the forcing [deg] |
+| | `time_init`, `time_end` | run window [yr]; default the first and the last forcing slice |
+| | `remap_input` | `.true.` (default): remap lon-lat input online; `.false.`: input already on the Gauss grid |
+| `&ctl` Gauss-grid reference (`remap_input = .false.`) | `file_ref`, `name_zbed_eq` | reference file and its bed variable |
+| `&ctl` restart | `restart_in_file`, `restart_time_reset`, `restart_other_visc` | see above |
+| `&ctl` output | `file_out`, `file_hor`, `write_lossless` | see above |
 
 ## The drivers
 
 | Executable | Role |
 |---|---|
-| `bin/vilma.x` | reads a reference state + an ice-thickness forcing `h_ice(lon,lat,time)`, marches the model across the forcing (online lon-lat → Gauss remap by default), and writes the diagnostic surface fields (`rsl`, `z_bed`, `h_ice`, ocean function) to `file_out`, and optionally the horizontal surface displacement to `file_hor` |
-| `bin/vilma_mkref.x` | generates the canonical Gauss-grid present-day reference (e.g. RTopo) used by `i_eq = 1`; other resolutions remap it online (cached) |
+| `bin/vilma.x` | reads a reference state and an ice-thickness forcing `h_ice(lon,lat,time)`, marches the model across the forcing (online lon-lat → Gauss remap by default), and writes the diagnostic surface fields (`rsl`, `z_bed`, `h_ice`, ocean function) to `file_out`, and optionally the horizontal surface displacement to `file_hor` |
+| `bin/vilma_mkref.x` | generates the canonical Gauss-grid present-day reference (e.g. RTopo) used by `i_eq = 1`; other resolutions remap it online (cached in `maps/`) |
 | `bin/vilma_remap.x` | offline conservative lon-lat → Gauss remap, to preprocess a forcing onto the model grid (`remap_input = .false.`) |
 
-A complete worked configuration — an LGM → present-day deglaciation forced by
-the Tarasov ice/bed reconstruction — is in
+A complete worked configuration, an LGM to present-day deglaciation, is in
 [`examples/deglac_lgm.nml`](https://github.com/fesmc/vilma2/blob/main/examples/deglac_lgm.nml).
 
 ## Running with runme
@@ -153,7 +307,7 @@ the Tarasov ice/bed reconstruction — is in
 `runme` stages a clean run directory (linking in `data` and `input`, copying the
 namelist, recording the parameters), then runs or submits it. The executable
 aliases match the drivers: `main` → `vilma.x`, `mkref` → `vilma_mkref.x`,
-`remap` → `vilma_remap.x`.
+`remap` → `vilma_remap.x`, `visc3d` → `bench_visc3d.x`.
 
 ```bash
 # single local run, 8 OpenMP threads, overriding a few parameters
@@ -163,32 +317,53 @@ runme -o runs/deglac -e main --omp 8 -r \
 
 How a run is launched is set by two flags:
 
-- `-r` run the executable;
-- `-s` prepare a SLURM submit script (and submit it, with `-r`);
-- `-s -r` prepare **and** submit on HPC; `-s` alone stages the script to inspect;
-  omitting both stages the run directory only.
+- `-r` runs the executable;
+- `-s` prepares a SLURM submit script (and submits it, with `-r`);
+- `-s -r` prepares **and** submits on HPC; `-s` alone stages the script to
+  inspect; omitting both stages the run directory only.
 
 A comma list, range, or distribution in `-p` turns a parameter into an
 **ensemble dimension** (`-p vilma.lmax=64,128`), with `-a` naming the member
-directories from their parameter values. SLURM settings (cluster, account,
-threads) live in `.runme/config.toml`; bootstrap it with `runme config init` and
-inspect what runme reads with `runme info`.
+directories from their parameter values.
+
+SLURM settings live in `.runme/config.toml`, which is not tracked. Copy
+`.runme/config.default.toml` or run `runme config init`, then set the cluster
+(`hpc`, a key of `runme queues --all`) and the account; `runme info` shows what
+runme reads. On albedo:
+
+```toml
+hpc     = "awi_albedo"
+account = "<project>"        # e.g. the p_forclima project account
+omp     = 32
+```
+
+```bash
+runme -o runs/deglac_lgm -e main -n examples/deglac_lgm.nml --omp 32 \
+      -q 12h -w 06:00:00 -s -r -p vilma.lmax=128
+```
+
+On levante (`hpc = "dkrz_levante"`, `account = "<project>"`):
+
+```bash
+runme -o runs/deglac_lgm -e main -n examples/deglac_lgm.nml --omp 64 \
+      -q compute -w 06:00:00 -s -r -p vilma.lmax=128
+```
 
 ## Embedding in a host model
 
 The CLIMBER-X coupling path uses the same code behind a single
-`use vilma`. The contract is intentionally narrow — the host passes **ice
-thickness** in and receives **relative sea level** and **bedrock** out, on its
-own grid. The model owns its Gauss grid and the host↔Gauss remap (built from the
-parameter record), and keeps all spherical-harmonic work inside
-(see [Implementation](implementation.qmd)):
+`use vilma`. The contract is narrow: the host passes **ice thickness** in and
+receives **relative sea level** and **bedrock** out, on its own grid. The model
+owns its Gauss grid and the host↔Gauss remap (built from the parameter record),
+and keeps all spherical-harmonic work inside (see
+[Implementation](implementation.qmd)):
 
 ```fortran
 use vilma
 type(solid_earth) :: se
 call vilma_par_load(se%par, "vilma.nml")             ! configuration lives in se%par
-call solid_earth_init(se, z_bed_eq, h_ice_eq, grid=host_grid)  ! builds the Gauss grid + remap
-call solid_earth_spinup(se, h_ice_lgm)                ! optional LGM-memory spin-up
+call solid_earth_init(se, z_bed_eq, h_ice_eq, grid=host_grid, time=t0)  ! Gauss grid + remap; clock at t0 [yr]
+call solid_earth_spinup(se, h_ice_lgm)                ! optional LGM-memory spin-up (holds the clock)
 do
    call solid_earth_update(se, h_ice, dt_yr)          ! advance dt_yr [years]
    ! ... read se%rsl, se%z_bed, se%dz_bed, se%dz_ss, se%C on the host grid ...
@@ -197,10 +372,44 @@ end do
 call solid_earth_finalize(se)                         ! frees the grid too
 ```
 
-`grid` (a coords lon-lat grid) is optional: omit it when the fields are already on
-the model's Gauss grid in the SHTns layout (rows north first). A `grid` that is the
-Gauss grid passes the fields through exactly, in its own row order (latitude ascending,
-as coords builds it, or descending); any other grid is remapped. The host-grid fields
-are always in the order the host supplied; `se%gg` is the internal Gauss-grid state. The full prognostic state (the Maxwell memory, the
-integrator state, and the model clock) is persisted on restart, so a coupled run
-resumes bit-for-bit; the host-grid outputs are re-derived on read.
+`use vilma` is the only module a host needs: it exports the parameter record,
+`solid_earth` and its life cycle, the checks and the restart routines, and
+nothing internal. `h_ice` is the whole ice column; the model applies its own
+flotation rule to it. The model keeps its own clock: `solid_earth_init` sets it
+(`time`, default 0), each update advances it, and `solid_earth_set_time`
+relabels it without changing the state. A host never writes `se%time`. A
+negative `dt_yr` stops the run; `dt_yr = 0` re-solves the surface fields under
+the ice passed in.
+
+`grid` (a coords lon-lat grid) is optional: omit it when the fields are already
+on the model's Gauss grid in the SHTns layout (rows north first). A `grid` that
+is the Gauss grid passes the fields through exactly, in its own row order
+(latitude ascending, as coords builds it, or descending). Any other global grid
+is remapped; a regional grid is refused. The host-grid fields are always in the
+order the host supplied; `se%gg` is the internal Gauss-grid state. The full
+prognostic state is persisted on restart (`vilma_restart_write`,
+`vilma_restart_read`), so a coupled run resumes bit for bit; the host-grid
+outputs are re-derived on read.
+
+### Host-resolved terms (optional)
+
+A host that resolves the ice margin on its own grid, inside regions of weight
+$w$, can pass per unit Gauss-cell area the grounded-ice column
+$I_g = w H f_g$, the ocean fraction $C = w (1 - f_g)$ and the flooded-area fill
+$F = w \zeta^{(0)} (C - C_\text{ref})$:
+
+```fortran
+call solid_earth_init(se, z_bed_eq, h_ice_eq, grid, w=w, I_g=I_g, C=C)    ! reference terms
+call solid_earth_spinup(se, h_ice_lgm, w, I_g, C, F)                      ! held over every pass
+call solid_earth_update(se, h_ice, dt_yr, w, I_g, C, F)                   ! ramped like the ice
+ok = solid_earth_host_check(w, I_g, C, F, msg)                            ! admissibility
+```
+
+Inside $w$ the sea-level solve uses these terms. On $1 - w$ it applies its own
+flotation and coastline rule, and `h_ice`, `h_ice_eq` are the ice of that part
+(cells with $w = 1$ ignore them). The terms are all or none and fixed for the
+run. They cannot be combined with `solver = "v1"` or `sle_fixed_ocean`, and $F$ enters only through the sub-grid term (`sle_subgrid`).
+Without them, or with $w \equiv 0$, a run is bit-identical to one without. The
+terms are part of the restart. Details are in the
+[sea-level equation](physics/sea-level.qmd) page and in
+[`doc/design.md` §15](https://github.com/fesmc/vilma2/blob/main/doc/design.md).
