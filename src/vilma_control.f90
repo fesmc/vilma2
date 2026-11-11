@@ -104,11 +104,12 @@ contains
    subroutine vilma_ctl_load(c, filename, group)
       !! Fill the control record from the `&ctl` group of `filename`. There is no
       !! separate &ctl defaults file (the canonical defaults — input/vilma_defaults.nml
-      !! — carry only &vilma, the host API contract). Reads are therefore non-strict:
-      !! a parameter present in `filename` overrides, one that is absent keeps the
-      !! vilma_ctl_class in-code default. So a run config may set only the &ctl keys it
-      !! needs. Override `group` to read a differently-named namelist. Time fields are
-      !! given in YEARS and converted to SI here.
+      !! — carry only &vilma, the host API contract). So the &ctl group must hold every
+      !! key read below (nml_read stops on a missing one), except the optional ones read
+      !! behind nml_has_param (write_lossless, restart_time_reset, restart_other_visc),
+      !! which keep their in-code default when absent; keys nothing reads are ignored.
+      !! Override `group` to read a differently-named namelist. Time fields are given in
+      !! YEARS and converted to SI here.
       type(vilma_ctl_class), intent(inout) :: c
       character(len=*),   intent(in)    :: filename
       character(len=*),   intent(in), optional :: group
