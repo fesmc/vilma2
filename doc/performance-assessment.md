@@ -106,7 +106,7 @@ Ranked by return on effort for transient runs. ✅ = implemented now; ⏭ = defe
 Measured so far: flags + warm-start give ~1.3× on E2. ETD1 (the would-be step-count
 lever) was tested and rejected (§3b), but it pointed the way: §3c then found the real
 larger-`dt` lever — a **2nd-order trapezoidal memory rule solved by coupling iteration**
-(order 1→2 in the 1-D stepper, validated; field-driver wiring + step-doubling pending).
+(order 1→2; the field-driver wiring, step-doubling and the controller are done, §3c).
 The remaining large multipliers live there and in the deferred items (OpenMP-SHTns at
 high lmax) and in real-coastline iteration counts the benchmark does not exercise.
 
@@ -350,7 +350,12 @@ until a driver opts into the trapezoidal adaptive path.
 that ETD0/ETD1 are not re-attempted, and `test_couple_order` as the evidence for the
 trapezoidal result.
 
-**4. OpenMP SHTns as the default.** SHTns is currently linked serial
+**4. OpenMP SHTns as the default.** *Status (September 2026): the build wiring is
+done — `config/common.mk` links `-lshtns_omp` when `openmp=1`. `shtns_use_threads()`
+is not called in `src/`, so SHTns still runs its serial kernels; threading the
+transforms is untested. The transforms are not the bottleneck and the cost is not
+O(lmax³) (see [`performance.md`](performance.md)). The text below is the original
+entry.* SHTns is currently linked serial
 (`config/common.mk`) — a deliberate choice to avoid OpenMP nesting inside
 CLIMBER-X. **Decision (this review): make the OpenMP SHTns variant the default for
 both the standalone/offline driver and the coupled build.** The transforms are the
