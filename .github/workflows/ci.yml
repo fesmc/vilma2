@@ -8,7 +8,7 @@ name: CI
 # is not run here: it needs about ten minutes on 32 threads.
 on:
   push:
-    branches: [main, docs-build]
+    branches: [main]
   pull_request:
     branches: [main]
   workflow_dispatch:
