@@ -185,6 +185,7 @@ contains
       type(vilma_param_class) :: p0, p
       type(solid_earth)    :: m
       character(len=400)   :: msg
+      logical :: w
       p0%lmax = LMAX;  p0%nlat = 2*LMAX;  p0%nphi = 4*LMAX
       p0%earth_response = "ve";  p0%rotation = .true.
       p0%visc_3d_file = VISC;  p0%visc_3d_structure = 6
@@ -192,38 +193,38 @@ contains
 
       p = p0;  p%l_visc_3d = .true.;  p%l_toroidal = .true.          ! the model that wrote file3d
       m%par = p; call solid_earth_init(m, z_bed_eq, h_ice_eq)
-      call expect(vilma_restart_compatible(m, file3d, msg), 'the same 3-D model: accepted', msg)
-      call expect(.not. vilma_restart_compatible(m, file1d, msg), 'a 1-D file into the 3-D model: refused', msg)
-      call expect(vilma_restart_compatible(m, file1d, msg, other_visc=.true.), '   ... accepted as a seed', msg)
+      w = vilma_restart_compatible(m, file3d, msg);  call expect(w, 'the same 3-D model: accepted', msg, ok)
+      w = vilma_restart_compatible(m, file1d, msg);  call expect(.not. w, 'a 1-D file into the 3-D model: refused', msg, ok)
+      w = vilma_restart_compatible(m, file1d, msg, other_visc=.true.);  call expect(w, '   ... accepted as a seed', msg, ok)
 
       p%f_visc_sd = 0.5_wp                                           ! the field shifted by half a sigma
       m%par = p; call solid_earth_init(m, z_bed_eq, h_ice_eq)
-      call expect(.not. vilma_restart_compatible(m, file3d, msg), 'another 3-D viscosity field: refused', msg)
-      call expect(vilma_restart_compatible(m, file3d, msg, other_visc=.true.), '   ... accepted as a seed', msg)
+      w = vilma_restart_compatible(m, file3d, msg);  call expect(.not. w, 'another 3-D viscosity field: refused', msg, ok)
+      w = vilma_restart_compatible(m, file3d, msg, other_visc=.true.);  call expect(w, '   ... accepted as a seed', msg, ok)
 
       p = p0                                                         ! the model that wrote file1d
       m%par = p; call solid_earth_init(m, z_bed_eq, h_ice_eq)
-      call expect(vilma_restart_compatible(m, file1d, msg), 'the same 1-D model: accepted', msg)
-      call expect(.not. vilma_restart_compatible(m, file3d, msg), 'a 3-D file into the 1-D model: refused', msg)
+      w = vilma_restart_compatible(m, file1d, msg);  call expect(w, 'the same 1-D model: accepted', msg, ok)
+      w = vilma_restart_compatible(m, file3d, msg);  call expect(.not. w, 'a 3-D file into the 1-D model: refused', msg, ok)
 
       p = p0;  p%earth = "PREM"                                      ! another radial structure
       m%par = p; call solid_earth_init(m, z_bed_eq, h_ice_eq)
-      call expect(.not. vilma_restart_compatible(m, file1d, msg), 'another earth model: refused', msg)
-      call expect(.not. vilma_restart_compatible(m, file1d, msg, other_visc=.true.), &
-                  '   ... also as a seed (the mesh differs)', msg)
+      w = vilma_restart_compatible(m, file1d, msg);  call expect(.not. w, 'another earth model: refused', msg, ok)
+      w = vilma_restart_compatible(m, file1d, msg, other_visc=.true.);  call expect(.not. w, '   ... also as a seed (the mesh differs)', msg, ok)
       call solid_earth_finalize(m)
-   contains
-      subroutine expect(cond, what, why)
-         logical,          intent(in) :: cond
-         character(len=*), intent(in) :: what, why
-         if (cond) then
-            write(*,'(a)') '   ok:   '//what
-            if (len_trim(why) > 0) write(*,'(a)') '         ('//trim(why)//')'
-         else
-            write(*,'(a)') '   FAIL: '//what;  ok = .false.
-         end if
-      end subroutine expect
    end subroutine same_earth
+
+   subroutine expect(cond, what, why, ok)
+      logical,          intent(in)    :: cond
+      character(len=*), intent(in)    :: what, why
+      logical,          intent(inout) :: ok
+      if (cond) then
+         write(*,'(a)') '   ok:   '//what
+         if (len_trim(why) > 0) write(*,'(a)') '         ('//trim(why)//')'
+      else
+         write(*,'(a)') '   FAIL: '//what;  ok = .false.
+      end if
+   end subroutine expect
 
    subroutine make_fields(z_bed_eq, h_ice_eq, h_ice)
       !! Polar land cap (colat<50°, +500 m) over deep ocean (−4000 m); no
