@@ -132,28 +132,14 @@ interrupt it once the build is done, or build the targets listed in `TESTS` and
 #SBATCH --account=<project> --partition=smp --qos=12h --time=01:00:00
 #SBATCH --cpus-per-task=32 --mem=60G
 source ~/.bash_profile
-export OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK OMP_STACKSIZE=256M
-ulimit -s unlimited
+export OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK
 make openmp=1 check; make openmp=1 check-slow
 ```
 
-**Known state.** With ifx `-Ofast` on albedo, every test passes except check
-(3b) of `test_assembly`, whose round-off tolerance of $10^{-12}$ is exceeded by
-$2.8\times10^{-12}$; `check-slow` passes. A GitHub workflow builds the model
+**Known state.** With ifx `-Ofast` on albedo, all 49 tests of `make check` and
+all 9 runs of `make check-slow` pass, with the default stack settings. A GitHub workflow builds the model
 with gfortran on Ubuntu and runs `make check` on every push and pull request to
 `main`.
-
-## Large runs: stack size
-
-The 3-D viscosity path holds several whole-grid arrays per thread. At
-$\ell_\max \ge 128$ this overruns the default 8 MB stack, and the run dies with
-a segmentation fault that looks like a code bug. Set, in the shell or job
-script that starts `vilma.x`:
-
-```bash
-ulimit -s unlimited
-export OMP_STACKSIZE=256M
-```
 
 ## Configuration: `&vilma` and `&ctl`
 
