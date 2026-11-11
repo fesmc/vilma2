@@ -44,7 +44,8 @@ module vilma_rotation
    !! and on the layer table only when no file is read.
    use vilma_precision,       only: wp
    use vilma_constants,       only: pi, grav_G
-   use vilma_earth_structure, only: earth_n_layers, earth_gravity_at, earth_model, RHEOL_FLUID
+   use vilma_earth_structure, only: earth_n_layers, earth_gravity_at, earth_model, RHEOL_FLUID, &
+                                    earth_layer_has_memory
    use vilma_radial_fe,       only: radial_operator_load_rhs, radial_operator_tidal_rhs, radial_operator_destroy, radial_operator_solve_vec, radial_operator_assemble, radial_mesh_build, radial_mesh, radial_operator, tidal_love, &
                                  idx_u, idx_v, idx_f, ndof_of
    use vilma_viscoelastic,    only: NLAM, ve_strain_constants, dissipative_rhs, &
@@ -328,13 +329,13 @@ contains
    end subroutine rotation_update
 
    subroutine rotation_destroy(self)
+      !! Free the channels and return the state to its pristine (default-initialised) one:
+      !! not enabled, no memory, the default constants.
       type(rotation_state), intent(inout) :: self
+      type(rotation_state) :: fresh
       call channel_destroy(self%load_ch)
       call channel_destroy(self%tidal_ch)
-      self%m = (0.0_wp, 0.0_wp);  self%time = 0.0_wp
-      self%k_s = 0.0_wp;  self%kTe = 0.0_wp;  self%hTe = 0.0_wp
-      if (allocated(self%step0%load_mem)) deallocate(self%step0%load_mem, self%step0%tidal_mem)
-      if (allocated(self%saved%load_mem)) deallocate(self%saved%load_mem, self%saved%tidal_mem)
+      self = fresh
    end subroutine rotation_destroy
 
    ! === stepping with the solid Earth ========================================
@@ -561,7 +562,7 @@ contains
          lay = mesh%elem_layer(e)
          self%mu(e) = earth%layers(lay)%mu
          eta_e      = earth%layers(lay)%eta
-         if (eta_e > 0.0_wp) then
+         if (earth_layer_has_memory(earth%layers(lay))) then   ! the one classifier
             self%MkPerDt(e) = self%mu(e)/eta_e
          else
             self%MkPerDt(e) = 0.0_wp

@@ -11,7 +11,7 @@ program test_relax
    use vilma_precision,       only: wp
    use vilma_constants,       only: pi, grav_G, sec_per_year
    use vilma_earth_structure, only: earth_model, earth_layer, RHEOL_MAXWELL
-   use vilma_radial_fe,       only: radial_operator_destroy, radial_operator_solve, radial_operator_assemble, radial_mesh_build, radial_mesh, radial_operator, radial_fe_finalize
+   use vilma_radial_fe,       only: radial_operator_destroy, radial_operator_solve, radial_operator_assemble, radial_mesh_build, radial_mesh, radial_operator
    use vilma_viscoelastic,    only: ve_destroy, ve_step, ve_init, ve_degree
    implicit none
 
@@ -65,9 +65,8 @@ program test_relax
       write(*,'(a)') ' PASS: Maxwell relaxation runs elastic -> fluid, t_relax ~ eta'
    else
       write(*,'(a)') ' FAIL: viscoelastic relaxation checks did not all pass'
-      call radial_fe_finalize();  error stop 1
+      error stop 1
    end if
-   call radial_fe_finalize()
 
 contains
 

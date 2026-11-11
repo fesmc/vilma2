@@ -18,13 +18,19 @@ module vilma_response
    !!
    !!     N(a) = −F(a)/g .
    !!
-   !! This uses only U and F — NOT the horizontal Love number l, whose sign /
-   !! normalization is still being calibrated — so the SLE is not blocked by
-   !! that open item. Both U and the −F/g geoid are pinned by the validated
-   !! rigid (U→0, 1+k→1) and fluid (U→−(2j+1)/3·φ^L/g, 1+k→0) limits.
-   use vilma_precision,       only: wp
+   !! The sea-level equation uses only U and F, both pinned by the validated rigid
+   !! (U→0, 1+k→1) and fluid (U→−(2j+1)/3·φ^L/g, 1+k→0) limits. The horizontal
+   !! displacement V(a) (response_horizontal; Love number l = g V(a)/φ^L, validated
+   !! against the benchmark l, doc/formulation.md) is a diagnostic beside them.
+   !!
+   !! Degree 1 is in one of two frames, chosen before init by `deg1_cm`: the
+   !! centre-of-mass frame (response_deg1_to_cm applied to every solved degree-1
+   !! state: U, V and F together), or the solver's own w'd = 0 gauge for the
+   !! displacement with the degree-1 geoid set to zero ("cf", see
+   !! response_init_elastic).
+   use vilma_precision,       only: wp, i8
    use vilma_constants,       only: pi, grav_G
-   use vilma_earth_structure, only: earth_gravity_at, earth_model, RHEOL_MAXWELL
+   use vilma_earth_structure, only: earth_gravity_at, earth_model, earth_layer_has_memory
    use vilma_radial_fe,       only: radial_operator_load_rhs, radial_operator_solve_vec, radial_operator_destroy, radial_operator_solve, radial_operator_assemble, radial_mesh_build, radial_mesh, radial_operator, &
                                  idx_u, idx_v, idx_f, ndof_of, &
                                  toroidal_operator, toroidal_operator_assemble, toroidal_operator_solve_vec, &
@@ -34,7 +40,8 @@ module vilma_response
                                  SCHEME_FE, SCHEME_TRAP, &
                                  NLAM_TOR, ve_strain_constants_tor, dissipative_rhs_tor, &
                                  advance_memory_tor, strain_coeffs_tor
-   use vilma_sht,             only: sht_grid, sht_grid_lmidx, sht_grid_synthesis, sht_grid_analysis
+   use vilma_sht,             only: sht_grid, sht_grid_lmidx, sht_grid_synthesis, sht_grid_analysis, &
+                                    sht_grid_area_mean
    use vilma_tensor_sh,       only: tensor_sh, TLAM_SPH, tensor_sh_init, tensor_sh_thread_cfg, tensor_sh_synth, tensor_sh_analysis, tensor_sh_destroy
    use, intrinsic :: iso_c_binding, only: c_ptr
    implicit none
@@ -53,6 +60,13 @@ module vilma_response
    public :: response_radial_rate
 
    integer, parameter :: RESP_NULL = 0, RESP_ELASTIC = 1, RESP_VE = 2
+
+   ! The magnitude bits of a real(wp): the IEEE pattern with the sign cleared. As
+   ! integers they order exactly as |x| does, with Inf above every finite value
+   ! and every NaN above Inf. The memory norms take their maximum over these
+   ! integers, not over the reals: max() of reals may drop a NaN, and the
+   ! optimised builds (-Ofast, -ffast-math) assume there is none.
+   integer(i8), parameter :: ABS_BITS = int(z'7FFFFFFFFFFFFFFF', i8)
 
 
    type :: response
@@ -83,7 +97,9 @@ module vilma_response
       !! The per-step response is affine: solving the unit load once per degree
       !! gives the elastic gains gu(l), gn(l) AND the nodal field used to update
       !! memory; begin_step solves the frozen memory forcing per (l,m) for the
-      !! drift; apply combines them; commit_step advances the memory.
+      !! drift; apply combines them; the memory is then advanced with the converged
+      !! load (advance_endpoint under the sea-level equation, commit_step for a
+      !! held load).
       integer  :: lmax = 0, nr = 0, ne = 0, ndof = 0, nlm = 0
       real(wp) :: g = 0.0_wp, a = 0.0_wp, dt = 0.0_wp, time = 0.0_wp
       !! begin_step skips the drift solve for a coefficient whose Maxwell memory is
@@ -134,10 +150,12 @@ module vilma_response
       ! a surface load never forces it directly (eq 84 has no δW term), so it has
       ! no elastic gain and no xWn.
       integer  :: nlam = NLAM                           !! memory channels carried: NLAM or NLAM+NLAM_TOR
-      ! Carry the toroidal field when a 3-D element appears (default). .false.
-      ! reproduces the spheroidal-only model exactly — the control for measuring
-      ! what the toroidal coupling does (design-toroidal.md V7), not a speed knob.
-      logical  :: toroidal = .true.
+      ! Carry the toroidal field once a 3-D element appears. Off by default, as
+      ! l_toroidal in the namelist: the spheroidal-only model, which is faster
+      ! (4 memory channels and transforms, not 6). .true. adds the toroidal
+      ! coupling (design-toroidal.md V7). Set it before the lateral viscosity is
+      ! enabled.
+      logical  :: toroidal = .false.
       type(toroidal_operator), allocatable :: tops(:)   !! (1:lmax) per-degree W operator
       real(wp), allocatable :: nrmt(:,:)                !! (NLAM_TOR,1:lmax) Z³,Z⁴ norms
       real(wp), allocatable :: sat(:,:,:), sbt(:,:,:), sct(:,:,:)  !! (2,NLAM_TOR,1:lmax)
@@ -168,15 +186,20 @@ module vilma_response
       complex(wp), allocatable :: dUa(:), dFa(:), dVa(:) !! (nk) surface drift (U,F,V)
       real(wp), allocatable :: dUn_re(:,:), dUn_im(:,:) !! (nr,nk) nodal drift U from τ_n (ε_n)
       real(wp), allocatable :: dVn_re(:,:), dVn_im(:,:) !! (nr,nk) nodal drift V from τ_n
-      ! Memory time-integration scheme (see vilma_viscoelastic). FE (default) advances
-      ! the memory once in commit_step from the report strain — the historical path,
-      ! bit-identical. TRAP (2nd-order) is implicit in the end-of-step strain, so
-      ! commit_step Picard-iterates the endpoint (frozen load: σ held at the converged
-      ! value) — re-solving the drift against the trial τ_{n+1} each pass. §3c part 3a.
+      ! Memory time-integration scheme: SCHEME_FE (default) or SCHEME_TRAP, the two
+      ! the field driver implements (vilma_viscoelastic has more, per degree). FE
+      ! advances the memory once from the report strain. TRAP (2nd-order) is implicit
+      ! in the end-of-step strain, so the endpoint is iterated, re-solving the drift
+      ! against the trial τ_{n+1} each pass, in one of two ways:
+      !   with the sea-level equation (the model): prepare_endpoint / advance_endpoint /
+      !     finalize_step, σ co-converging, capped by the SLE (sle%max_mem_iter);
+      !   with a held load (response_commit_step, a response driven on its own, as
+      !     the benchmark tests do): a Picard iteration capped by max_couple_iter.
+      ! Both stop when the surface drift changes by less than couple_tol (relative).
       integer  :: scheme = SCHEME_FE
-      integer  :: max_couple_iter = 1        !! coupling-iteration cap for implicit schemes
+      integer  :: max_couple_iter = 1        !! iteration cap of response_commit_step (held load) only
       real(wp) :: couple_tol = 1.0e-6_wp     !! relative surface-drift change to stop iterating
-      integer  :: couple_iters_last = 0      !! iterations taken last commit (diagnostic)
+      integer  :: couple_iters_last = 0      !! iterations taken by the last step (diagnostic)
       ! PROFILE: phase wall-clock [s] + call counts, cumulative. The host (vilma_drive)
       ! zeroes these at the start of the transient so the reported per-step breakdown
       ! covers the transient only. t_drift = solve_drift (per-degree band LU);
@@ -216,6 +239,12 @@ module vilma_response
       !! a function of the radial structure and the field handed in last, never of the
       !! fields enabled before it (the 1-D pre-spin-up enables a mean field, then the real one).
       real(wp), allocatable :: MkPerDt_rad(:)             !! (ne)
+      !! The lateral mean rate per element once a lateral viscosity is enabled: the
+      !! rate of the area-weighted mean of log10 η over the sphere (the geometric
+      !! mean of η). A 1-D-effective element advances with it (it is its MkPerDt);
+      !! for a genuinely 3-D element it is the radial profile a radially symmetric
+      !! consumer sees (response_radial_rate).
+      real(wp), allocatable :: MkPerDt_mean(:)            !! (ne)
       ! Controller state snapshots (§3c controller, lazily allocated): buffer A holds
       ! the entering state τ_n that a rejected/fine step restores to; buffer B holds the
       ! coarse τ_{n+1} for the step-doubling error estimate. Distinct from Are0 (which
@@ -517,9 +546,9 @@ contains
    end subroutine elastic_response_apply
 
    subroutine elastic_response_horizontal(self, sht, sigma_lm, v_lm)
-      !! Spheroidal multiply: v_lm = vgain(l)·σ_lm (degree-1 left as solved, like
-      !! ugain — the horizontal displacement is in the CE-like gauge, not the geoid
-      !! CM frame). Synthesize ∇₁(Σ v_lm Y_lm) for (u_θ, u_φ).
+      !! Spheroidal multiply: v_lm = vgain(l)·σ_lm. Degree 1 is in the frame of
+      !! ugain(1): the CM frame with deg1_cm, else the solver's w'd = 0 gauge.
+      !! Synthesize ∇₁(Σ v_lm Y_lm) for (u_θ, u_φ).
       type(response), intent(in)    :: self
       type(sht_grid),          intent(in)    :: sht
       complex(wp),             intent(in)    :: sigma_lm(:)
@@ -574,16 +603,13 @@ contains
          lay = mesh%elem_layer(e)
          self%mu(e) = earth%layers(lay)%mu
          eta_e      = earth%layers(lay)%eta
-         ! Only genuinely Maxwell layers carry memory. Classify by RHEOLOGY, not by
-         ! eta>0: the elastic lithosphere is stored with eta=huge, which would give a
-         ! tiny-but-NONZERO rate μ/huge≈3e-298 — close enough to be inert in the 1-D
-         ! advance (Mk rounds away) but not exactly 0, which muddies the "no memory"
-         ! test. Setting it (and the inviscid core) to exactly 0 makes MkPerDt==0 the
-         ! universal "this element has no Maxwell memory" predicate, used to skip
-         ! elastic/fluid elements in the advance and to leave them untouched by a
-         ! loaded 3D viscosity field. (Observably identical: a μ/huge rate only ever
-         ! produced ~1e-267 memory, below ULP in every force/uplift.)
-         if (earth%layers(lay)%rheology == RHEOL_MAXWELL) then
+         ! Only Maxwell layers carry memory (earth_layer_has_memory: the rheology
+         ! flag, not eta > 0 — an elastic lithosphere stored with eta = huge would
+         ! have the tiny but nonzero rate μ/huge). Every other element gets a rate of
+         ! exactly 0, which makes MkPerDt_rad == 0 the predicate "this element has no
+         ! Maxwell memory" inside the response: such elements are skipped in the
+         ! advance and left untouched by a loaded 3-D viscosity field.
+         if (earth_layer_has_memory(earth%layers(lay))) then
             self%Mk(e)      = self%mu(e)*dt/eta_e     ! M=μΔt/η; set_dt rescales from MkPerDt
             self%MkPerDt(e) = self%mu(e)/eta_e        ! Δt-invariant rate μ/η
          else
@@ -603,10 +629,10 @@ contains
       allocate(self%ops(self%lmax), x(self%ndof))
 
       ! degree 0: monopole geoid, no deformation, no memory (no operator).
-      ! degree 1: geocenter motion — carried in the CM frame. The sparse KKT
-      ! border in radial_operator removes the rigid-translation null space
-      ! (wᵀd = 0, Blewitt 2003), so j=1 assembles and steps like any other
-      ! degree; it joins the l-loop below.
+      ! degree 1: the sparse KKT border in radial_operator removes the
+      ! rigid-translation null space (wᵀd = 0, Blewitt 2003), so j=1 assembles
+      ! and steps like any other degree; it joins the l-loop below, and with
+      ! deg1_cm its solved state is moved to the CM frame (geocenter motion).
       self%gu(0) = 0.0_wp
       self%gn(0) = 4.0_wp*pi*grav_G*self%a/self%g
       self%gv(0) = 0.0_wp                       ! no horizontal at degree 0
@@ -627,10 +653,11 @@ contains
          end do
       end do
 
-      ! degree-1 geoid frame (see response_init_elastic): the geoid is referenced
-      ! to the CM frame ⇒ N₁≡0. Zero the degree-1 geoid gain here; the degree-1
-      ! relaxation drift is likewise zeroed in begin_step. Displacement (gu(1),
-      ! xUn/xVn) is left as solved (CE-like geocenter, h₁≈0).
+      ! degree-1 frame "cf" (see response_init_elastic): the displacement (gu(1),
+      ! xUn/xVn) stays in the solver's w'd = 0 gauge and the geoid is referenced to
+      ! CM ⇒ N₁≡0, so the degree-1 geoid gain is zeroed here and the degree-1
+      ! geoid drift in solve_drift. With deg1_cm the projection above has already
+      ! made F(a) = 0, and nothing is overridden.
       if (self%lmax >= 1 .and. .not. self%deg1_cm) self%gn(1) = 0.0_wp
 
       ! Degree-grouped coefficient map: slot k = 1..nk over (l>=1, m=0..min(l,mmax)),
@@ -690,6 +717,8 @@ contains
       !! commit re-uses the same solver against the trial τ_{n+1} (see solve_drift).
       type(response), intent(inout) :: self
       type(sht_grid),     intent(in)    :: sht
+      if (self%scheme /= SCHEME_FE .and. self%scheme /= SCHEME_TRAP) &
+         error stop 'vilma_response: scheme must be SCHEME_FE or SCHEME_TRAP'
       if (self%nlam > NLAM) then
          call solve_drift(self, sht, self%dUn_re, self%dUn_im, self%dVn_re, self%dVn_im, &
                           self%dWn_re, self%dWn_im)
@@ -729,8 +758,8 @@ contains
       nb = self%nlam*self%ne
       !$omp parallel do default(shared) private(k) schedule(static)
       do k = 1, self%nk
-         self%mnorm(k) = absmax6(nb, self%Are(1,1,k), self%Bre(1,1,k), self%Cre(1,1,k), &
-                                 self%Aim(1,1,k), self%Bim(1,1,k), self%Cim(1,1,k))
+         self%mnorm(k) = transfer(absmax6(nb, self%Are(1,1,k), self%Bre(1,1,k), self%Cre(1,1,k), &
+                                          self%Aim(1,1,k), self%Bim(1,1,k), self%Cim(1,1,k)), 1.0_wp)
       end do
       !$omp end parallel do
       ! Skip the drift solve for coefficients with negligible memory (their drift is
@@ -745,9 +774,9 @@ contains
       ! ops(l) is touched by a single thread. Safe because EVERY degree solves
       ! through the re-entrant banded LU (vilma_band) on threadprivate scratch,
       ! including degree 1, whose dense KKT border merely widens the band (see
-      ! vilma_radial_fe). There is no LIS solver any more, so no degree has to be
-      ! serialized for re-entrancy. The scratch vectors are per-thread; dynamic schedule balances the rising work
-      ! per degree (l+1 orders). Inactive (ordinary serial loop) unless openmp=1.
+      ! vilma_radial_fe). The scratch vectors are per-thread; dynamic schedule
+      ! balances the rising work per degree (l+1 orders). Inactive (ordinary serial
+      ! loop) unless openmp=1.
       !$omp parallel default(shared) private(l, k, node, fre, fim, xre, xim, gre, gim, wre, wim)
       allocate(fre(self%ndof), fim(self%ndof), xre(self%ndof), xim(self%ndof))
       if (tor) allocate(gre(self%nr), gim(self%nr), wre(self%nr), wim(self%nr))
@@ -815,9 +844,11 @@ contains
       self%t_drift = self%t_drift + real(pc1-pc0,wp)/prate;  self%n_drift = self%n_drift + 1
    end subroutine solve_drift
 
-   pure real(wp) function absmax6(n, x1, x2, x3, x4, x5, x6) result(amax)
+   pure integer(i8) function absmax6(n, x1, x2, x3, x4, x5, x6) result(amax)
       !! max|x| over six contiguous blocks of n values each (0 for n = 0): the six
-      !! memory arrays of one (l,m) slot. Exact, so the scan order cannot move a bit.
+      !! memory arrays of one (l,m) slot, returned as magnitude bits (ABS_BITS;
+      !! transfer(amax, 1.0_wp) is the value). Exact, so the scan order cannot move
+      !! a bit, and a NaN or Inf anywhere in the blocks gives a non-finite result.
       !! One loop over all six, not six loops: at low thread counts the scan is
       !! latency-bound, and six concurrent streams draw more bandwidth than one
       !! at a time. Callers pass each block's first element, A(1,1,k), not the
@@ -825,26 +856,34 @@ contains
       integer,  intent(in) :: n
       real(wp), intent(in) :: x1(n), x2(n), x3(n), x4(n), x5(n), x6(n)
       integer :: i
-      amax = 0.0_wp
+      amax = 0_i8
       do i = 1, n
-         amax = max(amax, abs(x1(i)), abs(x2(i)), abs(x3(i)), &
-                          abs(x4(i)), abs(x5(i)), abs(x6(i)))
+         amax = max(amax, absbits(x1(i)), absbits(x2(i)), absbits(x3(i)), &
+                          absbits(x4(i)), absbits(x5(i)), absbits(x6(i)))
       end do
    end function absmax6
 
-   pure real(wp) function absdiffmax6(n, x1, x2, x3, x4, x5, x6, y1, y2, y3, y4, y5, y6) &
+   pure integer(i8) function absdiffmax6(n, x1, x2, x3, x4, x5, x6, y1, y2, y3, y4, y5, y6) &
          result(dmax)
-      !! max|x − y| over six pairs of contiguous blocks, as absmax6.
+      !! max|x − y| over six pairs of contiguous blocks, as absmax6 (a non-finite
+      !! value in either gives a non-finite difference).
       integer,  intent(in) :: n
       real(wp), intent(in) :: x1(n), x2(n), x3(n), x4(n), x5(n), x6(n)
       real(wp), intent(in) :: y1(n), y2(n), y3(n), y4(n), y5(n), y6(n)
       integer :: i
-      dmax = 0.0_wp
+      dmax = 0_i8
       do i = 1, n
-         dmax = max(dmax, abs(x1(i) - y1(i)), abs(x2(i) - y2(i)), abs(x3(i) - y3(i)), &
-                          abs(x4(i) - y4(i)), abs(x5(i) - y5(i)), abs(x6(i) - y6(i)))
+         dmax = max(dmax, absbits(x1(i) - y1(i)), absbits(x2(i) - y2(i)), &
+                          absbits(x3(i) - y3(i)), absbits(x4(i) - y4(i)), &
+                          absbits(x5(i) - y5(i)), absbits(x6(i) - y6(i)))
       end do
    end function absdiffmax6
+
+   elemental integer(i8) function absbits(x)
+      !! The magnitude bits of x (see ABS_BITS).
+      real(wp), intent(in) :: x
+      absbits = iand(transfer(x, 0_i8), ABS_BITS)
+   end function absbits
 
    subroutine ve_response_apply(self, sht, sigma_lm, u_lm, n_lm)
       !! Affine response at the frozen time: u = gu(l)·σ + drift_U,
@@ -861,7 +900,7 @@ contains
       lm0 = sht_grid_lmidx(sht, 0, 0)
       u_lm(lm0) = self%gu(0)*sigma_lm(lm0)
       n_lm(lm0) = self%gn(0)*sigma_lm(lm0)
-      ! degrees l>=1, in degree-grouped k order (gn(1)=0 and dFa(k)=0 give N₁≡0)
+      ! degrees l>=1, in degree-grouped k order (in the "cf" frame gn(1)=0 and dFa(k)=0 give N₁≡0)
       do k = 1, self%nk
          l  = self%kdeg(k)
          lm = self%k2lm(k)
@@ -873,8 +912,8 @@ contains
    subroutine ve_response_horizontal(self, sht, sigma_lm, v_lm)
       !! Spheroidal V at the frozen time: v_lm = gv(l)·σ + drift_V. Uses the same
       !! frozen drift (dVa) as the last begin_step, so calling it after a converged
-      !! step gives the horizontal consistent with apply()'s u/N. Degree 1 left as
-      !! solved (CE-like gauge, like u — not the geoid CM frame).
+      !! step gives the horizontal consistent with apply()'s u/N. Degree 1 is in the
+      !! frame of u: the CM frame with deg1_cm, else the solver's w'd = 0 gauge.
       type(response), intent(in)    :: self
       type(sht_grid),     intent(in)    :: sht
       complex(wp),        intent(in)    :: sigma_lm(:)
@@ -1008,14 +1047,16 @@ contains
       !! 1-D/3-D split (VILMA1 mod_visc3d): an element is flagged genuinely 3-D only
       !! when its lateral log10(η) spread exceeds visc3d_tol; that subset (e3d) pays
       !! the pseudo-spectral tensor-SH advance. Every other Maxwell element collapses
-      !! to a scalar effective rate (its lateral MEAN) and advances on the cheap
-      !! degree-diagonal spectral path. A laterally-uniform field therefore flags NO
-      !! element 3-D, so the cost equals the 1-D run (exactly, not just to SHT round-off).
+      !! to a scalar effective rate, that of its lateral mean log10(η) — the mean over
+      !! the sphere, area-weighted (sht_grid_area_mean), not over the grid points, which
+      !! crowd toward the poles — and advances on the cheap degree-diagonal spectral
+      !! path. A laterally-uniform field therefore flags NO element 3-D, so the cost
+      !! equals the 1-D run (exactly, not just to SHT round-off).
       type(response), intent(inout) :: self
       type(sht_grid),     intent(in)    :: sht
       real(wp),           intent(in)    :: pert_elem(:,:,:)   !! (nphi,nlat,ne) log10 η perturbation
-      integer :: e, ne_grid
-      real(wp) :: spread, mean_pert
+      integer :: e
+      real(wp) :: spread
       if (size(pert_elem,1) /= sht%nphi .or. size(pert_elem,2) /= sht%nlat .or. &
           size(pert_elem,3) /= self%ne) &
          error stop 'enable_lateral_visc: pert_elem must be (nphi,nlat,ne)'
@@ -1025,24 +1066,25 @@ contains
       if (allocated(self%e3d))      deallocate(self%e3d)
       allocate(self%MkPerDt3(sht%nphi, sht%nlat, self%ne))
       allocate(self%Mk3(sht%nphi, sht%nlat, self%ne))
-      ne_grid = sht%nphi*sht%nlat
+      if (.not. allocated(self%MkPerDt_mean)) allocate(self%MkPerDt_mean(self%ne))
       ! Build the per-grid rate from the radial MkPerDt_rad (never from a rate an earlier
       ! enable left in MkPerDt), THEN classify and (for 1-D-effective elements) set the
       ! scalar MkPerDt to the lateral-mean rate. Repeated enables then agree bit for bit
       ! with a single one.
       self%MkPerDt = self%MkPerDt_rad
+      self%MkPerDt_mean = self%MkPerDt_rad
       do e = 1, self%ne
          self%MkPerDt3(:,:,e) = self%MkPerDt_rad(e) * 10.0_wp**(-pert_elem(:,:,e))
       end do
       self%active1d = .true.;  self%ne3d = 0
       do e = 1, self%ne
          if (self%MkPerDt_rad(e) == 0.0_wp) cycle         ! elastic/fluid: spectral, memory-free
+         self%MkPerDt_mean(e) = self%MkPerDt_rad(e) * 10.0_wp**(-sht_grid_area_mean(sht, pert_elem(:,:,e)))
          spread = maxval(pert_elem(:,:,e)) - minval(pert_elem(:,:,e))
          if (spread > self%visc3d_tol) then
             self%active1d(e) = .false.;  self%ne3d = self%ne3d + 1   ! genuinely 3-D
          else
-            mean_pert = sum(pert_elem(:,:,e))/real(ne_grid, wp)      ! collapse to scalar
-            self%MkPerDt(e) = self%MkPerDt_rad(e) * 10.0_wp**(-mean_pert)
+            self%MkPerDt(e) = self%MkPerDt_mean(e)                   ! collapse to scalar
          end if
       end do
       self%Mk  = self%MkPerDt * self%dt                   ! rescale 1-D scalar rates
@@ -1180,22 +1222,19 @@ contains
 
    function response_radial_rate(self) result(rate)
       !! The radial profile of the viscosity the response integrates, as the per-element
-      !! Maxwell rate μ/η (ne). A 1-D element gives its scalar rate, which after a
-      !! lateral-viscosity enable is already the lateral geometric mean; a genuinely
-      !! 3-D element gives the lateral geometric mean of its grid rate (the unweighted
-      !! grid mean of log10 η, as the 1-D collapse in enable_lateral_visc takes it).
-      !! Elastic/fluid elements stay 0. This is what a radially symmetric consumer
-      !! (the degree-2 rotation channels) should see.
+      !! Maxwell rate μ/η (ne): the earth model's own without lateral viscosity, else
+      !! the rate of the lateral mean log10 η of each element (MkPerDt_mean: the
+      !! area-weighted mean over the sphere, i.e. the geometric mean of η), for the
+      !! 1-D-effective and the genuinely 3-D elements alike. Elastic/fluid elements
+      !! stay 0. This is what a radially symmetric consumer (the degree-2 rotation
+      !! channels) should see.
       type(response), intent(in) :: self
       real(wp) :: rate(self%ne)
-      integer  :: k, e
-      rate = self%MkPerDt
-      if (.not. self%lat_visc) return
-      do k = 1, self%ne3d
-         e = self%e3d(k)
-         rate(e) = 10.0_wp**(sum(log10(self%MkPerDt3(:,:,e))) &
-                             / real(size(self%MkPerDt3,1)*size(self%MkPerDt3,2), wp))
-      end do
+      if (self%lat_visc) then
+         rate = self%MkPerDt_mean
+      else
+         rate = self%MkPerDt
+      end if
    end function response_radial_rate
 
    subroutine advance_memory_3d(self, sht, sigma_lm)
@@ -1365,26 +1404,32 @@ contains
       complex(wp), allocatable :: c1a(:,:),  c1b(:,:),  c1c(:,:)    ! ε_{n+1} coeffs
       complex(wp), allocatable :: cdel(:,:)                         ! analysed increment
       real(wp),    allocatable :: dt0(:,:,:), den(:,:,:), de1(:,:,:) ! (nphi,nlat,6)
+      real(wp),    allocatable :: wtau(:,:), weps(:,:)               ! (nphi,nlat) rule weights
       type(c_ptr) :: cfg
       integer  :: e, ei, k, lm, nc
 
       if (self%ne3d == 0) return        ! no genuinely-3-D element ⇒ all handled spectrally
       !$omp parallel default(shared) &
-      !$omp   private(e, ei, k, lm, nc, cm0a, cm0b, cm0c, cna, cnb, cnc, c1a, c1b, c1c, cdel, dt0, den, de1, cfg)
+      !$omp   private(e, ei, k, lm, nc, cm0a, cm0b, cm0c, cna, cnb, cnc, c1a, c1b, c1c, cdel, dt0, den, de1, &
+      !$omp           wtau, weps, cfg)
       allocate(cm0a(self%nlam,sht%nlm), cm0b(self%nlam,sht%nlm), cm0c(self%nlam,sht%nlm))
       allocate(cna(self%nlam,sht%nlm),  cnb(self%nlam,sht%nlm),  cnc(self%nlam,sht%nlm))
       allocate(c1a(self%nlam,sht%nlm),  c1b(self%nlam,sht%nlm),  c1c(self%nlam,sht%nlm))
       allocate(cdel(self%nlam,sht%nlm))
       allocate(dt0(sht%nphi,sht%nlat,6), den(sht%nphi,sht%nlat,6), de1(sht%nphi,sht%nlat,6))
+      allocate(wtau(sht%nphi,sht%nlat), weps(sht%nphi,sht%nlat))
       cfg = tensor_sh_thread_cfg(self%tsh)
       !$omp do schedule(dynamic)
       do ei = 1, self%ne3d                                 ! only the genuinely-3-D elements
          e = self%e3d(ei)
          call gather_tensor_coeffs_trap(self, sigma_lm, e, cm0a, cm0b, cm0c, &
                                         cna, cnb, cnc, c1a, c1b, c1c)
-         call advance_shape_tensor_trap(self, sht, e, cm0a, cna, c1a, dt0, den, de1, cdel, cfg)
-         call advance_shape_tensor_trap(self, sht, e, cm0b, cnb, c1b, dt0, den, de1, cdel, cfg)
-         call advance_shape_tensor_trap(self, sht, e, cm0c, cnc, c1c, dt0, den, de1, cdel, cfg)
+         ! the element's weights of the rule, τ⁺ − τ_n = −wtau·τ_n − weps·(ε_n + ε_{n+1})
+         wtau = self%Mk3(:,:,e)            / (1.0_wp + 0.5_wp*self%Mk3(:,:,e))
+         weps = self%mu(e)*self%Mk3(:,:,e) / (1.0_wp + 0.5_wp*self%Mk3(:,:,e))
+         call advance_shape_tensor_trap(self, sht, cm0a, cna, c1a, wtau, weps, dt0, den, de1, cdel, cfg)
+         call advance_shape_tensor_trap(self, sht, cm0b, cnb, c1b, wtau, weps, dt0, den, de1, cdel, cfg)
+         call advance_shape_tensor_trap(self, sht, cm0c, cnc, c1c, wtau, weps, dt0, den, de1, cdel, cfg)
          do k = 1, self%nk                                 ! write updated memory back
             lm = self%k2lm(k)
             nc = size(cm0a,1)
@@ -1394,7 +1439,7 @@ contains
          end do
       end do
       !$omp end do
-      deallocate(cm0a, cm0b, cm0c, cna, cnb, cnc, c1a, c1b, c1c, cdel, dt0, den, de1)
+      deallocate(cm0a, cm0b, cm0c, cna, cnb, cnc, c1a, c1b, c1c, cdel, dt0, den, de1, wtau, weps)
       !$omp end parallel
    end subroutine advance_memory_3d_trap
 
@@ -1474,7 +1519,7 @@ contains
       end do
    end subroutine gather_tensor_coeffs_trap
 
-   subroutine advance_shape_tensor_trap(self, sht, e, c0, eps_n, eps_1, dt0, den, de1, cdel, cfg)
+   subroutine advance_shape_tensor_trap(self, sht, c0, eps_n, eps_1, wtau, weps, dt0, den, de1, cdel, cfg)
       !! One radial shape-coefficient, trapezoidal: reconstruct τ_n, ε_n, ε_{n+1} on the
       !! grid (six dyadic components) and apply the pointwise Crank–Nicolson update
       !! τ⁺ = [(1−M/2)τ_n − μM(ε_n+ε_{n+1})]/(1+M/2) per component with M=Mk3(:,:,e).
@@ -1482,24 +1527,23 @@ contains
       !!
       !! AS AN INCREMENT, for the reason spelled out in advance_shape_tensor:
       !!       τ⁺ − τ_n = −M·[τ_n + μ(ε_n + ε_{n+1})] / (1 + M/2)
-      !! which is the same expression rearranged, and keeps the transform error
+      !!                = −wtau·τ_n − weps·(ε_n + ε_{n+1}),
+      !! wtau = M/(1+M/2), weps = μM/(1+M/2) on the grid (the caller forms them once
+      !! per element), which is the same expression rearranged, and keeps the transform error
       !! proportional to what the step changes rather than to τ itself. Without it the
       !! stiff elements (M ~ 1e-10 for the 1e30 Pa s lid) advance on round-off.
       type(response), intent(in)    :: self
       type(sht_grid),     intent(in)    :: sht
-      integer,            intent(in)    :: e
       complex(wp),        intent(inout) :: c0(:,:)
       complex(wp),        intent(in)    :: eps_n(:,:), eps_1(:,:)
+      real(wp),           intent(in)    :: wtau(:,:), weps(:,:)
       real(wp),           intent(inout) :: dt0(:,:,:), den(:,:,:), de1(:,:,:)
       complex(wp),        intent(inout) :: cdel(:,:)
       type(c_ptr),        intent(in)    :: cfg
-      real(wp), dimension(size(dt0,1),size(dt0,2)) :: wtau, weps
       integer  :: p
       call tensor_sh_synth(self%tsh, sht, c0,    dt0, cfg)
       call tensor_sh_synth(self%tsh, sht, eps_n, den, cfg)
       call tensor_sh_synth(self%tsh, sht, eps_1, de1, cfg)
-      wtau = self%Mk3(:,:,e)            / (1.0_wp + 0.5_wp*self%Mk3(:,:,e))
-      weps = self%mu(e)*self%Mk3(:,:,e) / (1.0_wp + 0.5_wp*self%Mk3(:,:,e))
       do p = 1, 6
          dt0(:,:,p) = -wtau*dt0(:,:,p) - weps*(den(:,:,p) + de1(:,:,p))
       end do
@@ -1787,27 +1831,31 @@ contains
    subroutine response_coarse_fine_error(self, err_inf, tau_inf)
       !! After the fine path, return the coarse↔fine memory difference ‖τ_fine−τ_coarse‖∞
       !! (buffer B is τ_coarse, self%Are… is τ_fine) and the memory magnitude ‖τ_fine‖∞,
-      !! for the controller's scaled local-error estimate.
+      !! for the controller's scaled local-error estimate. A NaN or Inf anywhere in
+      !! the memory comes back as a non-finite norm (as response_memory_norm), which
+      !! is_finite (vilma_precision) rejects.
       type(response), intent(in)  :: self
       real(wp),           intent(out) :: err_inf, tau_inf
-      integer  :: k, nb
+      integer(i8) :: ebits, tbits
+      integer     :: k, nb
       ! Explicit threaded loop for the same reason response_memory_norm uses one:
       ! the maxval(abs(A - B)) form this replaced built TWELVE full (NLAM,ne,nk)
       ! heap temporaries per call, one per term, and ran serially. Each slot block
       ! is scanned flat (see solve_drift).
       nb = self%nlam*self%ne
-      err_inf = 0.0_wp;  tau_inf = 0.0_wp
+      ebits = 0_i8;  tbits = 0_i8
       !$omp parallel do default(shared) private(k) schedule(static) &
-      !$omp   reduction(max:err_inf,tau_inf)
+      !$omp   reduction(max:ebits,tbits)
       do k = 1, self%nk
-         err_inf = max(err_inf, absdiffmax6(nb, &
-                       self%Are(1,1,k), self%Aim(1,1,k), self%Bre(1,1,k), &
-                       self%Bim(1,1,k), self%Cre(1,1,k), self%Cim(1,1,k), &
-                       self%Are_c(1,1,k), self%Aim_c(1,1,k), self%Bre_c(1,1,k), &
-                       self%Bim_c(1,1,k), self%Cre_c(1,1,k), self%Cim_c(1,1,k)))
-         tau_inf = max(tau_inf, absmax6(nb, self%Are(1,1,k), self%Aim(1,1,k), &
-                       self%Bre(1,1,k), self%Bim(1,1,k), self%Cre(1,1,k), self%Cim(1,1,k)))
+         ebits = max(ebits, absdiffmax6(nb, &
+                     self%Are(1,1,k), self%Aim(1,1,k), self%Bre(1,1,k), &
+                     self%Bim(1,1,k), self%Cre(1,1,k), self%Cim(1,1,k), &
+                     self%Are_c(1,1,k), self%Aim_c(1,1,k), self%Bre_c(1,1,k), &
+                     self%Bim_c(1,1,k), self%Cre_c(1,1,k), self%Cim_c(1,1,k)))
+         tbits = max(tbits, absmax6(nb, self%Are(1,1,k), self%Aim(1,1,k), &
+                     self%Bre(1,1,k), self%Bim(1,1,k), self%Cre(1,1,k), self%Cim(1,1,k)))
       end do
+      err_inf = transfer(ebits, 1.0_wp);  tau_inf = transfer(tbits, 1.0_wp)
    end subroutine response_coarse_fine_error
 
    real(wp) function response_max_rate(self) result(rate)
@@ -1824,20 +1872,25 @@ contains
 
    real(wp) function response_memory_norm(self) result(nrm)
       !! ∞-norm of the viscoelastic memory stress over all coefficients/elements —
-      !! the reactive-guard observable for the explicit stepper (a non-finite or
-      !! runaway value flags an unstable sub-step). Explicit loop to avoid the
-      !! abs(slice) heap temporaries maxval would create on these (NLAM,ne,nk) arrays.
+      !! the reactive-guard observable for the explicit stepper. If any memory value
+      !! is NaN or Inf the result is non-finite, in every build: test it with
+      !! is_finite (vilma_precision), not with a comparison, which -Ofast may fold.
+      !! Explicit loop to avoid the abs(slice) heap temporaries maxval would create
+      !! on these (nlam,ne,nk) arrays.
       type(response), intent(in) :: self
-      integer  :: k, nb
+      integer(i8) :: nbits
+      integer     :: k, nb
       nrm = 0.0_wp
       if (.not. allocated(self%Are)) return
       nb = self%nlam*self%ne                   ! slot blocks scanned flat (see solve_drift)
-      !$omp parallel do default(shared) private(k) reduction(max:nrm) schedule(static)
+      nbits = 0_i8
+      !$omp parallel do default(shared) private(k) reduction(max:nbits) schedule(static)
       do k = 1, self%nk
-         nrm = max(nrm, absmax6(nb, self%Are(1,1,k), self%Aim(1,1,k), self%Bre(1,1,k), &
-                                    self%Bim(1,1,k), self%Cre(1,1,k), self%Cim(1,1,k)))
+         nbits = max(nbits, absmax6(nb, self%Are(1,1,k), self%Aim(1,1,k), self%Bre(1,1,k), &
+                                        self%Bim(1,1,k), self%Cre(1,1,k), self%Cim(1,1,k)))
       end do
       !$omp end parallel do
+      nrm = transfer(nbits, 1.0_wp)
    end function response_memory_norm
 
    subroutine ensure_commit_scratch(self)
@@ -1935,6 +1988,7 @@ contains
       if (allocated(self%sigma_next)) deallocate(self%sigma_next)
       if (allocated(self%MkPerDt))    deallocate(self%MkPerDt)
       if (allocated(self%MkPerDt_rad)) deallocate(self%MkPerDt_rad)
+      if (allocated(self%MkPerDt_mean)) deallocate(self%MkPerDt_mean)
       if (allocated(self%Are_s))      deallocate(self%Are_s, self%Aim_s, self%Bre_s, &
                                                  self%Bim_s, self%Cre_s, self%Cim_s)
       if (allocated(self%Are_c))      deallocate(self%Are_c, self%Aim_c, self%Bre_c, &

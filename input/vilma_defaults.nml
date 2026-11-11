@@ -88,8 +88,7 @@
     mesh_dr_scale = 1.0                     ! factor on every mesh_dr (0.5 halves the element size)
 
     ! --- viscoelastic memory scheme (vilma_response) ---------------------
-    scheme          = "fe"     ! fe | etd1 | trap | be  (fe = 1st-order explicit, default; trap = 2nd-order adaptive)
-    max_couple_iter = 20       ! SLE<->memory co-convergence cap (implicit schemes)
+    scheme          = "fe"     ! fe | trap  (fe = 1st-order explicit, default; trap = 2nd-order adaptive)
 
     ! --- response kind selector (vilma_response) -------------------------
     earth_response  = "ve"     ! ve | elastic | null  (ve = full Martinec FE, default)
@@ -159,7 +158,10 @@
     f_visc_sd      = 0.0     ! perturbation in units of sigma (0 = mean field)
     f_visc_rel     = 0.1     ! relative sigma = f_visc_rel*log10(eta) when no sd var
     visc_shift_file = ""     ! "" = none; else dlog10_visc(lon, lat, r) [dex, r radius in m] added to the
-                             ! 3-D field after f_visc_sd, before the clamp and the lid rule (needs l_visc_3d)
+                             ! 3-D field after f_visc_sd, before the clamp and the lid rule (needs l_visc_3d).
+                             ! The shift is zero at radii outside the file's r range (a file for the upper
+                             ! mantle shifts nothing below it); inside, it is interpolated linearly in r.
+    ! The viscosity, sigma and shift fields must be free of NaN, Inf and fill values: the run stops on one.
     visc_log10_min = 19.5    ! floor on log10(eta) after read + perturbation [dex]
     visc_log10_max = 30.0    ! ceiling on log10(eta) after read + perturbation [dex]
     visc3d_lid_depth    = 0.0   ! [m] 0 = off. Maxwell elements lying wholly above this depth whose

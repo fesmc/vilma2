@@ -24,7 +24,6 @@ program test_benchmark_lvz
    use vilma_precision,       only: wp
    use vilma_constants,       only: kyr
    use vilma_earth_structure, only: earth_model, build_M3L70V01
-   use vilma_radial_fe,       only: radial_fe_finalize
    use vilma_response,        only: response, response_init_elastic, response_init_ve, response_init_null, &
                                  response_apply, response_begin_step, response_commit_step, &
                                  response_enable_lateral_visc, response_destroy
@@ -82,10 +81,10 @@ program test_benchmark_lvz
       write(*,'(a)') ' PASS: lateral-viscosity deformation matches Weerdesteijn 2023'
    else
       write(*,'(a)') ' FAIL: rung-6b LVZ benchmark out of tolerance'
-      call sht_grid_destroy(sht);  call radial_fe_finalize()
+      call sht_grid_destroy(sht)
       error stop 1
    end if
-   call sht_grid_destroy(sht);  call radial_fe_finalize()
+   call sht_grid_destroy(sht)
 
 contains
 
@@ -125,6 +124,7 @@ contains
                end do
             end if
          end do
+         ve%toroidal = .true.
          call response_enable_lateral_visc(ve, sht, pert)
          deallocate(pert)
       end if

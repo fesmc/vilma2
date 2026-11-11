@@ -14,7 +14,6 @@ program test_density
    use vilma_precision, only: wp
    use vilma_constants, only: pi
    use vilma_params,    only: vilma_param_class, vilma_par_load
-   use vilma_radial_fe, only: radial_fe_finalize
    use vilma_sht,       only: sht_grid, sht_grid_init, sht_grid_destroy, sht_grid_surface_integral
    use vilma_coupling,  only: solid_earth, solid_earth_init, solid_earth_update, solid_earth_finalize
    implicit none
@@ -43,10 +42,8 @@ program test_density
       write(*,'(a)') ' PASS: densities are parameters; defaults are 917, 1000'
    else
       write(*,'(a)') ' FAIL: density parameters'
-      call radial_fe_finalize()
       error stop 1
    end if
-   call radial_fe_finalize()
 
 contains
 

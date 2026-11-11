@@ -13,7 +13,7 @@ program test_love
    use vilma_earth_structure, only: earth_model, earth_layer, build_M3L70V01, &
                                  RHEOL_ELASTIC, RHEOL_FLUID
    use vilma_radial_fe,       only: radial_operator_solve_vec, radial_operator_load_rhs, radial_operator_solve, radial_operator_assemble, radial_mesh_build, radial_mesh, radial_operator, loading_love, &
-                                 radial_fe_finalize, build_dense_operator, &
+                                 build_dense_operator, &
                                  uniq_weight, idx_u, idx_v, idx_f, ndof_of
    implicit none
 
@@ -74,10 +74,8 @@ program test_love
       write(*,'(a)') '       fluid and rigid Love-number limits'
    else
       write(*,'(a)') ' FAIL: Love-number validation did not all pass'
-      call radial_fe_finalize()
       error stop 1
    end if
-   call radial_fe_finalize()
 
 contains
 
@@ -167,7 +165,7 @@ contains
       allocate(d(nd))
       call radial_operator_solve_vec(op, b, d, iters=it, resid=rr)
 
-      ! (i) non-singular: the equilibrated GMRES residual is at solver tolerance.
+      ! (i) non-singular: the residual of the banded solve is at round-off.
       if (rr > 1.0e-8_wp) then
          write(*,'(a,es10.2)') '      FAIL: j=1 solve did not converge, resid = ', rr
          ok = .false.

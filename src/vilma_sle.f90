@@ -59,6 +59,15 @@ module vilma_sle
       integer  :: n_coast_flip = 0      !! cells that changed ocean/land state in the last pass
                                         !! (0 = the coastline converged; see sle_solve)
       real(wp) :: resid        = 0.0_wp !! last inner max|ΔS| [m]
+      real(wp) :: resid_rel    = 0.0_wp !! the same over max|S|: the quantity tol is a bound on
+      !! Convergence of the three nested iterations, as left by the LAST pass of each: did
+      !! it end at its cap rather than at its criterion? The solve returns the last iterate
+      !! either way, so these are the only sign that it is not the fixed point.
+      logical  :: inner_capped = .false. !! inner loop ended at n_inner with resid_rel > tol
+      logical  :: coast_capped = .false. !! outer loop ended at n_outer with n_coast_flip > 0
+      logical  :: mem_capped   = .false. !! SLE<->memory loop ended at max_mem_iter unconverged
+      !! Ocean-mass-conservation error. Δφ is built to close the balance, so this is zero
+      !! to round-off by construction and says nothing about convergence.
       real(wp) :: mass_resid   = 0.0_wp !! relative ocean-mass-conservation error
       real(wp) :: ocean_frac   = 0.0_wp !! ∫C dΩ / 4π
       real(wp) :: esl          = 0.0_wp !! eustatic offset Δφ [m] (uniform sea-surface shift)
@@ -234,7 +243,7 @@ contains
       complex(wp), allocatable :: load_lm(:), u_lm(:), N_lm(:), S_lm(:)
       real(wp) :: rho_ratio, ice_int, dphi, C_int, Cs_int, zeta_int, zown_int, smax, dmax
       integer  :: im, io, ii, np, nl, n_mem
-      logical  :: ronly, rotate, hmode
+      logical  :: ronly, rotate, hmode, mem_conv
       integer(kind=8) :: pc0, pc1, pca, pcb, prate   ! PROFILE: see %t_total
 
       call system_clock(pc0, prate)
@@ -272,7 +281,9 @@ contains
       d_ice_g = 0.0_wp
       zeta_int = 0.0_wp;  wcorr = 0.0_wp;  zown_int = 0.0_wp
       res%n_inner_last = 0;  res%resid = 0.0_wp;  res%n_outer_done = 0
-      res%n_coast_flip = 0
+      res%n_coast_flip = 0;  res%resid_rel = 0.0_wp
+      res%inner_capped = .false.;  res%coast_capped = .false.;  res%mem_capped = .false.
+      mem_conv = .false.
 
       ! Initial ocean function O⁽⁰⁾ — the reference (t0) coastline against which the
       ! subgrid term measures newly flooded / emerged cells, and the held coastline
@@ -423,6 +434,7 @@ contains
             wcorr = 0.0_wp;  zeta_int = 0.0_wp;  zown_int = 0.0_wp
          end if
 
+         res%inner_capped = .true.                       ! until the criterion is met
          do ii = 1, self%n_inner
             call assemble_load()
             call system_clock(pca)
@@ -450,7 +462,10 @@ contains
             rsl  = rsl_new
             res%n_inner_last = ii;  res%resid = dmax
             smax = maxval(abs(C*rsl))
-            if (dmax <= self%tol*max(smax, tiny(1.0_wp))) exit
+            res%resid_rel = dmax/max(smax, tiny(1.0_wp))
+            if (dmax <= self%tol*max(smax, tiny(1.0_wp))) then
+               res%inner_capped = .false.;  exit
+            end if
          end do
 
          res%n_outer_done = io
@@ -504,8 +519,14 @@ contains
       res%n_couple_done = im
       ! Converged when the report drift has settled (the σ<->τ fixed point); 1st-order
       ! / stateless responses report converged after a single pass.
-      if (response_endpoint_converged(resp)) exit
+      if (response_endpoint_converged(resp)) then
+         mem_conv = .true.;  exit
+      end if
       end do
+      ! what the loops ended on: a coastline still moving after its last pass (never with a
+      ! fixed ocean, whose count stays 0), a memory iteration that ran out of passes
+      res%coast_capped = (res%n_coast_flip > 0)
+      res%mem_capped   = (.not. ronly) .and. (.not. mem_conv)
 
       call system_clock(pca)
       if (.not. ronly) call response_finalize_step(resp, sht)
@@ -574,7 +595,7 @@ contains
       !! rests on and bears on the bed, so that column is not free ocean. With
       !! ice = 0 this reduces to the bare bathymetry test topo < 0.
       real(wp), intent(in)  :: topo(:,:)   !! solid surface vs. sea surface [m]
-      real(wp), intent(in)  :: ice(:,:)    !! absolute grounded-ice thickness [m]
+      real(wp), intent(in)  :: ice(:,:)    !! absolute ice thickness [m], grounded or floating
       real(wp), intent(out) :: C(:,:)
       real(wp), intent(in)  :: rho_i, rho_w   !! ice, water density [kg m^-3]
       where (topo < 0.0_wp .and. rho_i*ice < -rho_w*topo)

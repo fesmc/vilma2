@@ -17,15 +17,22 @@ program test_visc_load
    !! Part 1c (always): load_visc_3d with visc_shift_file: the loaded field minus
    !! the bare field is the shift (+0.5 dex above 670 km depth, -0.25 below).
    !!
+   !! Part 1d (always): a shift file that holds the upper mantle only shifts
+   !! nothing below it (zero outside the file's radii, not its deepest level
+   !! continued downward).
+   !!
+   !! Part 1e (always): visc_values_valid, the check every field read passes,
+   !! refuses NaN, Inf and fill values.
+   !!
    !! Part 2 (only if present): load the real Pan et al. (2022) field from
    !! input/pan2022.nc (vendored from isostasy_data), enable it via the
    !! node→element bridge, and check the resulting Maxwell rate field is finite and
    !! that a few forced steps produce a finite, non-trivial uplift.
-   use vilma_precision,       only: wp
+   use vilma_precision,       only: wp, i8
    use vilma_constants,       only: rad2deg
-   use vilma_earth_structure, only: earth_model, build_M3L70V01, vilma_read_visc_3d, load_visc_3d
+   use vilma_earth_structure, only: earth_model, build_M3L70V01, vilma_read_visc_3d, load_visc_3d, &
+                                    visc_values_valid
    use vilma_params,          only: vilma_param_class
-   use vilma_radial_fe,       only: radial_fe_finalize
    use vilma_response,        only: response_enable_lateral_visc_from_nodes, response_destroy, response, response_init_elastic, response_init_ve, response_init_null
    use vilma_sht,             only: sht_grid, sht_grid_init
    use ncio
@@ -37,6 +44,7 @@ program test_visc_load
    character(len=*), parameter :: FLIP  = 'libvilma/include/test_visc_flip.nc'
    character(len=*), parameter :: FESM  = 'libvilma/include/test_visc_fesmdata.nc'
    character(len=*), parameter :: SHIFT = 'libvilma/include/test_visc_shift.nc'
+   character(len=*), parameter :: SHIFT_UM = 'libvilma/include/test_visc_shift_um.nc'
    character(len=*), parameter :: PAN   = 'input/pan2022.nc'
 
    type(sht_grid)    :: sht
@@ -53,6 +61,8 @@ program test_visc_load
    call test_orientation()
    call test_fesmdata_form()
    call test_shift()
+   call test_shift_range()
+   call test_values_valid()
 
    inquire(file=PAN, exist=exists)
    if (exists) then
@@ -62,7 +72,6 @@ program test_visc_load
    end if
 
    call response_destroy(ve)
-   call radial_fe_finalize()
    if (.not. ok) error stop 'test_visc_load FAILED'
    write(*,'(a)') ' test_visc_load PASSED'
 
@@ -260,6 +269,66 @@ contains
       end if
       deallocate(lon_s, lat_s, dv, v0, v1)
    end subroutine test_shift
+
+   subroutine test_shift_range()
+      !! A shift of +0.5 dex given on the node radii of the upper mantle only (above
+      !! 670 km depth). The loaded field minus the bare field must be +0.5 there and
+      !! ZERO at every node below: the file's deepest level is not continued downward.
+      real(wp), parameter :: R_PREM = 6371.0e3_wp
+      type(vilma_param_class) :: p
+      real(wp), allocatable :: lon_s(:), lat_s(:), r_um(:), dv(:,:,:), v0(:,:), v1(:,:)
+      real(wp) :: expect, maxerr
+      integer  :: nphi, nlat, nr, i, j, k
+      nphi = sht%nphi;  nlat = sht%nlat;  nr = ve%nr
+      r_um = pack(ve%r, ve%r >= R_PREM - 670.0e3_wp)
+      allocate(lon_s(nphi), lat_s(nlat), dv(nphi,nlat,size(r_um)))
+      do i = 1, nphi;  lon_s(i) = sht%lon(i)*rad2deg;  end do
+      do j = 1, nlat;  lat_s(j) = 90.0_wp - sht%colat(nlat+1-j)*rad2deg;  end do
+      dv = 0.5_wp
+      call nc_create(SHIFT_UM, overwrite=.true.)
+      call nc_write_dim(SHIFT_UM, "lon", x=lon_s, units="degrees_east")
+      call nc_write_dim(SHIFT_UM, "lat", x=lat_s, units="degrees_north")
+      call nc_write_dim(SHIFT_UM, "r",   x=r_um,  units="m")
+      call nc_write(SHIFT_UM, "dlog10_visc", dv, dim1="lon", dim2="lat", dim3="r")
+
+      p%l_visc_3d = .true.;  p%visc_3d_file = SYNTH;  p%visc_3d_structure = 0
+      p%visc_log10_min = -1.0e30_wp;  p%visc_log10_max = 1.0e30_wp
+      call load_visc_3d(p, sht, ve%r, v0)
+      p%visc_shift_file = SHIFT_UM
+      call load_visc_3d(p, sht, ve%r, v1)
+      maxerr = 0.0_wp
+      do k = 1, nr
+         expect = merge(0.5_wp, 0.0_wp, ve%r(k) >= R_PREM - 670.0e3_wp)
+         maxerr = max(maxerr, maxval(abs(v1(:,k) - v0(:,k) - expect)))
+      end do
+      write(*,'(a,i0,a,i0,a,es10.2)') ' upper-mantle shift (', size(r_um), ' of ', nr, &
+           ' node radii): max |loaded - bare - shift| = ', maxerr
+      if (maxerr > 1.0e-9_wp) then
+         ok = .false.;  write(*,'(a)') '   FAIL: the shift acts outside the radii its file holds'
+      end if
+      deallocate(lon_s, lat_s, r_um, dv, v0, v1)
+   end subroutine test_shift_range
+
+   subroutine test_values_valid()
+      !! visc_values_valid: a plain field passes; a NaN, an Inf, ncio's NaN marker
+      !! (-9999) and a netCDF fill value, each in one cell, do not.
+      real(wp) :: a(4,3,2), bad(4)
+      integer  :: ib
+      logical  :: good
+      call random_number(a);  a = 18.0_wp + 6.0_wp*a
+      good = visc_values_valid(a)
+      bad = [transfer(int(z'7FF8000000000000', i8), 1.0_wp), &     ! NaN
+             transfer(int(z'7FF0000000000000', i8), 1.0_wp), &     ! +Inf
+             -9999.0_wp, 9.969209968386869e36_wp]
+      do ib = 1, size(bad)
+         a(2,3,1) = bad(ib)
+         if (visc_values_valid(a)) good = .false.
+      end do
+      write(*,'(a,l1)') ' visc_values_valid refuses NaN, Inf and fill values: ', good
+      if (.not. good) then
+         ok = .false.;  write(*,'(a)') '   FAIL: a non-finite or fill value passes as a viscosity'
+      end if
+   end subroutine test_values_valid
 
    subroutine test_pan2022()
       real(wp), allocatable :: vn(:,:)

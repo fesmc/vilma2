@@ -17,6 +17,8 @@ The spectral–finite-element, time-domain method and its rotational extension:
 - @Spada2011 — the GIA-code benchmark (Love numbers, disc-load response, polar
   motion; Charles University benchmark, earth model M3–L70–V01).
 - @Martinec2018 — the sea-level-equation intercomparison.
+- @Weerdesteijn2023 — the low-viscosity-zone case computed with ASPECT, Abaqus
+  and TABOO (lateral viscosity).
 
 ## VILMA1 physics and coupling
 

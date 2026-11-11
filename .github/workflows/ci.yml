@@ -1,0 +1,88 @@
+name: CI
+
+# Build VILMA2 with gfortran on Linux and run the test suite (`make check`),
+# and render the documentation site.
+# fesm-utils (FFTW, SHTns, libfesmutils) is built from the ref pinned in
+# .configme/manifest.toml and cached by its commit; only the OpenMP variant is
+# built, since `make` defaults to openmp=1. The slow suite (`make check-slow`)
+# is not run here: it needs about ten minutes on 32 threads.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      OMP_NUM_THREADS: 4
+    steps:
+      - name: Check out
+        uses: actions/checkout@v5
+
+      - name: Install gfortran and netCDF
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends gfortran libnetcdf-dev libnetcdff-dev
+          gfortran --version | head -1
+          nf-config --version
+
+      - name: Install configme
+        run: pip install --user git+https://github.com/fesmc/configme.git
+
+      - name: Resolve the fesm-utils ref
+        id: fesm
+        run: |
+          ref=$(sed -n 's/.*"fesm-utils:\([^"]*\)".*/\1/p' .configme/manifest.toml)
+          sha=$(git ls-remote https://github.com/fesmc/fesm-utils.git "refs/heads/$ref" | cut -f1)
+          [ -n "$ref" ] && [ -n "$sha" ] || { echo "cannot resolve fesm-utils ref '$ref'"; exit 1; }
+          echo "ref=$ref" >> "$GITHUB_OUTPUT"
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+          echo "fesm-utils $ref at $sha"
+
+      - name: Cache fesm-utils
+        id: cache
+        uses: actions/cache@v4
+        with:
+          path: fesm-utils
+          key: fesm-utils-${{ runner.os }}-gfortran-${{ steps.fesm.outputs.sha }}-${{ hashFiles('.github/workflows/ci.yml') }}
+
+      - name: Build fesm-utils (FFTW, SHTns, libfesmutils; OpenMP variant)
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          git clone --depth 1 -b "${{ steps.fesm.outputs.ref }}" https://github.com/fesmc/fesm-utils.git fesm-utils
+          cd fesm-utils
+          configme config fesm-utils -m linux -c gfortran --color never
+          make openmp=1 fftw shtns
+          make openmp=1 fesmutils-static   # serial: its Makefile does not order the module builds for -j
+
+      - name: Configure VILMA2
+        run: configme config vilma2 -m linux -c gfortran --color never
+
+      - name: Build
+        run: make openmp=1 -j 4 vilma vilma_remap vilma_mkref
+
+      - name: Test (make check)
+        run: make openmp=1 -j 4 check
+
+  docs:
+    # Render the Quarto site (no publish; publish-docs.yml publishes from main),
+    # so that a broken page fails the pull request rather than the publish.
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out
+        uses: actions/checkout@v5
+
+      - name: Set up Quarto
+        uses: quarto-dev/quarto-actions/setup@v2
+
+      - name: Render
+        run: quarto render docs

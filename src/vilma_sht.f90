@@ -43,7 +43,7 @@ module vilma_sht
    end type sht_grid
 
    public :: sht_free_cfg   !! release a config from clone_cfg
-   public :: sht_grid_init, sht_grid_destroy, sht_grid_synthesis, sht_grid_analysis, sht_grid_sph_synthesis, sht_grid_sph_analysis, sht_grid_tor_synthesis, sht_grid_sphtor_synthesis, sht_grid_sphtor_analysis, sht_grid_eval_point, sht_grid_eval_point_horiz, sht_grid_lmidx, sht_grid_surface_integral, sht_grid_clone_cfg
+   public :: sht_grid_init, sht_grid_destroy, sht_grid_synthesis, sht_grid_analysis, sht_grid_sph_synthesis, sht_grid_sph_analysis, sht_grid_tor_synthesis, sht_grid_sphtor_synthesis, sht_grid_sphtor_analysis, sht_grid_eval_point, sht_grid_eval_point_horiz, sht_grid_lmidx, sht_grid_surface_integral, sht_grid_area_mean, sht_grid_clone_cfg
 
 contains
 
@@ -180,6 +180,25 @@ contains
       if (allocated(self%lon))     deallocate(self%lon)
       if (allocated(self%gauss_w)) deallocate(self%gauss_w)
    end subroutine sht_grid_destroy
+
+   pure real(wp) function sht_grid_area_mean(sht, f) result(mean)
+      !! Mean of a grid field over the sphere: Gauss weights in latitude, uniform in
+      !! longitude. Taken as f(1,1) plus the mean of the deviation from it, so a
+      !! uniform field gives its value exactly.
+      type(sht_grid), intent(in) :: sht
+      real(wp),       intent(in) :: f(:,:)   !! (nphi, nlat)
+      real(wp) :: row
+      integer  :: i, j
+      mean = 0.0_wp
+      do j = 1, sht%nlat
+         row = 0.0_wp
+         do i = 1, sht%nphi
+            row = row + (f(i,j) - f(1,1))
+         end do
+         mean = mean + sht%gauss_w(j)*row
+      end do
+      mean = f(1,1) + mean/(2.0_wp*real(sht%nphi, wp))      ! Σ gauss_w = 2
+   end function sht_grid_area_mean
 
    real(wp) function sht_grid_surface_integral(self, f) result(total)
       !! Surface integral ∫ f dΩ over the unit sphere by Gauss-Legendre

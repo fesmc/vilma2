@@ -1,6 +1,8 @@
 # configme manifest for VILMA2.
-# fesm-utils at phase0-kryos (contains dev) while VILMA2 is coupled in kryos;
-# back to dev once phase0-kryos is merged there.
+# fesm-utils at phase0-kryos (contains dev). VILMA2 needs coords'
+# grid_init_gaussian, which is in phase0-kryos but not yet in dev (v1.4, checked
+# 2026-11-11: vilma_remap.f90 does not compile against it). Back to dev once
+# phase0-kryos is merged there.
 package = "vilma2"
 deps = [
     "fesm-utils:phase0-kryos",

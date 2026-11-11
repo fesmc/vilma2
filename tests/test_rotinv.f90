@@ -21,7 +21,6 @@ program test_rotinv
    use vilma_precision,       only: wp
    use vilma_constants,       only: kyr
    use vilma_earth_structure, only: earth_model, build_M3L70V01
-   use vilma_radial_fe,       only: radial_fe_finalize
    use vilma_response,        only: response_destroy, response_commit_step, response_apply, response_begin_step, response_enable_lateral_visc, response, response_init_elastic, response_init_ve, response_init_null, &
                                  response_horizontal_toroidal
    use vilma_sht,             only: sht_grid, sht_grid_init, sht_grid_destroy, sht_grid_analysis, sht_grid_eval_point
@@ -73,7 +72,7 @@ program test_rotinv
    write(*,'(a,es10.2)')  '   max|W(a)|/max|U(a)|, off-pole = ', w_off
    ok = ok .and. (w_pole <= 1.0e-12_wp) .and. (w_off <= tol)
 
-   call sht_grid_destroy(sht);  call radial_fe_finalize()
+   call sht_grid_destroy(sht)
    write(*,'(a)') ''
    if (ok) then
       write(*,'(a)') ' PASS: off-pole LVZ matches on-pole peak uplift (rotational invariance)'
@@ -123,6 +122,7 @@ contains
             end do
          end if
       end do
+      ve%toroidal = .true.                       ! this test is about the toroidal field
       call response_enable_lateral_visc(ve, sht, pert)
 
       nstep = nint(T_END/DT)

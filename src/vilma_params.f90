@@ -19,6 +19,7 @@ module vilma_params
    private
 
    public :: vilma_param_class, vilma_par_load, vilma_par_print, expand_path
+   public :: scheme_name_valid
    public :: MAX_LAYER, MAX_MESH_ZONE, MESH_DR_DEFAULT, MESH_DEPTH_DEFAULT
 
    integer, parameter :: MAX_LAYER = 16   !! cap on custom earth-structure layers
@@ -82,8 +83,7 @@ module vilma_params
       real(wp) :: mesh_dr_scale = 1.0_wp       !! factor on every mesh_dr (0.5 halves the element size)
 
       ! --- viscoelastic memory scheme (vilma_response / vilma_viscoelastic) ------------
-      character(len=8) :: scheme = "fe"        !! fe | etd1 | trap | be
-      integer  :: max_couple_iter = 20         !! SLE<->memory co-convergence cap (implicit schemes)
+      character(len=8) :: scheme = "fe"        !! fe | trap (scheme_name_valid)
 
       ! --- response kind selector (vilma_response) ----------------------------------
       character(len=8)  :: earth_response = "ve"  !! ve | elastic | null
@@ -161,8 +161,12 @@ module vilma_params
       ! dropped (Spada's tables and tests/test_benchmark_love start at degree 2).
       character(len=8) :: deg1_frame = "cm"   !! "cm" | "cf"
       logical  :: l_visc_3d   = .false.   !! load a lateral log10(eta) field
-      character(len=512) :: visc_3d_file  = ""       !! lon-lat-r log10(eta) field
-      integer  :: visc_3d_structure = 0     !! 0: visc_3d_file is a lon-lat-r field (name_visc*);
+      !! The 3-D field read when l_visc_3d: by default the FesmData Bagge (2021) product,
+      !! relative to the run folder (a `fesmdata` link). These defaults are those of
+      !! input/vilma_defaults.nml (test_params holds the two together), so a host that
+      !! fills the record in memory gets what the standalone driver gets.
+      character(len=512) :: visc_3d_file  = "fesmdata/Global/GLOBAL-T170/GLOBAL-T170_SolidEarth-Bagge2021.nc"
+      integer  :: visc_3d_structure = 6     !! 0: visc_3d_file is a lon-lat-r field (name_visc*);
          !! >= 1: it is the FesmData Bagge2021_visc.nc product (log10_visc on lon, lat, depth,
          !! structure; name_visc* ignored) and this is the structure to read (6 = v_1.0_s16)
       character(len=64)  :: name_visc     = "eta"    !! viscosity var (log10 Pa s)
@@ -290,7 +294,8 @@ contains
 
       ! memory scheme
       call nml_read(filename, g, "scheme",          p%scheme,          defaults_file=df)
-      call nml_read(filename, g, "max_couple_iter", p%max_couple_iter, defaults_file=df)
+      if (.not. scheme_name_valid(p%scheme)) &
+         error stop 'vilma_params: scheme must be "fe" or "trap"'
 
       ! response kind selector
       call nml_read(filename, g, "earth_response",  p%earth_response,  defaults_file=df)
@@ -378,6 +383,14 @@ contains
       if (p%vilma_v1_nsub < 1) error stop 'vilma_params: vilma_v1_nsub must be >= 1'
    end subroutine vilma_par_load
 
+   pure logical function scheme_name_valid(name) result(valid)
+      !! Whether `name` is a memory scheme the model runs: "fe" (forward Euler,
+      !! explicit sub-stepping) or "trap" (trapezoidal, adaptive). The kernel's
+      !! other rules (ETD1, backward Euler) are not implemented in the field driver.
+      character(len=*), intent(in) :: name
+      valid = (trim(name) == "fe" .or. trim(name) == "trap")
+   end function scheme_name_valid
+
    function expand_path(path) result(out)
       !! Expand a leading `~/` or `$HOME/` in a file path using the HOME
       !! environment variable. Fortran `open` does no shell expansion, so nml
@@ -430,9 +443,10 @@ contains
            pack(p%mesh_depth, p%mesh_depth /= 0.0_wp)*1.0e-3_wp
       write(u,'(a,f0.3)')       '           dr scale = ', p%mesh_dr_scale
       write(u,'(a,a)')        '   response: ', trim(p%earth_response)
-      write(u,'(a,a,a,i0)')   '   scheme: ', trim(p%scheme), '   max_couple_iter=', p%max_couple_iter
-      write(u,'(a,i0,a,i0,a,es8.1,a,l1,a,l1)') &
+      write(u,'(a,a)')        '   scheme: ', trim(p%scheme)
+      write(u,'(a,i0,a,i0,a,i0,a,es8.1,a,l1,a,l1)') &
            '   sle:    n_outer=', p%sle_n_outer, '  n_inner=', p%sle_n_inner, &
+           '  max_mem_iter=', p%sle_max_mem_iter, &
            '  tol=', p%sle_tol, '  fixed_ocean=', p%sle_fixed_ocean, '  subgrid=', p%sle_subgrid
       write(u,'(a,f7.1,a,f7.1,a)') '   density: rho_ice=', p%rho_ice, '  rho_water=', p%rho_water, ' kg/m3'
       write(u,'(a,es9.2,a,es8.1,a,es8.1,a,f5.2)') &

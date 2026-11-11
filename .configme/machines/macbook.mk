@@ -3,8 +3,8 @@
 # PROJECT-TIER fragment: VILMA2's own copy, which takes precedence over
 # configme's shipped machines/macbook.mk (orchestrator > user > shipped). It
 # reproduces the shipped fragment and additionally pins the production
-# optimization flags, which configme's generic compilers/gfortran.mk cannot
-# carry (it defaults to -O2 for every project and every architecture).
+# optimization flags, which configme's generic compilers/gfortran.mk does not
+# carry (its default is -O2).
 #
 # netCDF is auto-detected by configme (nf-config/nc-config) — no NC_FROOT /
 # NC_CROOT in .zshrc required. To pin it instead, assign INC_NC / LIB_NC here
@@ -27,6 +27,9 @@ LFLAGS_EXTRA =
 # target machine to confirm the SLE mass-conservation tests (~1e-16) still pass
 # after a toolchain or flag change.
 #
-# This is a per-machine override: other machines (levante, albedo, pik_hpc2024)
-# still build at the shipped -O2 until they get an equivalent fragment.
+# This is a per-repo override for macbook only. The clusters take their flags
+# from configme's own machine fragments (`configme show <machine>`): awi_albedo,
+# dkrz_levante and pik_hpc2024 build at -Ofast with -march=znver2, znver3 and
+# core-avx2 respectively (and -traceback). The generic linux fragment builds at
+# the compiler default (-O2 for gfortran).
 DFLAGS_NODEBUG = -O3 -mcpu=native -funroll-loops -ffast-math

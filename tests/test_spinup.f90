@@ -5,11 +5,17 @@ program test_spinup
    !!   (1) full-model phase (equil_time_max): relaxes the bed far more than a single
    !!       cold coupling step, and leaves it near-stationary (a follow-up step moves it
    !!       less than a cold step would);
-   !!   (2) pre_spinup_1d phase also runs and drives appreciable subsidence.
+   !!   (2) pre_spinup_1d phase also runs and drives appreciable subsidence;
+   !!   (3) a dt = 0 update is idempotent: a second one with the same ice changes nothing
+   !!       (beyond the SLE tolerance), and it reports the ice it is handed;
+   !!   (4) the spin-up of a state already seeded with the start ice reaches the same
+   !!       relaxed state as one seeded inside the spin-up, not the elastic state. (The
+   !!       first relaxation pass once measured no bed motion there, because a single
+   !!       explicit sub-step from zero memory returns the elastic bed, and the spin-up
+   !!       exited "converged" at the elastic subsidence.)
    use vilma_precision, only: wp
    use vilma_constants, only: pi, sec_per_year
    use vilma_params,    only: vilma_param_class
-   use vilma_radial_fe, only: radial_fe_finalize
    use vilma_sht,       only: sht_grid, sht_grid_init, sht_grid_destroy
    use vilma_coupling,  only: solid_earth, solid_earth_init, solid_earth_update, &
                            solid_earth_spinup, solid_earth_finalize
@@ -20,7 +26,8 @@ program test_spinup
    type(vilma_param_class)   :: p
    type(solid_earth)      :: se
    real(wp), allocatable  :: z_bed_eq(:,:), h_ice_eq(:,:), h_ice(:,:)
-   real(wp) :: cold_step, spin_sub, follow_move, bed0
+   real(wp) :: cold_step, spin_sub, follow_move, bed0, elastic, seeded_sub, d_idem
+   real(wp), allocatable :: rsl1(:,:), c1(:,:)
    integer  :: i, j, jice
    logical  :: ok
 
@@ -71,6 +78,35 @@ program test_spinup
       write(*,'(a)') '   FAIL: post-spin-up state is not near-stationary'; ok = .false.
    end if
 
+   ! (3) idempotent dt = 0 update, reporting the ice handed in
+   p%equil_time_max = 0.0_wp
+   se%par = p;  call solid_earth_init(se, z_bed_eq, h_ice_eq)
+   call solid_earth_update(se, h_ice, 0.0_wp)
+   rsl1 = se%rsl;  c1 = se%C;  elastic = z_bed_eq(1,jice) - se%z_bed(1,jice)
+   call solid_earth_update(se, h_ice, 0.0_wp)
+   d_idem = maxval(abs(se%rsl - rsl1))
+   write(*,'(a,f12.3,a,es10.2,a,l1)') '   dt=0 seed: elastic subsidence =', elastic, &
+        ' m   second seed max|drsl| =', d_idem, ' m   same C: ', all(se%C == c1)
+   if (elastic < 10.0_wp) then
+      write(*,'(a)') '   FAIL: the dt = 0 update does not report the ice it is handed'; ok = .false.
+   end if
+   if (d_idem > 1.0e-6_wp*maxval(abs(rsl1)) .or. any(se%C /= c1)) then
+      write(*,'(a)') '   FAIL: a second dt = 0 update with the same ice changes the state'; ok = .false.
+   end if
+
+   ! (4) spin-up of the seeded state: the relaxed state, as in (1), not the elastic one
+   p%equil_time_max = 5.0e5_wp*sec_per_year
+   se%par = p
+   call solid_earth_finalize(se);  call solid_earth_init(se, z_bed_eq, h_ice_eq)
+   call solid_earth_update(se, h_ice, 0.0_wp)
+   call solid_earth_spinup(se, h_ice)
+   seeded_sub = z_bed_eq(1,jice) - se%z_bed(1,jice)
+   write(*,'(a,f12.3,a,f12.3,a)') '   spin-up of a seeded state      =', seeded_sub, ' m  (unseeded', spin_sub, ' m)'
+   if (abs(seeded_sub - spin_sub) > 1.0e-6_wp*spin_sub .or. seeded_sub < 1.5_wp*elastic) then
+      write(*,'(a)') '   FAIL: the spin-up of a seeded state does not reach the relaxed state'; ok = .false.
+   end if
+   call solid_earth_finalize(se)
+
    ! (2) pre_spinup_1d phase (1-D pre-equilibration only, no full-model phase)
    p%pre_spinup_1d  = .true.
    p%equil_time_max = 0.0_wp
@@ -89,10 +125,8 @@ program test_spinup
       write(*,'(a)') ' PASS: solid_earth_spinup relaxes the held load to equilibrium'
    else
       write(*,'(a)') ' FAIL: spin-up'
-      call radial_fe_finalize()
       error stop 1
    end if
-   call radial_fe_finalize()
 
 contains
 

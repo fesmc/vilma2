@@ -243,7 +243,7 @@ contains
       type(toroidal_operator) :: top
       real(wp), allocatable :: W(:,:), rsh(:), W0(:), x(:), b(:), wr(:,:)
       logical,  allocatable :: dead(:)
-      real(wp) :: Jw, en, en_exact, err, c, scl
+      real(wp) :: Jw, en, en_exact, err, c, scl, cond, tol3b
       integer  :: jt, k, e, lay, s, n, bw
 
       write(*,'(a)') ' (3) toroidal operator, '//label
@@ -277,10 +277,22 @@ contains
       end do
       en_exact = Jw*(Jw - 2.0_wp)*en_exact
       err = abs(en - en_exact)/en_exact
-      if (err > 1.0e-12_wp) then
-         write(*,'(a,es10.3)') '     (3b) FAIL: energy of W = r off by ', err;  ok = .false.
+      ! The tolerance is that of the sum, not a fixed 1e-12. The λ=3 stiffness of an
+      ! element is ~ μJ r²/h per entry and cancels in rᵀWr (ε³ = 0 for W = r), leaving
+      ! the λ=4 energy ~ μJ(J−2) h: the terms are (r/h)² times the result, 1e5 to 1e6
+      ! on this mesh. cond = Σ|r_i W_ik r_k| / |rᵀWr| measures that, and a sum of
+      ! products evaluated in double precision is good to a few ε·cond whatever the
+      ! order the compiler takes (vectorised, with FMA: ifx -Ofast gave 2.8e-12
+      ! where gfortran stays below 1e-12). 8 ε·cond leaves room for the three
+      ! roundings per term (the product r_k W_ik, the row sum, the outer sum).
+      cond = dot_product(abs(rsh), matmul(abs(W), abs(rsh)))/abs(en_exact)
+      tol3b = 8.0_wp*epsilon(1.0_wp)*cond
+      if (err > tol3b) then
+         write(*,'(a,es10.3,a,es10.3)') '     (3b) FAIL: energy of W = r off by ', err, ', tolerance ', tol3b
+         ok = .false.
       else
-         write(*,'(a,es10.3)') '     (3b) energy of W = r exact (λ=4 only), rel err =', err
+         write(*,'(a,es10.3,a,es9.2,a,es9.2,a)') '     (3b) energy of W = r exact (λ=4 only), rel err =', err, &
+              '  (condition of the sum ', cond, ', tolerance ', tol3b, ')'
       end if
 
       ! 3c. every dof either carries shear stiffness or is pinned

@@ -8,11 +8,13 @@ program test_drive
    !! Then the legacy Gauss-grid reader (remap_input=.false.) with the same files stored
    !! with latitude ascending (rows reversed): read with i_eq = 0 (file_ref) and i_eq = 2
    !! (z_bed_eq_file, h_ice_eq_file), the output must equal that of the north-first files.
+   !! Then the restart clock: a run stopped at the middle slice and resumed from its final
+   !! restart continues there (one slice left, the same end state as the uninterrupted
+   !! run), and forcing_window refuses every window that would replay or skip forcing.
    use vilma_precision,       only: wp
    use vilma_constants,       only: rad2deg, pi
    use vilma_sht,             only: sht_grid, sht_grid_init, sht_grid_destroy
-   use vilma_drive,           only: vilma_run
-   use vilma_radial_fe,       only: radial_fe_finalize
+   use vilma_drive,           only: vilma_run, forcing_window, forcing_time_ok, input_field_ok
    use ncio,               only: nc_create, nc_write_dim, nc_write, nc_read, nc_size
    implicit none
 
@@ -28,6 +30,9 @@ program test_drive
    character(len=*), parameter :: OUTA2 = "libvilma/include/test_drive_out_asc2.nc"
    character(len=*), parameter :: CFGA  = "libvilma/include/test_drive_asc.nml"
    character(len=*), parameter :: DEFS  = "input/vilma_defaults.nml"
+   character(len=*), parameter :: OUTL1 = "libvilma/include/test_drive_out_leg1.nc"
+   character(len=*), parameter :: OUTL2 = "libvilma/include/test_drive_out_leg2.nc"
+   character(len=*), parameter :: RST   = "libvilma/include/test_drive_rst.nc"
 
    type(sht_grid), target :: sht
    real(wp), allocatable  :: lon_deg(:), lat_deg(:), z_bed_eq(:,:), h_ice_eq(:,:)
@@ -151,6 +156,10 @@ program test_drive
    call vilma_run(CFGA, defaults_file=DEFS)
    call same_output(OUTA2, 'ascending files, i_eq = 2')
 
+   call restart_clock()
+   call time_axis()
+   call field_values()
+
    call sht_grid_destroy(sht)
 
    write(*,'(a)') ''
@@ -159,19 +168,117 @@ program test_drive
       write(*,'(a)') '       and writes a sensible subsiding/draw-down output'
    else
       write(*,'(a)') ' FAIL: standalone driver did not all pass'
-      call radial_fe_finalize()
       error stop 1
    end if
-   call radial_fe_finalize()
 
 contains
 
-   subroutine write_cfg(cfg, force, ref, out, hor, i_eq)
+   subroutine restart_clock()
+      !! A restart continues where it left off. Leg 1 stops at the middle slice (t = 1000 yr);
+      !! leg 2 resumes its final restart with time_init unset and must march the one
+      !! remaining interval, 1000 -> 2000 yr, to the end state of the uninterrupted run.
+      !! (Before the clock was checked, leg 2 replayed the forcing from t = 0 on the
+      !! restart's memory.) Then the window rule itself, case by case.
+      real(wp), allocatable :: t2(:), z2(:,:), zf(:,:)
+      character(len=400) :: msg
+      integer :: k0, k1
+      logical :: w
+      call write_cfg(CFGA, FORCE, REF, OUTL1, "", 2, time_end=1000.0_wp)
+      call vilma_run(CFGA, defaults_file=DEFS)
+      call execute_command_line("cp libvilma/include/final/vilma_restart.nc "//RST)
+      call write_cfg(CFGA, FORCE, REF, OUTL2, "", 2, restart=RST)
+      call vilma_run(CFGA, defaults_file=DEFS)
+      allocate(t2(nc_size(OUTL2, "time")), z2(sht%nphi,sht%nlat), zf(sht%nphi,sht%nlat))
+      call nc_read(OUTL2, "time", t2)
+      write(*,'(a,i0,a,2f10.1)') '   resumed run: ', size(t2), ' slices, t first/last =', t2(1), t2(size(t2))
+      if (size(t2) /= 2 .or. t2(1) /= 1000.0_wp .or. t2(size(t2)) /= 2000.0_wp) then
+         write(*,'(a)') '   FAIL: the resumed run does not continue at the restart time'; ok = .false.
+      else
+         call nc_read(OUTL2, "z_bed", z2, start=[1,1,2],  count=[sht%nphi,sht%nlat,1])
+         call nc_read(OUT,   "z_bed", zf, start=[1,1,NT], count=[sht%nphi,sht%nlat,1])
+         write(*,'(a,es10.2,a)') '   resumed run: max|z_bed - uninterrupted run| at the end =', maxval(abs(z2 - zf)), ' m'
+         if (maxval(abs(z2 - zf)) > 1.0e-5_wp) then
+            write(*,'(a)') '   FAIL: the resumed run does not reach the uninterrupted end state'; ok = .false.
+         end if
+      end if
+
+      ! the window rule (tyr = 0, 1000, 2000 yr; -1e30 = time_init unset)
+      w = forcing_window(tyr, -1.0e30_wp, 1.0e30_wp, k0, k1, msg)
+      call expect(w .and. k0 == 1 .and. k1 == 3, 'no restart: the whole axis')
+      w = forcing_window(tyr, -1.0e30_wp, 1.0e30_wp, k0, k1, msg, t_restart=1000.0_wp)
+      call expect(w .and. k0 == 2 .and. k1 == 3, 'restart at 1000, time_init unset: starts at 1000')
+      w = forcing_window(tyr, 1000.0_wp, 1.0e30_wp, k0, k1, msg, t_restart=1000.0_wp)
+      call expect(w .and. k0 == 2 .and. k1 == 3, 'restart at 1000, time_init = 1000')
+      w = forcing_window(tyr, -1.0e30_wp, 1.0e30_wp, k0, k1, msg, t_restart=2000.0_wp)
+      call expect(.not. w, 'final restart (t = 2000), time_init unset: refused, nothing left to run')
+      w = forcing_window(tyr, 0.0_wp, 1.0e30_wp, k0, k1, msg, t_restart=1000.0_wp)
+      call expect(.not. w, 'restart at 1000, time_init = 0: refused')
+      w = forcing_window(tyr, 0.0_wp, 1.0e30_wp, k0, k1, msg, t_restart=2000.0_wp)
+      call expect(.not. w, 'final restart, time_init = 0 (the replay): refused')
+      w = forcing_window(tyr, -1.0e30_wp, 1.0e30_wp, k0, k1, msg, t_restart=500.0_wp)
+      call expect(.not. w, 'restart at 500 (not a slice): refused')
+      w = forcing_window(tyr, 0.0_wp, 1.0e30_wp, k0, k1, msg, t_restart=2000.0_wp, restart_reset=.true.)
+      call expect(w .and. k0 == 1 .and. k1 == 3, 'restart_time_reset: the window time_init gives')
+   end subroutine restart_clock
+
+   subroutine time_axis()
+      !! The forcing time axis must be in years (or a unit that converts to them without a
+      !! guess) and strictly ascending.
+      character(len=400) :: msg
+      real(wp) :: sc
+      logical  :: w
+      w = forcing_time_ok(tyr, 'years', sc, msg);   call expect(w .and. sc == 1.0_wp, 'units "years"')
+      w = forcing_time_ok(tyr, '', sc, msg);        call expect(w .and. sc == 1.0_wp, 'no units: years')
+      w = forcing_time_ok(tyr, 'Years since 0000-01-01', sc, msg)
+      call expect(w .and. sc == 1.0_wp, 'units "years since ..."')
+      w = forcing_time_ok(tyr, 'kyr', sc, msg);     call expect(w .and. sc == 1000.0_wp, 'units "kyr": x 1000')
+      w = forcing_time_ok(tyr, 'ka BP', sc, msg);   call expect(.not. w, 'units "ka BP": refused')
+      w = forcing_time_ok(tyr, 'ka', sc, msg);      call expect(.not. w, 'units "ka": refused')
+      w = forcing_time_ok(tyr, 'days since 1950-01-01', sc, msg);  call expect(.not. w, 'units "days since": refused')
+      w = forcing_time_ok(tyr, 'seconds', sc, msg); call expect(.not. w, 'units "seconds": refused')
+      w = forcing_time_ok(tyr(NT:1:-1), 'years', sc, msg);  call expect(.not. w, 'descending axis: refused')
+      w = forcing_time_ok([0.0_wp, 1000.0_wp, 1000.0_wp], 'years', sc, msg)
+      call expect(.not. w, 'repeated time: refused')
+   end subroutine time_axis
+
+   subroutine field_values()
+      !! An input field with a fill value, a NaN or a value outside its range is refused.
+      real(wp), allocatable :: f(:,:)
+      real(wp) :: zero
+      character(len=200) :: msg
+      logical :: w
+      allocate(f(4,3));  zero = 0.0_wp
+      f = 1500.0_wp;                             w = input_field_ok(f, 0.0_wp, 1.0e4_wp, msg)
+      call expect(w, 'ice 1500 m: accepted')
+      f = 1500.0_wp;  f(2,2) = -9999.0_wp;       w = input_field_ok(f, 0.0_wp, 1.0e4_wp, msg)
+      call expect(.not. w, 'ice with -9999 (ncio missing value): refused')
+      f = 1500.0_wp;  f(3,1) = 9.96921e36_wp;    w = input_field_ok(f, 0.0_wp, 1.0e4_wp, msg)
+      call expect(.not. w, 'ice with a netCDF fill value: refused')
+      f = 1500.0_wp;  f(1,3) = zero/zero;        w = input_field_ok(f, 0.0_wp, 1.0e4_wp, msg)
+      call expect(.not. w, 'ice with NaN: refused')
+      f = -4000.0_wp;                            w = input_field_ok(f, -2.0e4_wp, 2.0e4_wp, msg)
+      call expect(w, 'bed -4000 m: accepted')
+   end subroutine field_values
+
+   subroutine expect(cond, what)
+      logical,          intent(in) :: cond
+      character(len=*), intent(in) :: what
+      if (cond) then
+         write(*,'(a)') '   ok:   '//what
+      else
+         write(*,'(a)') '   FAIL: '//what;  ok = .false.
+      end if
+   end subroutine expect
+
+   subroutine write_cfg(cfg, force, ref, out, hor, i_eq, time_end, restart)
       !! A sparse &vilma and a complete &ctl: the legacy Gauss-grid input (remap_input=.false.),
       !! the reference from file_ref (i_eq = 0, the ice-free start slice) or from
-      !! z_bed_eq_file / h_ice_eq_file (i_eq = 2, the same fields).
+      !! z_bed_eq_file / h_ice_eq_file (i_eq = 2, the same fields). time_end [years] and the
+      !! restart to resume are optional (default: the whole axis, no restart).
       character(len=*), intent(in) :: cfg, force, ref, out, hor
       integer,          intent(in) :: i_eq
+      real(wp),         intent(in), optional :: time_end
+      character(len=*), intent(in), optional :: restart
       integer :: u
       open(newunit=u, file=cfg, status="replace", action="write")
       write(u,'(a)')    "&vilma"
@@ -185,12 +292,15 @@ contains
       write(u,'(a)')    '    name_time    = "time"'
       write(u,'(a)')    '    file_ref     = "'//ref//'"'
       write(u,'(a)')    '    name_zbed_eq = "z_bed_eq"'
-      write(u,'(a)')    '    name_hice_ref = "h_ice_eq"'
       write(u,'(a)')    '    file_out     = "'//out//'"'
       write(u,'(a)')    '    file_hor     = "'//hor//'"'
       write(u,'(a)')    "    write_lossless = .true."
       write(u,'(a)')    "    time_init    = -1.0e30"
-      write(u,'(a)')    "    time_end     =  1.0e30"
+      if (present(time_end)) then
+         write(u,'(a,es12.4)') "    time_end     = ", time_end
+      else
+         write(u,'(a)') "    time_end     =  1.0e30"
+      end if
       write(u,'(a)')    "    remap_input  = .false."   ! input already on the Gauss grid
       write(u,'(a)')    '    name_lon     = "lon"'
       write(u,'(a)')    '    name_lat     = "lat"'
@@ -210,7 +320,11 @@ contains
       end if
       write(u,'(a)')    '    rsl_restart_file = ""'
       write(u,'(a)')    '    name_rsl       = "rsl"'
-      write(u,'(a)')    '    restart_in_file = ""'
+      if (present(restart)) then
+         write(u,'(a)') '    restart_in_file = "'//restart//'"'
+      else
+         write(u,'(a)') '    restart_in_file = ""'
+      end if
       write(u,'(a)')    "/"
       close(u)
    end subroutine write_cfg

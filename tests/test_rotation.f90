@@ -13,7 +13,6 @@ program test_rotation
    !!       integrates) at t = 0,1,2,5,10,20 kyr, for the cap AND disc loads.
    use vilma_precision,       only: wp
    use vilma_earth_structure, only: earth_model, build_M3L70V01
-   use vilma_radial_fe,       only: radial_fe_finalize
    use vilma_rotation,        only: rotation_update, rotation_destroy, rotation_init, rotation_state
    use vilma_sht,             only: sht_grid, sht_grid_init, sht_grid_destroy, sht_grid_surface_integral
    implicit none
@@ -68,9 +67,9 @@ program test_rotation
       write(*,'(a)') '       motion (rigid inertia, secular k_s, |m(t)|) for cap + disc'
    else
       write(*,'(a)') ' FAIL: rotation validation did not all pass'
-      call sht_grid_destroy(sht);  call radial_fe_finalize();  error stop 1
+      call sht_grid_destroy(sht);  error stop 1
    end if
-   call sht_grid_destroy(sht);  call radial_fe_finalize()
+   call sht_grid_destroy(sht)
 
 contains
 
