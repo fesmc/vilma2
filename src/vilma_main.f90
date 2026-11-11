@@ -6,8 +6,7 @@ program vilma_main
    !! The run config supplies the &ctl run-control group and any &vilma physics
    !! overrides; its &vilma is overlaid on the complete physics defaults in
    !! input/vilma_defaults.nml (loaded automatically — see DEFAULTS_FILE).
-   use vilma_drive,   only: vilma_run
-   use vilma_control, only: DEFAULTS_FILE
+   use vilma, only: vilma_run, DEFAULTS_FILE
    implicit none
    character(len=512) :: cfg
 

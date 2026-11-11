@@ -595,7 +595,7 @@ contains
       !! rests on and bears on the bed, so that column is not free ocean. With
       !! ice = 0 this reduces to the bare bathymetry test topo < 0.
       real(wp), intent(in)  :: topo(:,:)   !! solid surface vs. sea surface [m]
-      real(wp), intent(in)  :: ice(:,:)    !! absolute grounded-ice thickness [m]
+      real(wp), intent(in)  :: ice(:,:)    !! absolute ice thickness [m], grounded or floating
       real(wp), intent(out) :: C(:,:)
       real(wp), intent(in)  :: rho_i, rho_w   !! ice, water density [kg m^-3]
       where (topo < 0.0_wp .and. rho_i*ice < -rho_w*topo)

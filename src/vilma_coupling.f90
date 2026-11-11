@@ -42,6 +42,10 @@ module vilma_coupling
    !! terms ramp over the interval like the ice. All or none, and fixed for the run. With
    !! none, or w ≡ 0, the results are those of a host-free run, bit for bit.
    !!
+   !! Ice. h_ice and h_ice_eq are ice THICKNESS, the whole column wherever there is ice,
+   !! grounded or floating; the model applies its own flotation against the deformed bed to
+   !! decide which part loads the bed and the ocean (vilma_sle).
+   !!
    !! Reference (equilibrium) state. The supplied (z_bed_eq, h_ice_eq) IS the relaxed
    !! state: the Maxwell memory starts at zero, so with h_ice = h_ice_eq we get
    !! d_ice = 0, rsl = 0, z_bed = z_bed_eq. Departures from the reference ice load
@@ -112,8 +116,8 @@ module vilma_coupling
       !! supplies data already on the Gauss grid (passthrough), these are the host-grid fields,
       !! rows reversed for a host with ascending latitude.
       real(wp), allocatable :: z_bed_eq(:,:)   !! relaxed bedrock [m] (nphi,nlat)
-      real(wp), allocatable :: h_ice_eq(:,:)   !! reference grounded ice [m]
-      real(wp), allocatable :: h_ice(:,:)      !! current grounded-ice thickness [m]
+      real(wp), allocatable :: h_ice_eq(:,:)   !! reference ice thickness [m]
+      real(wp), allocatable :: h_ice(:,:)      !! current ice thickness [m]
       real(wp), allocatable :: rsl(:,:)        !! relative sea level change [m] (full field)
       real(wp), allocatable :: z_bed(:,:)      !! bedrock = z_bed_eq − rsl [m]
       real(wp), allocatable :: dz_bed(:,:)     !! bed change u [m] (solid uplift); rsl = dz_ss − dz_bed
@@ -174,8 +178,8 @@ module vilma_coupling
 
       ! host-grid I/O fields (the gg fields in the host's row order when passthrough); the host reads these
       real(wp), allocatable    :: z_bed_eq(:,:)  !! relaxed bedrock [m], host grid (kept at full host resolution)
-      real(wp), allocatable    :: h_ice_eq(:,:)  !! reference grounded ice [m], host grid
-      real(wp), allocatable    :: h_ice(:,:)     !! current grounded ice [m], host grid
+      real(wp), allocatable    :: h_ice_eq(:,:)  !! reference ice thickness [m], host grid
+      real(wp), allocatable    :: h_ice(:,:)     !! current ice thickness [m], host grid
       real(wp), allocatable    :: rsl(:,:)       !! relative sea level change [m], host grid
       real(wp), allocatable    :: z_bed(:,:)     !! bedrock = z_bed_eq − rsl [m], host grid
       real(wp), allocatable    :: dz_bed(:,:)    !! bed change u [m], host grid (rsl = dz_ss − dz_bed)
@@ -212,7 +216,7 @@ module vilma_coupling
 
 contains
 
-   subroutine solid_earth_init(self, z_bed_eq, h_ice_eq, grid, h_ice_init, w, I_g, C, time)
+   subroutine solid_earth_init(self, z_bed_eq, h_ice_eq, grid, w, I_g, C, time)
       !! Build the model from its parameter record (self%par, set by the host before
       !! this call) and set the reference state. The model builds and owns its Gauss
       !! transform grid (from self%par%lmax/nlat/nphi) and, when `grid` differs from
@@ -222,13 +226,12 @@ contains
       !! (solid_earth_spinup) toggles the lateral viscosity internally, not here.
       type(solid_earth),   intent(inout)        :: self
       real(wp),             intent(in)           :: z_bed_eq(:,:)  !! relaxed bedrock [m] (host grid)
-      real(wp),             intent(in)           :: h_ice_eq(:,:)  !! reference grounded ice [m] (host grid)
+      real(wp),             intent(in)           :: h_ice_eq(:,:)  !! reference ice thickness [m] (host grid; see h_ice)
       type(grid_class),     intent(in), optional :: grid           !! host lon-lat grid; absent => data already on Gauss
-      real(wp),             intent(in), optional :: h_ice_init(:,:)!! current ice at t0 (host grid); default h_ice_eq
       !! w, I_g, C (optional, together): host-resolved terms of the REFERENCE state, per unit
       !! cell area (see the module header). z_bed_eq and h_ice_eq are then those of the 1 − w
-      !! part; the reference F is 0 by definition. Not with solver="v1", sle_fixed_ocean or
-      !! h_ice_init. A lon-lat host grid must be global (see "Grids").
+      !! part; the reference F is 0 by definition. Not with solver="v1" or sle_fixed_ocean.
+      !! A lon-lat host grid must be global (see "Grids").
       real(wp),             intent(in), optional :: w(:,:), I_g(:,:), C(:,:)
       real(wp),             intent(in), optional :: time           !! model time of this state [years]; default 0
       real(wp), allocatable :: F0(:,:)
@@ -260,15 +263,13 @@ contains
       end if
       if (self%remap) call remap_init(self%map, self%sht, real(grid%G%x, wp), real(grid%G%y, wp))
 
-      ! host-resolved terms: all or none, and only for the native solver, a migrating coastline
-      ! and no start slice other than the reference
+      ! host-resolved terms: all or none, and only for the native solver and a migrating coastline
       hosted = present(w)
       if (hosted .neqv. (present(I_g) .and. present(C))) &
          error stop 'solid_earth_init: host terms w, I_g, C come together'
       if (hosted) then
          if (self%use_vilma_v1)         error stop 'solid_earth_init: host terms are not available with solver="v1"'
          if (self%par%sle_fixed_ocean)  error stop 'solid_earth_init: host terms need sle_fixed_ocean = .false.'
-         if (present(h_ice_init))       error stop 'solid_earth_init: host terms and h_ice_init are not combined'
          if (self%remap) then
             if (.not. grid_is_global(grid)) &
                error stop 'solid_earth_init: host terms on a lon-lat grid need a global host grid'
@@ -295,20 +296,14 @@ contains
          call build_solver(self, np, nl)
       end if
 
-      ! current state — seeded at the reference (or at h_ice_init if given). At the
-      ! reference nothing has moved: rsl = 0, z_bed = z_bed_eq, memory zero. The ocean
-      ! function is seeded from the reference flotation so a dt=0 seed step yields a
-      ! physical barystatic diagnostic (update_bsl needs C).
+      ! current state — the reference. Nothing has moved: rsl = 0, z_bed = z_bed_eq, memory
+      ! zero, and the ocean function is the reference one. Another start ice is handed in by
+      ! a dt = 0 update (the driver does), which solves the diagnostics under it.
       allocate(self%gg%h_ice(np,nl), self%gg%rsl(np,nl), self%gg%z_bed(np,nl), &
                self%gg%dz_bed(np,nl), self%gg%dz_ss(np,nl), self%gg%C(np,nl), self%gg%C0(np,nl))
       allocate(self%sigma_lm(self%sht%nlm));  self%sigma_lm = (0.0_wp, 0.0_wp)
-      if (present(h_ice_init)) then
-         call to_gauss(self, h_ice_init, self%gg%h_ice, conserve_mass=.true.)
-         allocate(self%h_ice, source=h_ice_init)
-      else
-         self%gg%h_ice = self%gg%h_ice_eq
-         allocate(self%h_ice, source=h_ice_eq)
-      end if
+      self%gg%h_ice = self%gg%h_ice_eq
+      allocate(self%h_ice, source=h_ice_eq)
       self%gg%rsl   = 0.0_wp
       self%gg%z_bed = self%gg%z_bed_eq
       self%gg%dz_bed = 0.0_wp;  self%gg%dz_ss = 0.0_wp;  self%dphi = 0.0_wp
@@ -524,7 +519,10 @@ contains
       !! (vilma_timestep) chooses the internal Δt, solving the SLE against the current
       !! relaxation state and advancing the Maxwell memory at each sub-step.
       type(solid_earth), intent(inout) :: self
-      real(wp),           intent(in)    :: h_ice(:,:)   !! grounded-ice thickness [m] (host grid)
+      !! The ice thickness [m] (host grid): the whole column, grounded or floating, as the ice
+      !! model has it. Which part loads the bed is the model's own flotation test against the
+      !! deformed bed (vilma_sle ocean_function); the host does not mask it.
+      real(wp),           intent(in)    :: h_ice(:,:)
       real(wp),           intent(in)    :: dt_yr        !! interval to advance [years], >= 0; 0 re-solves
                                                         !! the diagnostics under h_ice without advancing
       !! w, I_g, C, F (optional, together, host grid): host-resolved terms at the new time, per
