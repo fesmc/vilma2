@@ -10,6 +10,7 @@ u_r at the load centre, the peripheral bulge (maximum of u_r along the section),
 |---|---:|---:|---:|---:|---:|
 | A-i | -39.35 | -307.76 | -366.67 | 17.90 | 8.709 |
 | B-i | -67.91 | -357.80 | -386.07 | 20.76 | 8.769 |
+| C-i | -67.11 | -360.55 | -386.46 | 15.40 | 8.829 |
 
 B-i / A-i, u_r at the load centre at 100 kyr: 1.053
 
@@ -21,6 +22,7 @@ u_r at the load centre, the peripheral bulge (maximum of u_r along the section),
 |---|---:|---:|---:|---:|---:|
 | A-i | -0.36 | -219.71 | -365.64 | 18.02 | 8.676 |
 | B-i | -0.55 | -309.13 | -385.60 | 21.02 | 8.739 |
+| C-i | -0.53 | -308.11 | -386.02 | 15.49 | 8.797 |
 
 B-i / A-i, u_r at the load centre at 100 kyr: 1.055
 
@@ -66,3 +68,5 @@ Wall time to 100 kyr at ℓmax 128, toroidal coupling on, summed over the chain 
 | A-i | ramp | 5 | 64 | 0.07 |
 | B-i | heav | 5 | 64 | 0.16 |
 | B-i | ramp | 5 | 64 | 0.16 |
+| C-i | heav | 5 | 64 | 19.34 |
+| C-i | ramp | 5 | 64 | 20.04 |

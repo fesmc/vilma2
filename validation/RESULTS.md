@@ -15,7 +15,7 @@ data: `data/published/` (untracked, on albedo under
 |---|---|---|
 | check | 48965936 (8:48) | `make check`: all 49 passed. `make check-slow`: all 9 passed |
 | A | 48965938–48965950; A3.caseA again as 48966766 with the case-A dump (tests from 83f63e4) | 13 of 13 PASS, numbers as in pass 1 |
-| B | 60 segment jobs from 48965951 | A-i and B-i, heaviside and ramp, ℓmax 64, 128, 256: complete, as in pass 1. C-i not run |
+| B | 60 segment jobs from 48965951; C-i 48967029–48967033 (heav), 48967034–48967038 (ramp) | A-i and B-i, heaviside and ramp, ℓmax 64, 128, 256: complete, as in pass 1. C-i, heaviside and ramp, ℓmax 128, toroidal on: complete, 19.3 h and 20.0 h to 100 kyr at 64 threads (3.5–4.2 h per segment); its numbers equal the 907bc74 table to the printed digits |
 | ref | 48966011 (52:41) | `visc3d split: 82 of 220` (`mesh_depth` 80 km keeps the 220-element mesh); ocean-mean rsl −101.25 m |
 | prep | 48966753 (0:16) | reference re-exported; viscosity files reused |
 | D | 48966755 3-D (47:19), 48966756 1Db (2:53) | complete |

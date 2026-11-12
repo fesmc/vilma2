@@ -33,8 +33,16 @@ B_ramp_l128_rms_dur_100kyr_m = 0.0981
 B_ramp_l64_rms_dur_100kyr_m = 1.8826
 B_ramp_ur_load_100kyr_m = -385.6
 B_ramp_wall_100kyr_h = 0.16
+C_heav_bulge_100kyr_m = 15.4
+C_heav_gcm_100kyr_m = 8.829
+C_heav_ur_load_100kyr_m = -386.46
+C_heav_wall_100kyr_h = 19.34
+C_ramp_bulge_100kyr_m = 15.49
+C_ramp_gcm_100kyr_m = 8.797
+C_ramp_ur_load_100kyr_m = -386.02
+C_ramp_wall_100kyr_h = 20.04
 lmax = 128
-ncases = 4
+ncases = 6
 
 [blockD]
 "D-V2-1Db.l170.fe_closure_pct" = 103.2
