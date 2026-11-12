@@ -75,8 +75,10 @@ module vilma_drive
         [character(len=8) :: "rot_m_re", "rot_m_im"]
    ! ... and the split of rsl into bed and sea-surface change. Native solver only:
    ! VILMA1 returns rsl alone, so under it these hold VILMA_UNSET and are omitted.
-   character(len=8), parameter :: DZ_OUT_VARS(3) = &
-        [character(len=8) :: "dz_bed", "dz_ss", "dphi"]
+   ! dz_bed_rate: the rate of the bed change over the interval of the slice (the present-day uplift rate
+   ! of the last slice)
+   character(len=11), parameter :: DZ_OUT_VARS(4) = &
+        [character(len=11) :: "dz_bed", "dz_bed_rate", "dz_ss", "dphi"]
    ! ... and the convergence of the sea-level solves of each interval (native solver only).
    character(len=9), parameter :: SLE_OUT_VARS(2) = &
         [character(len=9) :: "sle_resid", "sle_n_cap"]
@@ -104,7 +106,7 @@ contains
       logical  :: remap, resume, win_ok
       character(len=400) :: msg
       character(len=:), allocatable :: rundir
-      character(len=9), allocatable :: out_names(:)   ! OUT_VARS, + polar motion if active
+      character(len=11), allocatable :: out_names(:)  ! OUT_VARS, + polar motion if active
       integer(kind=8) :: pc0, pc1, prate          ! PROFILE: per-step phase timers
       real(wp) :: t_read = 0.0_wp, t_upd = 0.0_wp, t_wrt = 0.0_wp
       real(wp) :: t_dr, t_mm                      ! PROFILE: solid_earth_update sub-phases

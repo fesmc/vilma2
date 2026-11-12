@@ -33,12 +33,12 @@ program test_io_prec
    character(len=*), parameter :: F_RST = "libvilma/include/test_io_prec_rst.nc"
    character(len=*), parameter :: F_NML = "libvilma/include/test_io_prec.nml"
    ! diagnostics with a rounded table entry, and those that stay exact
-   character(len=8), parameter :: ROUNDED(5) = [character(len=8) :: &
-        "h_ice", "rsl", "z_bed", "dz_bed", "dz_ss"]
+   character(len=11), parameter :: ROUNDED(6) = [character(len=11) :: &
+        "h_ice", "rsl", "z_bed", "dz_bed", "dz_bed_rate", "dz_ss"]
    character(len=11), parameter :: HOR(4) = [character(len=11) :: &
         "u_east", "u_north", "u_east_tor", "u_north_tor"]
-   character(len=8), parameter :: DIAG(10) = [character(len=8) :: &
-        "h_ice", "rsl", "z_bed", "dz_bed", "dz_ss", "C_ocean", "bsl", "bsl_ive", "dphi", "rot_m_re"]
+   character(len=11), parameter :: DIAG(11) = [character(len=11) :: &
+        "h_ice", "rsl", "z_bed", "dz_bed", "dz_bed_rate", "dz_ss", "C_ocean", "bsl", "bsl_ive", "dphi", "rot_m_re"]
 
    type(sht_grid), target :: sht
    type(var_io_type), allocatable :: tab(:)
@@ -156,6 +156,7 @@ contains
       case ("rsl");     f = se%gg%rsl
       case ("z_bed");   f = se%gg%z_bed
       case ("dz_bed");  f = se%gg%dz_bed
+      case ("dz_bed_rate"); f = se%gg%dz_bed_rate
       case ("dz_ss");   f = se%gg%dz_ss
       case ("C_ocean"); f = se%gg%C
       case default;     error stop 'test_io_prec: unknown field'
@@ -248,6 +249,7 @@ contains
               maxval(abs(x%resp%Cre - y%resp%Cre)), maxval(abs(x%resp%Cim - y%resp%Cim)), &
               maxval(abs(x%gg%rsl - y%gg%rsl)), maxval(abs(x%gg%z_bed - y%gg%z_bed)), &
               maxval(abs(x%gg%dz_bed - y%gg%dz_bed)), maxval(abs(x%gg%dz_ss - y%gg%dz_ss)), &
+              maxval(abs(x%gg%dz_bed_rate - y%gg%dz_bed_rate)), &
               abs(x%dphi - y%dphi), abs(x%time - y%time), abs(x%rotation%m - y%rotation%m))
       write(*,'(a,a,a,es9.2)') '   (3) ', label, ' max|x - y| =', d
       if (d /= 0.0_wp) then
