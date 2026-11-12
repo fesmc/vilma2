@@ -446,6 +446,26 @@ open(joinpath(tables_dir(), "v2v1.md"), "w") do io
     println(io, "* **Degree-1 frame** — matched here (`cm` in both), and panel (c) of the ",
                 "summary figure is what keeps it checkable.")
 
+    # ---------------------------------------------------------- run time
+    println(io, "\n## Run time\n")
+    println(io, "Wall time of each run from its job's own accounting (`elapsed_s`), one run ",
+                "each, 64 threads on a shared albedo node. Both backends run behind the same ",
+                "driver, so forcing, diagnostics and output are in both.\n")
+    println(io, "| run | viscosity | wall [min] | per kyr [min] | relative to VILMA1 |")
+    println(io, "|---|---|---:|---:|---:|")
+    for (lab, vis, id, ref, key) in (
+            ("VILMA2, toroidal on",  "3-D", TOR,        V3D,        "3d_tor"),
+            ("VILMA2, toroidal off", "3-D", NOTOR,      V3D,        "3d_notor"),
+            ("VILMA1",               "3-D", V3D,        V3D,        "3d_v1"),
+            ("VILMA2",               "1Db", RUN_V2_1DB, RUN_V1_1DB, "1db_v2"),
+            ("VILMA1",               "1Db", RUN_V1_1DB, RUN_V1_1DB, "1db_v1"))
+        r, b = load_run(id), load_run(ref)
+        (r === nothing || b === nothing) && continue
+        @printf(io, "| %s | %s | %.1f | %.2f | ×%.2f |\n",
+                lab, vis, wall_min(r), wall_per_kyr(r), wall_min(r) / wall_min(b))
+        record!("v2v1", "wall_$(key)_min" => round(wall_min(r), digits = 1))
+    end
+
     # ---------------------------------------------------------------- V7
     tr, nt, v = load_run(TOR), load_run(NOTOR), load_run(V3D)
     if any(isnothing, (tr, nt, v))

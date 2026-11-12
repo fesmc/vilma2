@@ -25,8 +25,6 @@ tr, ct, v1 = load_run(TOR), load_run(CTL), load_run(V1)
 
 W  = repeat(reshape(lat_weights(ct.lat), 1, :), length(ct.lon), 1) ./ length(ct.lon)
 wrms(f) = sqrt(sum(W .* f .^ 2))
-wall_per_kyr(r) = haskey(r.ds.attrib, "elapsed_s") ?
-    Float64(r.ds.attrib["elapsed_s"]) / 60 / ((r.time[end] - r.time[1]) / 1000) : NaN
 
 io = IOBuffer()
 println(io, "# V7 — the toroidal field in the 3-D deglaciation\n")

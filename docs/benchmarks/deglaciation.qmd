@@ -151,6 +151,22 @@ RMS at 21 ka, 14.4 m at 14 ka, 6.2 m at 8 ka) is about six times the difference
 between the codes with the 3-D viscosity, and about twenty-five times the
 difference with the 1Db viscosity.
 
+**Run time.** With the 1Db viscosity VILMA2 runs about five times faster than
+VILMA1. With the 3-D viscosity VILMA2 is 11 % faster without the toroidal field
+and 31 % slower with it, the default (@tbl-deglac-time). Both solvers run
+behind the same driver, so forcing, diagnostics and output are included in
+both.
+
+| run | viscosity | wall time [min] | per kyr [min] | relative to VILMA1 |
+|---|---|---:|---:|---:|
+| VILMA2, toroidal on | 3-D | 69.4 | 2.67 | 1.31 |
+| VILMA2, toroidal off | 3-D | 47.3 | 1.82 | 0.89 |
+| VILMA1 | 3-D | 52.9 | 2.03 | 1 |
+| VILMA2 | 1Db | 2.8 | 0.11 | 0.21 |
+| VILMA1 | 1Db | 13.4 | 0.52 | 1 |
+
+: Wall time of the 26 kyr deglaciation at $\ell_\max = 170$, one run each with 64 threads on a shared albedo node, from the jobs' own accounting (`validation/tables/v2v1.md`). Model f0c4678. {#tbl-deglac-time}
+
 ## Figures
 
 ![VILMA2 against VILMA1 with the 3-D viscosity of Bagge et al. (2021), VILMA2 with the toroidal field. Both codes solve the same problem: the same GLAC-1D forcing, reference state, viscosity field, grid ($\ell_\max = 170$) and degree-1 frame. (a, d, g) VILMA2. (b, e, h) VILMA1. (c, f, i) VILMA2 minus VILMA1. The top and middle rows show relative sea level at 21 ka and 8 ka, relative to each run's own present day. The bottom row shows the present-day uplift rate of the bedrock. The two model columns share a color scale. The difference column has its own, narrower scale. Model f0c4678, albedo.](figures/deglac-v2v1-maps-3d.png){#fig-deglac-v2v1-maps-3d}

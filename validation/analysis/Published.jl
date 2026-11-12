@@ -55,7 +55,7 @@ export published_dir, have_published, require_published,
        slice_at, rsl_anomaly, uplift_rate, srf_elevation, nearest_epoch, nearest_t,
        ocean_mean, polar_motion, site_series, regrid, lat_weights,
        budget_series, budget_at, raw_series, deg01,
-       load_v2v1, load_blockE, ka, sh_parts,
+       load_v2v1, load_blockE, ka, wall_min, wall_per_kyr, sh_parts,
        BenchRun, load_blockA, dumptable, hasdump, verdict, passed, linear_nodes,
        BENCH_TESTS, BENCH_FORCINGS, BENCH_EPOCHS_KYR, BENCH_NPT, BENCH_LMAX, BENCH_CONV_LMAX,
        BENCH_CONV_TESTS, BenchV3D, load_blockB, bench_love_path, bench_cost,
@@ -450,6 +450,12 @@ end
 
 "Model year → ka for a label: −21000 → 21, and 0 → 0 (never −0)."
 ka(t::Real) = -t / 1000 + 0.0
+
+"Wall clock of a run [min], from its job's accounting (`elapsed_s`); NaN when not recorded."
+wall_min(r::PubRun) = haskey(r.ds.attrib, "elapsed_s") ? Float64(r.ds.attrib["elapsed_s"]) / 60 : NaN
+
+"Wall clock per kyr of simulated time [min]."
+wall_per_kyr(r::PubRun) = wall_min(r) / ((r.time[end] - r.time[1]) / 1000)
 
 """
     sh_parts(d, lon, lat; lmax = 8) -> (rms, parts)
