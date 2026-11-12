@@ -102,9 +102,9 @@ div.csl-indent {
 <link href="../site_libs/quarto-html/quarto-syntax-highlighting-63b5708e65d6cd79cd7618c58d0c21e7.css" rel="stylesheet" class="quarto-color-scheme-extra" id="quarto-text-highlighting-styles">
 <script src="../site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="../site_libs/bootstrap/bootstrap-e3136a2a7aab47c582b3613aadea478a.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
-<link href="../site_libs/bootstrap/bootstrap-dark-524b2b7fe292fc43f906defac40b5377.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
-<link href="../site_libs/bootstrap/bootstrap-e3136a2a7aab47c582b3613aadea478a.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
+<link href="../site_libs/bootstrap/bootstrap-3a1610f0a8f0b9b7bc4c1e6d49db0d8a.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
+<link href="../site_libs/bootstrap/bootstrap-dark-f829436f7c543b6c5fa77b733bfa68fa.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
+<link href="../site_libs/bootstrap/bootstrap-3a1610f0a8f0b9b7bc4c1e6d49db0d8a.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
 <script id="quarto-search-options" type="application/json">{
   "location": "navbar",
   "copy-button": false,
@@ -1086,6 +1086,71 @@ Table&nbsp;4: Grid cells on which the ocean functions of the two runs differ.
 </figure>
 </div>
 <p>For scale, the lateral-viscosity signal within VILMA2 (3-D minus 1Db: 16.4 m RMS at 21 ka, 14.4 m at 14 ka, 6.2 m at 8 ka) is about six times the difference between the codes with the 3-D viscosity, and about twenty-five times the difference with the 1Db viscosity.</p>
+<p><strong>Run time.</strong> With the 1Db viscosity VILMA2 runs about five times faster than VILMA1. With the 3-D viscosity VILMA2 is 11 % faster without the toroidal field and 31 % slower with it, the default (<a href="#tbl-deglac-time" class="quarto-xref">Table&nbsp;5</a>). Both solvers run behind the same driver, so forcing, diagnostics and output are included in both.</p>
+<div id="tbl-deglac-time" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-tbl figure">
+<figcaption class="quarto-float-caption-top quarto-float-caption quarto-float-tbl" id="tbl-deglac-time-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Table&nbsp;5: Wall time of the 26 kyr deglaciation at <span class="math inline">\(\ell_\max = 170\)</span>, one run each with 64 threads on a shared albedo node, from the jobs’ own accounting (<code>validation/tables/v2v1.md</code>). Model f0c4678.
+</figcaption>
+<div aria-describedby="tbl-deglac-time-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 16%">
+<col style="width: 16%">
+<col style="width: 22%">
+<col style="width: 22%">
+<col style="width: 22%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>run</th>
+<th>viscosity</th>
+<th style="text-align: right;">wall time [min]</th>
+<th style="text-align: right;">per kyr [min]</th>
+<th style="text-align: right;">relative to VILMA1</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>VILMA2, toroidal on</td>
+<td>3-D</td>
+<td style="text-align: right;">69.4</td>
+<td style="text-align: right;">2.67</td>
+<td style="text-align: right;">1.31</td>
+</tr>
+<tr class="even">
+<td>VILMA2, toroidal off</td>
+<td>3-D</td>
+<td style="text-align: right;">47.3</td>
+<td style="text-align: right;">1.82</td>
+<td style="text-align: right;">0.89</td>
+</tr>
+<tr class="odd">
+<td>VILMA1</td>
+<td>3-D</td>
+<td style="text-align: right;">52.9</td>
+<td style="text-align: right;">2.03</td>
+<td style="text-align: right;">1</td>
+</tr>
+<tr class="even">
+<td>VILMA2</td>
+<td>1Db</td>
+<td style="text-align: right;">2.8</td>
+<td style="text-align: right;">0.11</td>
+<td style="text-align: right;">0.21</td>
+</tr>
+<tr class="odd">
+<td>VILMA1</td>
+<td>1Db</td>
+<td style="text-align: right;">13.4</td>
+<td style="text-align: right;">0.52</td>
+<td style="text-align: right;">1</td>
+</tr>
+</tbody>
+</table>
+</div>
+</figure>
+</div>
 </section>
 <section id="figures" class="level2">
 <h2 class="anchored" data-anchor-id="figures">Figures</h2>
@@ -1137,7 +1202,7 @@ Figure&nbsp;4: Size and composition of the difference in relative sea level, VIL
 <div id="tbl-deglac-toroidal" class="quarto-float quarto-figure quarto-figure-center anchored">
 <figure class="quarto-float quarto-float-tbl figure">
 <figcaption class="quarto-float-caption-top quarto-float-caption quarto-float-tbl" id="tbl-deglac-toroidal-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-Table&nbsp;5: The 3-D run of VILMA2 with and without the toroidal field. V2 − V1 as in <a href="#tbl-deglac-3d" class="quarto-xref">Table&nbsp;1</a> (RSL relative to each run’s own present day, grid RMS).
+Table&nbsp;6: The 3-D run of VILMA2 with and without the toroidal field. V2 − V1 as in <a href="#tbl-deglac-3d" class="quarto-xref">Table&nbsp;1</a> (RSL relative to each run’s own present day, grid RMS).
 </figcaption>
 <div aria-describedby="tbl-deglac-toroidal-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
 <table class="caption-top table">
@@ -1211,7 +1276,7 @@ Figure&nbsp;5: Relative sea level at 10 ka, VILMA2 with the toroidal field on mi
 <div id="tbl-deglac-y21" class="quarto-float quarto-figure quarto-figure-center anchored">
 <figure class="quarto-float quarto-float-tbl figure">
 <figcaption class="quarto-float-caption-top quarto-float-caption quarto-float-tbl" id="tbl-deglac-y21-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-Table&nbsp;6: Degree-2, order-1 content of the RSL difference at 21 ka, area-weighted.
+Table&nbsp;7: Degree-2, order-1 content of the RSL difference at 21 ka, area-weighted.
 </figcaption>
 <div aria-describedby="tbl-deglac-y21-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
 <table class="caption-top table">
