@@ -2,90 +2,90 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
     <loc>https://fesmc.github.io/vilma2/getting-started.html</loc>
-    <lastmod>2026-11-12T00:10:24.297Z</lastmod>
+    <lastmod>2026-11-12T06:05:10.357Z</lastmod>
   </url>
   <url>
     <loc>https://fesmc.github.io/vilma2/benchmarks/index.html</loc>
-    <lastmod>2026-11-12T00:10:24.295Z</lastmod>
+    <lastmod>2026-11-12T06:05:10.356Z</lastmod>
   </url>
   <url>
     <loc>https://fesmc.github.io/vilma2/benchmarks/deglaciation.html</loc>
-    <lastmod>2026-11-12T00:10:24.240Z</lastmod>
+    <lastmod>2026-11-12T06:05:10.293Z</lastmod>
   </url>
   <url>
     <loc>https://fesmc.github.io/vilma2/benchmarks/visc3d.html</loc>
-    <lastmod>2026-11-12T00:10:24.296Z</lastmod>
+    <lastmod>2026-11-12T06:05:10.356Z</lastmod>
   </url>
   <url>
     <loc>https://fesmc.github.io/vilma2/benchmarks/love-numbers.html</loc>
-    <lastmod>2026-11-12T00:10:24.295Z</lastmod>
+    <lastmod>2026-11-12T06:05:10.356Z</lastmod>
   </url>
   <url>
     <loc>https://fesmc.github.io/vilma2/references.html</loc>
-    <lastmod>2026-11-12T00:10:24.297Z</lastmod>
+    <lastmod>2026-11-12T06:05:10.358Z</lastmod>
   </url>
   <url>
     <loc>https://fesmc.github.io/vilma2/tutorial.html</loc>
-    <lastmod>2026-11-12T00:10:24.297Z</lastmod>
+    <lastmod>2026-11-12T06:05:10.358Z</lastmod>
   </url>
   <url>
     <loc>https://fesmc.github.io/vilma2/physics/sea-level.html</loc>
-    <lastmod>2026-11-12T00:10:24.297Z</lastmod>
+    <lastmod>2026-11-12T06:05:10.358Z</lastmod>
   </url>
   <url>
     <loc>https://fesmc.github.io/vilma2/physics/rotation.html</loc>
-    <lastmod>2026-11-12T00:10:24.297Z</lastmod>
+    <lastmod>2026-11-12T06:05:10.358Z</lastmod>
   </url>
   <url>
     <loc>https://fesmc.github.io/vilma2/discretization/radial-fe.html</loc>
-    <lastmod>2026-11-12T00:10:24.296Z</lastmod>
+    <lastmod>2026-11-12T06:05:10.356Z</lastmod>
   </url>
   <url>
     <loc>https://fesmc.github.io/vilma2/discretization/spectral.html</loc>
-    <lastmod>2026-11-12T00:10:24.297Z</lastmod>
+    <lastmod>2026-11-12T06:05:10.357Z</lastmod>
   </url>
   <url>
     <loc>https://fesmc.github.io/vilma2/discretization/solver.html</loc>
-    <lastmod>2026-11-12T00:10:24.297Z</lastmod>
+    <lastmod>2026-11-12T06:05:10.357Z</lastmod>
   </url>
   <url>
     <loc>https://fesmc.github.io/vilma2/discretization/time-stepping.html</loc>
-    <lastmod>2026-11-12T00:10:24.297Z</lastmod>
+    <lastmod>2026-11-12T06:05:10.357Z</lastmod>
   </url>
   <url>
     <loc>https://fesmc.github.io/vilma2/physics/toroidal.html</loc>
-    <lastmod>2026-11-12T00:10:24.297Z</lastmod>
+    <lastmod>2026-11-12T06:05:10.358Z</lastmod>
   </url>
   <url>
     <loc>https://fesmc.github.io/vilma2/physics/governing-equations.html</loc>
-    <lastmod>2026-11-12T00:10:24.297Z</lastmod>
+    <lastmod>2026-11-12T06:05:10.357Z</lastmod>
   </url>
   <url>
     <loc>https://fesmc.github.io/vilma2/physics/rheology.html</loc>
-    <lastmod>2026-11-12T00:10:24.297Z</lastmod>
+    <lastmod>2026-11-12T06:05:10.358Z</lastmod>
   </url>
   <url>
     <loc>https://fesmc.github.io/vilma2/implementation.html</loc>
-    <lastmod>2026-11-12T00:10:24.297Z</lastmod>
+    <lastmod>2026-11-12T06:05:10.357Z</lastmod>
   </url>
   <url>
     <loc>https://fesmc.github.io/vilma2/benchmarks/lvz.html</loc>
-    <lastmod>2026-11-12T00:10:24.295Z</lastmod>
+    <lastmod>2026-11-12T06:05:10.356Z</lastmod>
   </url>
   <url>
     <loc>https://fesmc.github.io/vilma2/benchmarks/rotation.html</loc>
-    <lastmod>2026-11-12T00:10:24.295Z</lastmod>
+    <lastmod>2026-11-12T06:05:10.356Z</lastmod>
   </url>
   <url>
     <loc>https://fesmc.github.io/vilma2/benchmarks/disc.html</loc>
-    <lastmod>2026-11-12T00:10:24.240Z</lastmod>
+    <lastmod>2026-11-12T06:05:10.293Z</lastmod>
   </url>
   <url>
     <loc>https://fesmc.github.io/vilma2/benchmarks/sea-level.html</loc>
-    <lastmod>2026-11-12T00:10:24.295Z</lastmod>
+    <lastmod>2026-11-12T06:05:10.356Z</lastmod>
   </url>
   <url>
     <loc>https://fesmc.github.io/vilma2/index.html</loc>
-    <lastmod>2026-11-12T00:10:24.297Z</lastmod>
+    <lastmod>2026-11-12T06:05:10.357Z</lastmod>
   </url>
 </urlset>
