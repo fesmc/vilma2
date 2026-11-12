@@ -140,7 +140,7 @@ module vilma_coupling
       type(response)           :: resp      !! viscoelastic field driver (load → u, N)
       type(sle_solver)         :: sle       !! sea-level equation
       type(adaptive_stepper)   :: stepper   !! adaptive-Δt controller (vilma_timestep)
-      type(rotation_state)     :: rotation  !! TPW feedback (ON by default; par%rotation)
+      type(rotation_state)     :: rotation  !! TPW feedback (ON by default; par%l_rotation)
 
       type(gauss_state)        :: gg        !! Gauss-grid working state (the physics)
       !! The SLE's converged spectral surface load [kg m⁻²] at the end of the last
@@ -421,7 +421,7 @@ contains
       case default
          error stop "solid_earth_init: unknown earth_response (use ve|elastic|null)"
       end select
-      self%resp%visc3d_tol = self%par%visc3d_tol   ! 3-D split threshold (read before any enable below)
+      self%resp%visc_3d_tol = self%par%visc_3d_tol   ! 3-D split threshold (read before any enable below)
       self%resp%toroidal   = self%par%l_toroidal   ! toroidal coupling (likewise)
 
       ! laterally-varying (3D) viscosity (rung 6c), per self%par%l_visc_3d
@@ -454,7 +454,7 @@ contains
 
       ! rotational feedback (degree-2 Liouville polar motion → centrifugal potential
       ! fed back into the SLE; vilma_rotation).
-      if (self%par%rotation) then
+      if (self%par%l_rotation) then
          if (self%par%rotation_k_s > 0.0_wp) then
             call rotation_init(self%rotation, self%earth, self%sht, dt0, &
                                k_s=self%par%rotation_k_s, CminusA=self%par%rotation_c_minus_a)
@@ -505,7 +505,7 @@ contains
       type(sht_grid),    intent(in)    :: sht
       real(wp),          intent(in)    :: visc_node(:,:)
       call response_enable_lateral_visc_from_nodes(self%resp, sht, visc_node, &
-           lid_depth=self%par%visc3d_lid_depth, lid_log10max=self%par%visc3d_lid_log10max, &
+           lid_depth=self%par%visc_3d_lid_depth, lid_log10max=self%par%visc_3d_lid_log10max, &
            log10_cap=self%par%visc_log10_max)
       if (self%rotation%enabled) call sync_rotation_rate(self)
    end subroutine apply_visc_nodes

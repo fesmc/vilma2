@@ -271,7 +271,7 @@ contribution to the sea surface, so no separate solver is needed.
 `vilma_rotation` carries two degree-2 viscoelastic channels (one forced by the
 load, one by the centrifugal potential) on the same radial operator as the load
 response. The rotation and the sea level are iterated to a common fixed point
-inside `vilma_sle`. Rotation is on by default (`rotation = .true.`) and is
+inside `vilma_sle`. Rotation is on by default (`l_rotation = .true.`) and is
 switched off for the non-rotating community benchmarks. `rotation_k_s` = 0
 (default) uses the model's own fluid limit for $k_s$, and `rotation_c_minus_a`
 sets $C-A$ (default $2.63\times10^{35}$ kg m$^2$). The polar motion matches

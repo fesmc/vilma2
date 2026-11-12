@@ -31,7 +31,7 @@
 # THE MEAN. Per radial level, the unweighted arithmetic mean of log10(eta) --
 # i.e. the geometric mean of eta. That is exactly what VILMA2 does when it
 # demotes an element (vilma_coupling.f90: visc_unif(:,r) = sum(visc_node(:,r))/nh),
-# and what visc3d_tol = 99 produces for structure 1Db. Area weighting is
+# and what visc_3d_tol = 99 produces for structure 1Db. Area weighting is
 # deliberately NOT applied, to match that convention. It does not affect the
 # test either way: both backends read the SAME numbers, so the comparison is
 # clean whatever the mean is.

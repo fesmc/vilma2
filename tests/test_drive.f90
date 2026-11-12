@@ -11,6 +11,7 @@ program test_drive
    !! Then the restart clock: a run stopped at the middle slice and resumed from its final
    !! restart continues there (one slice left, the same end state as the uninterrupted
    !! run), and forcing_window refuses every window that would replay or skip forcing.
+   use, intrinsic :: ieee_arithmetic, only: ieee_value, ieee_quiet_nan
    use vilma_precision,       only: wp
    use vilma_constants,       only: rad2deg, pi
    use vilma_sht,             only: sht_grid, sht_grid_init, sht_grid_destroy
@@ -244,17 +245,16 @@ contains
    subroutine field_values()
       !! An input field with a fill value, a NaN or a value outside its range is refused.
       real(wp), allocatable :: f(:,:)
-      real(wp) :: zero
       character(len=200) :: msg
       logical :: w
-      allocate(f(4,3));  zero = 0.0_wp
+      allocate(f(4,3))
       f = 1500.0_wp;                             w = input_field_ok(f, 0.0_wp, 1.0e4_wp, msg)
       call expect(w, 'ice 1500 m: accepted')
       f = 1500.0_wp;  f(2,2) = -9999.0_wp;       w = input_field_ok(f, 0.0_wp, 1.0e4_wp, msg)
       call expect(.not. w, 'ice with -9999 (ncio missing value): refused')
       f = 1500.0_wp;  f(3,1) = 9.96921e36_wp;    w = input_field_ok(f, 0.0_wp, 1.0e4_wp, msg)
       call expect(.not. w, 'ice with a netCDF fill value: refused')
-      f = 1500.0_wp;  f(1,3) = zero/zero;        w = input_field_ok(f, 0.0_wp, 1.0e4_wp, msg)
+      f = 1500.0_wp;  f(1,3) = ieee_value(1.0_wp, ieee_quiet_nan);  w = input_field_ok(f, 0.0_wp, 1.0e4_wp, msg)
       call expect(.not. w, 'ice with NaN: refused')
       f = -4000.0_wp;                            w = input_field_ok(f, -2.0e4_wp, 2.0e4_wp, msg)
       call expect(w, 'bed -4000 m: accepted')
@@ -291,7 +291,7 @@ contains
       write(u,'(a)')    '    name_ice     = "h_ice"'
       write(u,'(a)')    '    name_time    = "time"'
       write(u,'(a)')    '    file_ref     = "'//ref//'"'
-      write(u,'(a)')    '    name_zbed_eq = "z_bed_eq"'
+      write(u,'(a)')    '    name_z_bed_start = "z_bed_eq"'
       write(u,'(a)')    '    file_out     = "'//out//'"'
       write(u,'(a)')    '    file_hor     = "'//hor//'"'
       write(u,'(a)')    "    write_lossless = .true."

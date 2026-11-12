@@ -12,7 +12,7 @@ program diag_visc3d_paths
    !!
    !! Both responses read the SAME visc_node, through the same driver call
    !! (load_visc_3d + response_enable_lateral_visc_from_nodes); they differ only in
-   !! visc3d_tol -- 99 demotes every element to the scalar path, -1 forces every
+   !! visc_3d_tol -- 99 demotes every element to the scalar path, -1 forces every
    !! Maxwell element through the pseudo-spectral kernel. With a laterally uniform
    !! file the two must agree.
    !!
@@ -86,8 +86,8 @@ program diag_visc3d_paths
    call response_init_ve(v3, em, sht, dt)
 
    call load_visc_3d(p, sht, v1%r, visc_node)
-   v1%visc3d_tol =  99.0_wp                      ! every element demoted  -> 1-D path
-   v3%visc3d_tol =  -1.0_wp                      ! every Maxwell element  -> 3-D path
+   v1%visc_3d_tol =  99.0_wp                      ! every element demoted  -> 1-D path
+   v3%visc_3d_tol =  -1.0_wp                      ! every Maxwell element  -> 3-D path
    call response_enable_lateral_visc_from_nodes(v1, sht, visc_node)
    call response_enable_lateral_visc_from_nodes(v3, sht, visc_node)
    ne3d_1 = v1%ne3d;  ne3d_3 = v3%ne3d

@@ -34,7 +34,7 @@ module vilma_control
 
       ! --- legacy Gauss-grid reference file (remap_input=.false.) ----------------
       character(len=512) :: file_ref     = ""            !! reference state (z_bed_eq, h_ice_eq)
-      character(len=64)  :: name_zbed_eq = "z_bed_eq"    !! bed var (legacy 2D ref; or 3D bed in forcing)
+      character(len=64)  :: name_z_bed_start = "z_bed_eq"  !! i_eq=0 bed var: in file_forcing (lon,lat,time), or 2-D in file_ref (remap_input=.false.)
                                                          !! (i_eq = 0: the reference ice is the start slice)
 
       ! --- step output ----------------------------------------------------------
@@ -128,7 +128,7 @@ contains
       ! legacy Gauss-grid reference file
       call nml_read(filename, g, "file_ref",      c%file_ref)
       c%file_ref = expand_path(c%file_ref)
-      call nml_read(filename, g, "name_zbed_eq",  c%name_zbed_eq)
+      call nml_read(filename, g, "name_z_bed_start",  c%name_z_bed_start)
 
       ! output
       call nml_read(filename, g, "file_out",      c%file_out)

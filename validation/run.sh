@@ -11,7 +11,7 @@
 #   ./run.sh D         deglaciation, VILMA2, 3-D (toroidal off: V7's control) and 1Db, lmax 170
 #   ./run.sh V1        the same through the VILMA1 backend
 #   ./run.sh T         the production 3-D run: D's with the toroidal field on (V7)
-#   ./run.sh E         sensitivity: lmax 64/128/256 and visc3d_tol
+#   ./run.sh E         sensitivity: lmax 64/128/256 and visc_3d_tol
 #   ./run.sh reduce    runs/ -> data/published/
 #   ./run.sh analyse   figures (docs/benchmarks/figures, figures/) and tables/
 #   ./run.sh submit <stages...>   run the given stages in one SLURM job (prep, reduce, analyse)
@@ -196,7 +196,7 @@ stage_T() {
 
 stage_E() {
   require_prep
-  say "sensitivity: truncation and visc3d_tol"
+  say "sensitivity: truncation and visc_3d_tol"
   RUNS_BLOCKD="$HERE/runs/blockE" SCHEME=fe LMAX_LIST_D="64 128 256" DEG1=cm \
     IEQ=2 ZEQ="$REF_NC" HEQ="$REF_NC" EQUIL=0.0 PRE1D=.false. \
     ./experiments/run_deglac.sh blockD-res

@@ -60,7 +60,7 @@ program test_io_prec
 
    p%lmax = LMAX;  p%nlat = 2*LMAX;  p%nphi = 4*LMAX
    p%earth_response = "ve"
-   p%rotation = .true.
+   p%l_rotation = .true.
    a%par = p; call solid_earth_init(a, z_bed_eq, h_ice_eq)
 
    ! ---- run, writing the diagnostics every step three ways ---------------------------

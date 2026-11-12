@@ -258,7 +258,7 @@ contains
       real(wp), intent(in) :: rho(2)
       p%lmax = lmax;  p%nlat = 2*lmax + 2;  p%nphi = 4*lmax
       p%earth_response = "elastic"
-      p%rotation = .false.
+      p%l_rotation = .false.
       p%rho_ice = rho(1);  p%rho_water = rho(2)
    end subroutine new_par
 

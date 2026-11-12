@@ -4,7 +4,7 @@
 !
 ! The earth model, memory scheme (fe), degree-1 frame (cm), grid, and the
 ! absence of ocean and rotation are fixed by the driver. Only lmax, l_toroidal
-! and visc3d_tol are read from &vilma, and all three are set here so no model
+! and visc_3d_tol are read from &vilma, and all three are set here so no model
 ! default decides them.
 !
 ! Placeholders: @TEST@ @FORCING@ @TEND@ @RIN@ @ROUT@ @LMAX@ @LTOR@ @V3DTOL@
@@ -20,5 +20,5 @@
 &vilma
     lmax       = @LMAX@
     l_toroidal = @LTOR@        ! the protocol asks for u_phi: toroidal on
-    visc3d_tol = @V3DTOL@
+    visc_3d_tol = @V3DTOL@
 /

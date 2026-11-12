@@ -6,7 +6,7 @@
 #
 #   E1  lmax 64 / 128 / 256, against the production 170 — the numerical
 #       convergence of the headline result, which a reviewer will ask for.
-#   E3  visc3d_tol 1e-3 / 1e-2 / 1e-1 and tol = 0 (every Maxwell element treated
+#   E3  visc_3d_tol 1e-3 / 1e-2 / 1e-1 and tol = 0 (every Maxwell element treated
 #       as laterally 3-D) — VILMA2's central speed/accuracy approximation,
 #       which has to be justified rather than stated.
 #
@@ -156,7 +156,7 @@ function fig_lmax()
 end
 
 # =============================================================================
-# E3 — visc3d_tol, the lateral-promotion threshold
+# E3 — visc_3d_tol, the lateral-promotion threshold
 # =============================================================================
 function fig_tol()
     length(e3) < 2 && (@warn "E3 needs at least two tolerances"; return nothing)
@@ -196,7 +196,7 @@ function fig_tol()
     labs = [v.label for v in e3]
 
     ax1 = Axis(fig[1, 1], xticks = (collect(x), labs),
-               xlabel = "visc3d_tol [dex of lateral spread]",
+               xlabel = "visc_3d_tol [dex of lateral spread]",
                ylabel = "radial elements advanced as 3-D")
     barplot!(ax1, collect(x), Float64.(n3); color = C_3D, width = 0.5)
     nt > 0 && hlines!(ax1, [Float64(nt)], color = C_GREY, linestyle = :dash)
@@ -210,7 +210,7 @@ function fig_tol()
     # is stated in the caption instead, from the measured numbers, and both are
     # still recorded in results.toml below.
     ax3 = Axis(fig[1, 2], xticks = (collect(x), labs),
-               xlabel = "visc3d_tol [dex of lateral spread]",
+               xlabel = "visc_3d_tol [dex of lateral spread]",
                ylabel = "wall clock, full deglaciation [min]")
     kw = .!isnan.(wall)
     barplot!(ax3, collect(x)[kw], wall[kw]; color = C_3D, width = 0.5)
@@ -221,7 +221,7 @@ function fig_tol()
     savefig(fig, "visc3d-tol";
         title = "The lateral-promotion threshold",
         caption = """
-        Effect of `visc3d_tol`, the threshold in decades of lateral viscosity spread above
+        Effect of `visc_3d_tol`, the threshold in decades of lateral viscosity spread above
         which a radial element is advanced with laterally-varying rather than radial
         rheology, on the last deglaciation at ℓmax 170 with the 3-D Bagge et al. (2021)
         field. (a) Number of the model's $nt radial elements promoted to the 3-D treatment
@@ -285,7 +285,7 @@ open(joinpath(tables_dir(), "blockE.md"), "w") do io
                 "100 yr, 3-D Bagge (2021) viscosity, `i_eq = 2` against VILMA2's own ",
                 "LGM reference state (30 kyr hold), `fe` scheme, rotation on, migrating coastlines.\n")
     println(io, "**Two axes of the original thirteen.** E1 is the numerical convergence of ",
-                "the headline result; E3 is `visc3d_tol`, the model's central speed/accuracy ",
+                "the headline result; E3 is `visc_3d_tol`, the model's central speed/accuracy ",
                 "approximation. E2 (forcing cadence) was dropped because the coupling ",
                 "interval is the forcing file's own time axis rather than a namelist ",
                 "parameter.\n")
@@ -315,11 +315,11 @@ open(joinpath(tables_dir(), "blockE.md"), "w") do io
     end
 
     if ok3 !== nothing
-        println(io, "\n## E3 — `visc3d_tol`\n")
+        println(io, "\n## E3 — `visc_3d_tol`\n")
         println(io, "Differences are against `tol = 0`, where every Maxwell element is ",
                     "advanced with laterally-varying rheology. The production default is ",
                     "`1e-3`.\n")
-        println(io, "| visc3d_tol | elements 3-D | ocean-mean rsl at PD [m] | rms Δrsl at 21 ka [m] | rms Δuplift [mm/yr] | wall clock |")
+        println(io, "| visc_3d_tol | elements 3-D | ocean-mean rsl at PD [m] | rms Δrsl at 21 ka [m] | rms Δuplift [mm/yr] | wall clock |")
         println(io, "|---|---:|---:|---:|---:|---:|")
         for v in e3
             @printf(io, "| %s | %d | %.2f | %s | %s | %s |\n", v.label,

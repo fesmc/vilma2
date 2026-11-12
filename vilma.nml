@@ -19,7 +19,7 @@
 
     ! --- legacy Gauss-grid reference file (remap_input=.false.) -------
     file_ref      = ""                 ! reference state (z_bed_eq, h_ice_eq)
-    name_zbed_eq  = "z_bed_eq"
+    name_z_bed_start = "z_bed_eq"   ! i_eq=0 bed: in file_forcing (lon,lat,time), or file_ref if not remapping
 
     ! --- step output --------------------------------------------------
     file_out      = "vilma_out.nc"
@@ -71,7 +71,7 @@
     scheme         = "fe"      ! fe (1st-order, default) | trap (2nd-order adaptive)
     cfl            = 1.0       ! explicit (fe) sub-step Maxwell-number ceiling M=mu*dt/eta
     rtol           = 1.0e-4    ! relative local-error tolerance (adaptive schemes)
-    rotation       = .true.    ! TPW rotational feedback (off for non-rotating benchmarks)
+    l_rotation     = .true.    ! TPW rotational feedback (off for non-rotating benchmarks)
 
     ! --- response kind -------------------------------------------------
     earth_response = "ve"      ! ve | elastic | null
@@ -83,5 +83,5 @@
     ! --- 3-D viscosity + uncertainty sampling -------------------------
     l_visc_3d      = .false.   ! load a lateral log10(eta) field (Bagge 2021 from FesmData by default; needs a `fesmdata` link in the run folder)
     f_visc_sd      = 0.0       ! perturbation in units of sigma (0 = mean field)
-    visc3d_tol     = 1.0e-3    ! [dex] lateral spread above which an element is treated 3-D
+    visc_3d_tol     = 1.0e-3    ! [dex] lateral spread above which an element is treated 3-D
 /

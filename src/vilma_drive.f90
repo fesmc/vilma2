@@ -420,9 +420,9 @@ contains
       select case (c%i_eq)
       case (0)
          if (remap) then
-            call require_var(c%file_forcing, c%name_zbed_eq, 'file_forcing/name_zbed_eq')
+            call require_var(c%file_forcing, c%name_z_bed_start, 'file_forcing/name_z_bed_start')
          else
-            call require_var(c%file_ref, c%name_zbed_eq, 'file_ref/name_zbed_eq')
+            call require_var(c%file_ref, c%name_z_bed_start, 'file_ref/name_z_bed_start')
             call require_axes(c, c%file_ref, 'file_ref')
          end if
       case (1)
@@ -619,9 +619,9 @@ contains
    end subroutine require_field
 
    subroutine read_bed(c, rmap, sht, remap, k, src, z_bed)
-      !! Read the reference bedrock. remap: slice k of name_zbed_eq from the forcing
+      !! Read the reference bedrock. remap: slice k of name_z_bed_start from the forcing
       !! file (lon-lat-time), remapped (no mass rescale -- bed is geometry, not mass).
-      !! else: the 2D name_zbed_eq from file_ref (legacy Gauss-grid reference file, read_gauss).
+      !! else: the 2D name_z_bed_start from file_ref (legacy Gauss-grid reference file, read_gauss).
       type(vilma_ctl_class),   intent(in)    :: c
       type(remap_ll_gauss),   intent(in)    :: rmap
       type(sht_grid),       intent(in)    :: sht
@@ -630,14 +630,14 @@ contains
       real(wp),             intent(inout) :: src(:,:)
       real(wp),             intent(out)   :: z_bed(:,:)
       if (remap) then
-         call nc_read(c%file_forcing, trim(c%name_zbed_eq), src, &
+         call nc_read(c%file_forcing, trim(c%name_z_bed_start), src, &
                       start=[1,1,k], count=[size(src,1), size(src,2), 1])
-         call require_field(src, -ELEV_MAX, ELEV_MAX, c%file_forcing, c%name_zbed_eq)
+         call require_field(src, -ELEV_MAX, ELEV_MAX, c%file_forcing, c%name_z_bed_start)
          call remap_to_gauss(rmap, sht, src, z_bed, conserve_mass=.false.)
       else
          if (len_trim(c%file_ref) == 0) error stop 'vilma_run: file_ref not set (remap_input=.false.)'
-         call read_gauss(c, sht, c%file_ref, c%name_zbed_eq, z_bed)
-         call require_field(z_bed, -ELEV_MAX, ELEV_MAX, c%file_ref, c%name_zbed_eq)
+         call read_gauss(c, sht, c%file_ref, c%name_z_bed_start, z_bed)
+         call require_field(z_bed, -ELEV_MAX, ELEV_MAX, c%file_ref, c%name_z_bed_start)
       end if
    end subroutine read_bed
 

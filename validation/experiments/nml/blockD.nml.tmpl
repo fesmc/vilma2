@@ -14,16 +14,16 @@
 !
 ! Structures, via @V3D@/@V3DTOL@/@VISCF@:
 !   1Da  l_visc_3d=.false.                      the PREM/Clemens radial profile
-!   1Db  l_visc_3d=.true.,  visc3d_tol=99.0     a laterally uniform field: the
+!   1Db  l_visc_3d=.true.,  visc_3d_tol=99.0     a laterally uniform field: the
 !        radial mean of the 3-D field
-!   3D   l_visc_3d=.true.,  visc3d_tol=1.0e-3   full lateral variation
+!   3D   l_visc_3d=.true.,  visc_3d_tol=1.0e-3   full lateral variation
 
 &vilma
     lmax           = @LMAX@
     scheme         = "@SCHEME@"
     rtol           = @RTOL@
     earth_response = "ve"
-    rotation       = .true.
+    l_rotation     = .true.
     rho_ice        = 931.0
     rho_water      = 1000.0
 
@@ -66,10 +66,10 @@
     name_visc_r    = "r"
     visc_log10_min = 19.5
     visc_log10_max = 30.0
-    visc3d_tol     = @V3DTOL@
+    visc_3d_tol     = @V3DTOL@
     ! Lid rule (experiments/earth_lid.sh); VILMA1's on-grid files carry the same.
-    visc3d_lid_depth    = @LIDDEPTH@
-    visc3d_lid_log10max = @LIDMAX@
+    visc_3d_lid_depth    = @LIDDEPTH@
+    visc_3d_lid_log10max = @LIDMAX@
     ! Toroidal field of the 3-D elements: .true. in the production 3-D run (V7,
     ! D-V2-3D.l170.tor), .false. in its control D-V2-3D.l170.fe, which differs
     ! only here. The 1Db run has no laterally 3-D element for it to act on.
@@ -81,7 +81,7 @@
     name_ice      = "ice_thickness"
     name_time     = "time"
     file_ref      = ""
-    name_zbed_eq  = "z_bed_eq"
+    name_z_bed_start = "z_bed_eq"
     remap_input   = .true.
     name_lon      = "lon"
     name_lat      = "lat"

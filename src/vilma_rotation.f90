@@ -97,7 +97,7 @@ module vilma_rotation
    end type rot_snapshot
 
    type :: rotation_state
-      logical     :: enabled = .false.       !! set from p%rotation by the coupling init
+      logical     :: enabled = .false.       !! set from p%l_rotation by the coupling init
       complex(wp) :: m = (0.0_wp, 0.0_wp)     !! polar motion m₁ + i m₂ [rad]
       real(wp)    :: time = 0.0_wp            !! model time [s]
       ! physics constants (defaults: Spada 2011 Table 2; overridable for deep time)

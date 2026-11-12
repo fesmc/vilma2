@@ -19,7 +19,7 @@ description paper (`alex-robinson/paper-fastearth3d-experiments`).
 | `D` | Last deglaciation, 26 ka to present, VILMA2 at ℓmax 170: 3-D Bagge et al. (2021) viscosity with the toroidal field off (`D-V2-3D.l170.fe`, V7's control) and the radial mean of that field (`D-V2-1Db`) | 2 jobs |
 | `V1` | The same two runs through the VILMA1 backend (`solver = "v1"`), on VILMA2's layer table and the same viscosity values | 2 jobs |
 | `T` | V7, the production 3-D run (`D-V2-3D.l170.tor`): `D`'s 3-D run with the toroidal field of the 3-D elements on (`l_toroidal`, the model default), otherwise identical | 1 job, about 1.5× the cost of the run without it |
-| `E` | Sensitivity of the 3-D run: ℓmax 64, 128, 256 and `visc3d_tol` | 7 jobs; scripts only, not part of the last pass |
+| `E` | Sensitivity of the 3-D run: ℓmax 64, 128, 256 and `visc_3d_tol` | 7 jobs; scripts only, not part of the last pass |
 
 Deglaciation setup (`experiments/nml/blockD.nml.tmpl`): PREM geometry in 11
 layers, forward Euler at the Maxwell stability limit, rotation on, centre-of-mass

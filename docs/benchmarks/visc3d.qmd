@@ -140,8 +140,8 @@ Conventions:
 
 The run config is `examples/bench_visc3d.nml`. Its `&benchv3d` group sets `test`
 (`A`/`B`/`C`), `forcing` (`heav`/`ramp`) and `time_end` [years]. From `&vilma`
-only `lmax`, `l_toroidal` and `visc3d_tol` are read. The example config sets
-`lmax = 128` and `l_toroidal = .true.`, and `visc3d_tol` keeps its default. The
+only `lmax`, `l_toroidal` and `visc_3d_tol` are read. The example config sets
+`lmax = 128` and `l_toroidal = .true.`, and `visc_3d_tol` keeps its default. The
 earth model, memory scheme, degree-1 frame and grid are fixed by the benchmark.
 The protocol files are written to the working directory.
 

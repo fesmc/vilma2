@@ -117,7 +117,7 @@ module vilma_params
       real(wp) :: cfl       = 1.0_wp         !! explicit (fe) sub-step Maxwell-number ceiling M=μΔt/η
 
       ! --- rotational feedback (vilma_rotation) ------------------------------------
-      logical  :: rotation = .true.          !! TPW feedback (on for real runs; off for non-rotating benchmarks)
+      logical  :: l_rotation = .true.        !! TPW feedback (on for real runs; off for non-rotating benchmarks)
       real(wp) :: rotation_k_s = 0.0_wp      !! secular Love number k_s in the Liouville equation;
                                              !! <= 0 uses the model's own fluid limit k^T_f
       real(wp) :: rotation_c_minus_a = 2.63e35_wp !! C − A [kg m²], normalises the load inertia Ψ_L
@@ -181,12 +181,12 @@ module vilma_params
          !! radius [m], read and interpolated as visc_3d_file; "" = none. Needs l_visc_3d.
       real(wp) :: visc_log10_min = 19.5_wp  !! floor on log10(eta) after read + perturbation [dex]
       real(wp) :: visc_log10_max = 30.0_wp  !! ceiling on log10(eta) after read + perturbation [dex]
-      real(wp) :: visc3d_lid_depth    = 0.0_wp  !! [m] lid rule off at 0; see visc3d_lid_log10max
-      real(wp) :: visc3d_lid_log10max = 22.0_wp !! Maxwell elements lying wholly above visc3d_lid_depth
+      real(wp) :: visc_3d_lid_depth    = 0.0_wp  !! [m] lid rule off at 0; see visc_3d_lid_log10max
+      real(wp) :: visc_3d_lid_log10max = 22.0_wp !! Maxwell elements lying wholly above visc_3d_lid_depth
          !! whose log10(eta) exceeds this are set to visc_log10_max (effectively elastic). Such
          !! elements relax over Myr, so a held-load spin-up never equilibrates them; the rule
          !! splits the lid into elements that relax within kyr and ones that do not.
-      real(wp) :: visc3d_tol     = 1.0e-3_wp !! lateral log10(eta) spread [dex] above which a radial
+      real(wp) :: visc_3d_tol    = 1.0e-3_wp  !! lateral log10(eta) spread [dex] above which a radial
          !! element is treated as genuinely 3-D (pays the dyadic SHT round-trip); below it the
          !! element collapses to its lateral-mean scalar rate (cheap degree-diagonal path). Raising
          !! it demotes weakly-3-D elements to 1-D and cuts the memory-advance cost (the dominant cost).
@@ -249,8 +249,9 @@ contains
       !! overlaid on a complete `defaults_file` (yelmo convention): every parameter
       !! must exist in the defaults file, but the user `filename` may set only the
       !! subset it wants to override. If `defaults_file` is omitted, `filename` IS
-      !! its own defaults — so it must then be complete. Override `group` to read a
-      !! differently-named namelist.
+      !! its own defaults — so it must then be complete. A key of the user group that
+      !! the defaults file does not declare (a typo or a renamed parameter) stops the
+      !! run. Override `group` to read a differently-named namelist.
       type(vilma_param_class), intent(inout) :: p
       character(len=*),     intent(in)    :: filename
       character(len=*),     intent(in), optional :: defaults_file
@@ -263,6 +264,7 @@ contains
       g  = "vilma";      if (present(group))         g  = group
       df = filename;    if (present(defaults_file)) df = defaults_file
       call nml_set_verbose(.false.)             ! vilma_par_print echoes a concise summary instead
+      if (present(defaults_file)) call nml_validate(filename, df, g)   ! unknown keys stop
 
       ! solver backend ("v2" | "v1"); validated in solid_earth_init
       call nml_read(filename, g, "solver",    p%solver,    defaults_file=df)
@@ -332,7 +334,7 @@ contains
          error stop 'vilma_params: cfl must lie in (0, 2): forward Euler is unstable for M >= 2'
 
       ! rotation
-      call nml_read(filename, g, "rotation",   p%rotation,   defaults_file=df)
+      call nml_read(filename, g, "l_rotation", p%l_rotation, defaults_file=df)
       call nml_read(filename, g, "rotation_k_s",       p%rotation_k_s,       defaults_file=df)
       call nml_read(filename, g, "rotation_c_minus_a", p%rotation_c_minus_a, defaults_file=df)
 
@@ -351,9 +353,9 @@ contains
       call nml_read(filename, g, "visc_3d_file",   p%visc_3d_file,   defaults_file=df)
       call nml_read(filename, g, "visc_3d_structure", p%visc_3d_structure, defaults_file=df)
       p%visc_3d_file = expand_path(p%visc_3d_file)
-      call nml_read(filename, g, "visc3d_tol",     p%visc3d_tol,     defaults_file=df)
-      call nml_read(filename, g, "visc3d_lid_depth",    p%visc3d_lid_depth,    defaults_file=df)
-      call nml_read(filename, g, "visc3d_lid_log10max", p%visc3d_lid_log10max, defaults_file=df)
+      call nml_read(filename, g, "visc_3d_tol",    p%visc_3d_tol,    defaults_file=df)
+      call nml_read(filename, g, "visc_3d_lid_depth",    p%visc_3d_lid_depth,    defaults_file=df)
+      call nml_read(filename, g, "visc_3d_lid_log10max", p%visc_3d_lid_log10max, defaults_file=df)
       call nml_read(filename, g, "l_toroidal",     p%l_toroidal,     defaults_file=df)
       call nml_read(filename, g, "name_visc",      p%name_visc,      defaults_file=df)
       call nml_read(filename, g, "name_visc_lon",  p%name_visc_lon,  defaults_file=df)
@@ -463,7 +465,7 @@ contains
       write(u,'(a,es9.2,a,es8.1,a,es8.1,a,f5.2)') &
            '   dt:     init=', p%dt_init, &
            '  rtol=', p%rtol, '  atol=', p%atol, '  cfl=', p%cfl
-      write(u,'(a,l1,a,f7.4,a,es10.3)') '   rotation: ', p%rotation, &
+      write(u,'(a,l1,a,f7.4,a,es10.3)') '   rotation: ', p%l_rotation, &
            '  k_s=', p%rotation_k_s, '  C-A=', p%rotation_c_minus_a
       write(u,'(a,es9.2,a,es9.2,a,l1)') '   spinup: equil_time_max=', p%equil_time_max, &
            '  equil_rate_tol=', p%equil_rate_tol, '  pre_spinup_1d=', p%pre_spinup_1d
@@ -476,10 +478,10 @@ contains
               '  clamp=[', p%visc_log10_min, ',', p%visc_log10_max, ']'
          if (len_trim(p%visc_shift_file) > 0) &
             write(u,'(a,a)') '            visc_shift: ', trim(p%visc_shift_file)
-         write(u,'(a,es9.2,a)') '            visc3d_tol=', p%visc3d_tol, ' dex (3-D split)'
-         if (p%visc3d_lid_depth > 0.0_wp) &
+         write(u,'(a,es9.2,a)') '            visc_3d_tol=', p%visc_3d_tol, ' dex (3-D split)'
+         if (p%visc_3d_lid_depth > 0.0_wp) &
             write(u,'(a,f6.1,a,f5.2,a)') '            lid rule: elements above ', &
-                 p%visc3d_lid_depth*1.0e-3_wp, ' km with log10(eta) > ', p%visc3d_lid_log10max, &
+                 p%visc_3d_lid_depth*1.0e-3_wp, ' km with log10(eta) > ', p%visc_3d_lid_log10max, &
                  ' -> clamp ceiling'
          write(u,'(a,l1)')      '            l_toroidal=', p%l_toroidal
       end if

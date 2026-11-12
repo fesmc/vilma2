@@ -112,7 +112,7 @@ contains
       !! p = a·cos²θ has the mean a/3 over the sphere; the mean over the Gauss grid
       !! points, which are near-uniform in θ, is close to a/2. Both places that take
       !! a lateral mean must give a/3: the scalar rate of an element that collapses
-      !! to 1-D (visc3d_tol above the spread), and response_radial_rate of the same
+      !! to 1-D (visc_3d_tol above the spread), and response_radial_rate of the same
       !! element kept 3-D.
       logical, intent(inout) :: ok
       real(wp), parameter :: A = 0.6_wp
@@ -126,7 +126,7 @@ contains
       do j = 1, sht%nlat
          pert(:,j,:) = A*cos(sht%colat(j))**2
       end do
-      v1%visc3d_tol = 2.0_wp*A                   ! every element collapses to its mean
+      v1%visc_3d_tol = 2.0_wp*A                   ! every element collapses to its mean
       call response_enable_lateral_visc(v1, sht, pert)
       call response_enable_lateral_visc(v3, sht, pert)      ! every Maxwell element 3-D
       rate = response_radial_rate(v3)
@@ -231,7 +231,7 @@ contains
       ve%deg1_cm = .true.
       call response_init_ve(ve, e, sht, dt)
       allocate(pert(sht%nphi, sht%nlat, ve%ne));  pert = -0.4_wp
-      ve%visc3d_tol = tol;  ve%toroidal = .true.
+      ve%visc_3d_tol = tol;  ve%toroidal = .true.
       call response_enable_lateral_visc(ve, sht, pert)
       allocate(slm(sht%nlm), u(sht%nlm), n(sht%nlm))
       call build_load(slm)
@@ -302,7 +302,7 @@ contains
       call response_init_ve(ve3d, e, sht, dt)
       allocate(pert(sht%nphi, sht%nlat, ve3d%ne));  pert = 0.0_wp
       ve3d%toroidal = .true.
-      ve3d%visc3d_tol = -1.0_wp     ! force every Maxwell element through the pseudo-spectral
+      ve3d%visc_3d_tol = -1.0_wp     ! force every Maxwell element through the pseudo-spectral
       call response_enable_lateral_visc(ve3d, sht, pert)   ! kernel (else a uniform field collapses to 1-D)
       call drive_and_compare(ve3d, ve1d, 'pert=0 :', ok)
       deallocate(pert)
@@ -332,7 +332,7 @@ contains
       call response_init_ve(ve3d, e, sht, dt)
       allocate(pert(sht%nphi, sht%nlat, ve3d%ne));  pert = p
       ve3d%toroidal = .true.
-      ve3d%visc3d_tol = -1.0_wp     ! force the pseudo-spectral kernel (validate it reduces to 1-D)
+      ve3d%visc_3d_tol = -1.0_wp     ! force the pseudo-spectral kernel (validate it reduces to 1-D)
       call response_enable_lateral_visc(ve3d, sht, pert)
       write(lbl,'(a,f6.1,a,es9.2,a,a,a)') 'p=', p, ' (M=', mk_max(ve1d), ', ', &
            trim(merge('cm', 'cf', cm)), '):'
@@ -362,7 +362,7 @@ contains
       ve3d%scheme = SCHEME_TRAP;  ve3d%max_couple_iter = 4
       allocate(pert(sht%nphi, sht%nlat, ve3d%ne));  pert = p
       ve3d%toroidal = .true.
-      ve3d%visc3d_tol = -1.0_wp     ! force the pseudo-spectral kernel (validate it reduces to 1-D)
+      ve3d%visc_3d_tol = -1.0_wp     ! force the pseudo-spectral kernel (validate it reduces to 1-D)
       call response_enable_lateral_visc(ve3d, sht, pert)
       call drive_and_compare(ve3d, ve1d, 'trap-uni:', ok)
       deallocate(pert)

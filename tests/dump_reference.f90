@@ -1053,7 +1053,7 @@ contains
       allocate(tyr(NINT), bsl(NINT), wm(NINT))
       do is = 1, NINT;  tyr(is) = real(is, wp)*DT_YR;  end do
       call nc_write_dim(f, "time", x=tyr, units="years", long_name="model time after each solid_earth_update interval")
-      call nc_write_attr(f, "params", "vilma_param_class defaults except lmax=32 nlat=64 nphi=128 rotation=.false. scheme=fe|trap rho_ice=931; earth_response=ve; sle defaults; cfl=1; rtol=1e-4")
+      call nc_write_attr(f, "params", "vilma_param_class defaults except lmax=32 nlat=64 nphi=128 l_rotation=.false. scheme=fe|trap rho_ice=931; earth_response=ve; sle defaults; cfl=1; rtol=1e-4")
       call nc_write_attr(f, "fields", "z_bed_eq: +500 m colat<50 deg else -4000 m; h_ice_eq=0; h_ice: 2000 m colat<30 deg held (test_coupling)")
       call nc_write(f, "z_bed_eq", z_bed_eq, dim1="lon", dim2="colat", units="m", long_name="reference (relaxed) bedrock")
       call nc_write(f, "h_ice_eq", h_ice_eq, dim1="lon", dim2="colat", units="m", long_name="reference grounded ice")
@@ -1062,7 +1062,7 @@ contains
 
       do isch = 1, 2
          p%lmax = LMAX32;  p%nlat = 2*LMAX32;  p%nphi = 4*LMAX32
-         p%rotation = .false.
+         p%l_rotation = .false.
          p%scheme = sn(isch)
          p%rho_ice = rho_ice
          se%par = p
@@ -1226,7 +1226,7 @@ contains
       write(*,'(a,f9.4,a)') '  visc3d timing run A 3-D 35 elements: ', real(toc3-tic3,wp)/real(trate3,wp)/real(NSTEP,wp)*1.0e3_wp, ' ms/step'
       ! (B) uniform (zero) perturbation forced through the 3-D kernel
       call response_init_ve(veu, e, g, DT100)
-      veu%visc3d_tol = -1.0_wp;  veu%toroidal = .true.
+      veu%visc_3d_tol = -1.0_wp;  veu%toroidal = .true.
       pert = 0.0_wp
       call response_enable_lateral_visc(veu, g, pert)
       call system_clock(tic3, trate3)
@@ -1249,8 +1249,8 @@ contains
       call nc_write_dim(f, "e3d",  x=1, dx=1, nx=ve3d%ne3d, units="1")
       call nc_write_dim(f, "node", x=1, dx=1, nx=ve3d%nr, units="1")
       call nc_write_attr(f, "pert_formula", "log10(eta) perturbation = 0.5*sin(colat)*cos(lon) on elements with elem_layer==2 (upper mantle, 5951-6301 km), 0 elsewhere; eta_eff = eta*10^pert")
-      call nc_write_attr(f, "run_A", "ve3d: enable_lateral_visc(pert), visc3d_tol=1e-3 (default), scheme fe")
-      call nc_write_attr(f, "run_B", "veu: pert=0 with visc3d_tol=-1 (every Maxwell element forced through the pseudo-spectral tensor advance)")
+      call nc_write_attr(f, "run_A", "ve3d: enable_lateral_visc(pert), visc_3d_tol=1e-3 (default), scheme fe")
+      call nc_write_attr(f, "run_B", "veu: pert=0 with visc_3d_tol=-1 (every Maxwell element forced through the pseudo-spectral tensor advance)")
       call nc_write_attr(f, "run_C", "ve1d: plain 1-D ve_response")
       call ws(f, "dt", DT100, "s", "time step")
       call nc_write(f, "elem_layer", mesh%elem_layer, dim1="elem", units="1", long_name="earth layer per element")

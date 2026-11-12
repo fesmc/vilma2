@@ -130,12 +130,12 @@ module vilma_response
       type(tensor_sh) :: tsh                            !! dyadic tensor-SH transformer
       ! VILMA1-style 1-D/3-D layer split (mod_visc3d k1p/k2p). An element is treated as
       ! genuinely "3-D" — and pays the pseudo-spectral tensor-SH advance — only when its
-      ! lateral log10(η) spread exceeds visc3d_tol; otherwise it collapses to a scalar
+      ! lateral log10(η) spread exceeds visc_3d_tol; otherwise it collapses to a scalar
       ! effective rate (lateral mean) and advances on the cheap degree-diagonal spectral
       ! path, exactly like 1-D viscosity. With a laterally-uniform field NO element is 3-D,
       ! so the 3-D run costs the same as 1-D. e3d lists the 3-D elements; active1d(e) is
       ! .true. for the spectrally-advanced (1-D-effective + elastic/fluid) elements.
-      real(wp) :: visc3d_tol = 1.0e-3_wp                !! lateral log10(η) spread → "3-D" (dex)
+      real(wp) :: visc_3d_tol = 1.0e-3_wp                !! lateral log10(η) spread → "3-D" (dex)
       logical  :: deg1_cm = .false.                    !! degree-1 in the CM frame (geocenter motion kept)
       integer  :: ne3d = 0                              !! # genuinely-3-D elements
       integer,  allocatable :: e3d(:)                   !! (ne3d) indices of the 3-D elements
@@ -1044,7 +1044,7 @@ contains
       !! lithosphere remains exactly elastic.
       !!
       !! 1-D/3-D split (VILMA1 mod_visc3d): an element is flagged genuinely 3-D only
-      !! when its lateral log10(η) spread exceeds visc3d_tol; that subset (e3d) pays
+      !! when its lateral log10(η) spread exceeds visc_3d_tol; that subset (e3d) pays
       !! the pseudo-spectral tensor-SH advance. Every other Maxwell element collapses
       !! to a scalar effective rate, that of its lateral mean log10(η) — the mean over
       !! the sphere, area-weighted (sht_grid_area_mean), not over the grid points, which
@@ -1080,7 +1080,7 @@ contains
          if (self%MkPerDt_rad(e) == 0.0_wp) cycle         ! elastic/fluid: spectral, memory-free
          self%MkPerDt_mean(e) = self%MkPerDt_rad(e) * 10.0_wp**(-sht_grid_area_mean(sht, pert_elem(:,:,e)))
          spread = maxval(pert_elem(:,:,e)) - minval(pert_elem(:,:,e))
-         if (spread > self%visc3d_tol) then
+         if (spread > self%visc_3d_tol) then
             self%active1d(e) = .false.;  self%ne3d = self%ne3d + 1   ! genuinely 3-D
          else
             self%MkPerDt(e) = self%MkPerDt_mean(e)                   ! collapse to scalar

@@ -4,7 +4,7 @@
 !     runme -o runs/bench_visc3d -e visc3d -n examples/bench_visc3d.nml \
 !           -p benchv3d.test=A,B,C benchv3d.forcing=heav,ramp -r
 ! Setup and output: docs/benchmarks/visc3d.qmd. Only lmax, l_toroidal and
-! visc3d_tol are read from &vilma; the earth model, memory scheme, degree-1
+! visc_3d_tol are read from &vilma; the earth model, memory scheme, degree-1
 ! frame and grid are fixed by the benchmark.
 ! ====================================================================
 

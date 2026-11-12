@@ -332,7 +332,7 @@ contains
       call nc_write_attr(filename, "l_visc_3d", merge(1, 0, self%resp%lat_visc))
       call nc_write_attr(filename, "ne3d",       self%resp%ne3d)
       call nc_write_attr(filename, "ne",         self%resp%ne)
-      call nc_write_attr(filename, "visc3d_tol", real(self%resp%visc3d_tol, wp))
+      call nc_write_attr(filename, "visc_3d_tol", real(self%resp%visc_3d_tol, wp))
       if (allocated(self%earth%visc_3d)) &
          call nc_write_attr(filename, "visc_3d_checksum", visc_3d_checksum(self%earth%visc_3d))
       ! the radial structure the memory lives on, for every viscoelastic run (1-D or 3-D)
@@ -501,7 +501,7 @@ contains
       ! serialized into restarts by write_rotation; these two cases let the
       ! DIAGNOSTIC output file carry it as well, via an explicit nms list.
       ! Only meaningful when the rotation solver ran -- vilma_drive adds them to
-      ! its list only if se%rotation%enabled, so a rotation=.false. run and the
+      ! its list only if se%rotation%enabled, so an l_rotation=.false. run and the
       ! VILMA1 backend (which keeps its own internal rotation and never touches
       ! this state) omit the variables rather than writing a fabricated zero.
       case ("rot_m_re"); call put_scalar(filename, name, real(self%rotation%m, wp), n, ncid, lossless)

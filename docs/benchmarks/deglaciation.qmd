@@ -182,7 +182,7 @@ The two codes integrate the same viscosity field and the same elastic layer
 table on their own radial element grids, with the same target spacing but not
 the same nodes: VILMA2 spreads the elements of a layer evenly, VILMA1 truncates
 each layer to whole elements. With lateral variation, each code also carries it in its own way;
-VILMA2 treats only the elements whose lateral spread exceeds `visc3d_tol =
+VILMA2 treats only the elements whose lateral spread exceeds `visc_3d_tol =
 1e-3` as 3-D (82 of 220). The lateral variation is the only difference between
 the 3-D and the 1Db pair, and the 3-D pair differs about four times more (2.60
 against 0.63 m RMS at 21 ka); without VILMA2's toroidal field it would be eight

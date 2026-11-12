@@ -7,7 +7,7 @@
 #   ./experiments/run_deglac.sh blockD-res   VILMA2 3-D at the truncations $LMAX_LIST_D
 #   ./experiments/run_deglac.sh blockD-tor   VILMA2 3-D with the toroidal field (V7)
 #   ./experiments/run_deglac.sh blockDV1     the VILMA1 backend, $STRUCTS (needs EXE)
-#   ./experiments/run_deglac.sh blockE-tol   VILMA2 3-D over visc3d_tol
+#   ./experiments/run_deglac.sh blockE-tol   VILMA2 3-D over visc_3d_tol
 #
 # run.sh sets the environment of each stage (reference state, frame, scheme);
 # SUBMIT=0 stages without submitting. Templates: nml/blockD.nml.tmpl and
@@ -103,10 +103,10 @@ case "$mode" in
 
   # VILMA2 at lmax $LMAX_D, forward Euler (cfl 1), by Earth structure:
   #   1Da  l_visc_3d=.false.                  the PREM/"Clemens" radial profile
-  #   1Db  l_visc_3d=.true., visc3d_tol=99    the laterally uniform file
+  #   1Db  l_visc_3d=.true., visc_3d_tol=99    the laterally uniform file
   #        (make_uniform_visc.jl: per-level geometric mean of the clamped Bagge
   #        field), which D-V1-1Db reads too
-  #   3D   l_visc_3d=.true., visc3d_tol=1e-3  full lateral variation
+  #   3D   l_visc_3d=.true., visc_3d_tol=1e-3  full lateral variation
   blockD)
     L=${LMAX_D:-170}; SCH=${SCHEME:-fe}; RT=${RTOL:-1.0e-4}
     UNIF=${UNIF_FE:-$VALIDATION/data/reference/bagge2021_uniform_vilma2.nc}
@@ -162,7 +162,7 @@ case "$mode" in
           "${PRE1D:-.true.}" .true. 1.0e-3 -26000.0)"
     ;;
 
-  # visc3d_tol, the speed/accuracy lever of the 3-D path, on the D-V2-3D row.
+  # visc_3d_tol, the speed/accuracy lever of the 3-D path, on the D-V2-3D row.
   # tol = 0 keeps every Maxwell element with any lateral spread 3-D.
   blockE-tol)
     L=${LMAX_E3:-170}
