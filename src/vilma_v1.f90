@@ -633,11 +633,7 @@ contains
       !!                       by write_ice_slice.
       !!
       !! The epoch coordinate is written once and left alone, exactly as CLIMBER-X's
-      !! wrapper does: VILMA1's internal time marches past t1 after the first interval
-      !! and it then keeps using the last record, i.e. the load is held at the current
-      !! slice across each interval. That is a real difference from the native solver,
-      !! which ramps the load linearly from the previous slice to the new one within
-      !! the interval — see doc/vilma-v1-backend.md, "known differences".
+      !! wrapper does.
       !!
       !! loadh.inp's first row is `nlat nlon rho_ice rho_ocean` — LATITUDE FIRST, and
       !! nlat/nlon must equal the NetCDF lat/lon sizes or VILMA1's check_dim_ne aborts.

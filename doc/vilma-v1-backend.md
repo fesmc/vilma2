@@ -276,17 +276,7 @@ For a like-for-like comparison, make the reference *be* the start state: `&ctl`
 `i_eq=0` where the forcing file carries a bed for the start slice, or `i_eq=2`
 with `h_ice_eq_file` set to the start-slice ice.
 
-### 6c. Load ramping within an interval differs
-
-With `vg%l_load_hist = .false.` the ice-history file keeps two slices and VILMA1
-re-reads them every step. Slice 1 is pinned to the reference (6b) and the epoch
-coordinate is written once, so VILMA1's internal time runs past the labelled
-window after the first interval and it then holds the load at the current slice.
-The native solver instead **ramps the load linearly** from the previous slice to
-the new one across the interval. Same end points, different path within a
-coupling step; expect first-order-in-Δt differences from this alone.
-
-### 6d. Other operational notes
+### 6c. Other operational notes
 
 * **VILMA1 is a singleton.** All of its state is module-level `SAVE`d data, so
   only one backend instance per process, and it is not thread-safe at the API

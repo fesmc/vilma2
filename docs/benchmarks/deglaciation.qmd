@@ -166,15 +166,13 @@ check that the degree-1 frame is matched.
 
 ## Sources of difference
 
-### 1. Load path within a coupling interval
+### 1. Sub-steps within a coupling interval
 
-The two solvers reach the same load at the end of each 100 yr interval by
-different paths. VILMA2 ramps the load linearly across the interval and takes
-equal sub-steps at its own Maxwell stability limit. VILMA1 holds the load at
-the value of the interval and takes 12 uniform sub-steps of 8.33 yr. The
-difference is first order in the coupling interval. Its size has not been
-measured in isolation. An earlier test bounds the sub-step part alone: with 24
-and 48 sub-steps, VILMA1's result changed by 0.006 m.
+Both solvers reach the same load at the end of each 100 yr interval. VILMA2
+ramps the load linearly across the interval and takes equal sub-steps at its
+own Maxwell stability limit. VILMA1 takes 12 uniform sub-steps of 8.33 yr. With
+24 and 48 sub-steps, VILMA1's result changed by 0.006 m, so the sub-step choice
+is not a material source of difference.
 
 ### 2. Radial discretisation and lateral viscosity
 

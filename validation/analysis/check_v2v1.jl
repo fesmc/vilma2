@@ -36,10 +36,9 @@
 #          be built, not assumed.
 #
 #   NOT the same:
-#     * LOAD PATH WITHIN A COUPLING INTERVAL. VILMA2 ramps the load
-#       linearly across the 100 yr interval and sub-steps adaptively; VILMA1
-#       holds it at the interval value and takes vilma_v1_nsub uniform sub-steps
-#       (12 here). This is a documented asymmetry, not a bug in either code.
+#     * SUB-STEPS WITHIN A COUPLING INTERVAL. VILMA2 sub-steps adaptively at
+#       its Maxwell stability limit; VILMA1 takes vilma_v1_nsub uniform sub-steps
+#       (12 here).
 #     * RADIAL DISCRETISATION. Both integrate the same viscosity field, but onto
 #       their own element grids.
 
@@ -157,11 +156,10 @@ function maps_figure(p, f, v, SC)
         The difference column is on a separate scale on purpose: at the V2/V1 scale the
         residual renders as a blank white panel, which would show agreement rather than
         demonstrate it. Read the scale bars before comparing panels across columns.
-        Two things are deliberately not matched and account for part of the residual:
-        VILMA2 ramps the ice load linearly across each 100 yr coupling interval and
-        sub-steps adaptively while VILMA1 holds the load and takes 12 uniform sub-steps,
-        and the two codes discretise the same viscosity field onto their own radial
-        element grids. The `C_ocean` and `bsl` diagnostics are computed by VILMA2
+        Two things are deliberately not matched: VILMA2 sub-steps adaptively within
+        each 100 yr coupling interval while VILMA1 takes 12 uniform sub-steps, and the
+        two codes discretise the same viscosity field onto their own radial element
+        grids. The `C_ocean` and `bsl` diagnostics are computed by VILMA2
         for both backends, so they are not independent between the columns.
         """,
         source = @__FILE__,
@@ -439,11 +437,10 @@ open(joinpath(tables_dir(), "v2v1.md"), "w") do io
                 "everything above degree 8 is what the first and last columns leave.")
 
     println(io, "\n## Differences that are not solver error\n")
-    println(io, "* **Load path within a coupling interval** — VILMA2 ramps the load ",
-                "linearly across the 100 yr interval and sub-steps adaptively to its own ",
-                "Maxwell stability limit; VILMA1 holds the load at the interval value and ",
-                "takes `vilma_v1_nsub` uniform sub-steps (12 here, an 8.33 yr step against a ",
-                "measured 11.0 yr Maxwell limit for this structure).")
+    println(io, "* **Sub-steps within a coupling interval** — VILMA2 sub-steps adaptively ",
+                "to its own Maxwell stability limit; VILMA1 takes `vilma_v1_nsub` uniform ",
+                "sub-steps (12 here, an 8.33 yr step against a measured 11.0 yr Maxwell ",
+                "limit for this structure).")
     println(io, "* **Radial discretisation** — the two codes integrate the same viscosity ",
                 "field onto their own element grids.")
     println(io, "* **Degree-1 frame** — matched here (`cm` in both), and panel (c) of the ",
