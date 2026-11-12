@@ -99,6 +99,11 @@ lateral_uplift_rms_mmyr = 0.623
 3d_rms_peak_m = 2.67
 3d_uplift_rms_mmyr = 0.096
 3d_y21_21ka_m = 0.49
+wall_1db_v1_min = 13.4
+wall_1db_v2_min = 2.8
+wall_3d_notor_min = 47.3
+wall_3d_tor_min = 69.4
+wall_3d_v1_min = 52.9
 
 [v7]
 closure_ctl_pct = 102.86
