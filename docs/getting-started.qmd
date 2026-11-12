@@ -247,8 +247,9 @@ A few conventions worth knowing:
   `sle_n_cap`, the number of solves that ended at an iteration cap; the model
   also warns once per interval when a cap is hit) and the uplift rate
   `dz_bed_rate` [m/yr], the change of the bed `dz_bed` over the interval
-  that ends at the slice divided by its length: at a present-day slice, the
-  rate a GNSS station measures (in the frame of `deg1_frame`). The folder of `file_out` is
+  that ends at the slice divided by its length: the mean rate of that
+  interval, so a present-day slice after a short interval (a century, say)
+  gives the rate a GNSS station measures (in the frame of `deg1_frame`). The folder of `file_out` is
   created if needed. `file_hor` (optional) receives the horizontal surface
   displacement.
   The variables and their output precision are listed in
