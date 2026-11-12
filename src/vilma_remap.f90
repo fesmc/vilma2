@@ -13,13 +13,11 @@ module vilma_remap
    !! driver (vilma_drive) uses it to remap lon-lat forcing onto the Gauss grid.
    !!
    !! Caching: map_init writes each weight set to a SCRIP(-superset) NetCDF cache under
-   !! `fldr` (default "maps") and reloads it on the next run, keyed by the grid names —
-   !! which we tag with the grid dimensions so a resolution change invalidates the
-   !! cache. The conservative weight build (polygon clipping) is the costly step; the
-   !! cache lets a restart skip it. A regional grid's name carries its extent as well; global
-   !! grids of the same dimensions but different axes would collide on the name — clear
-   !! `fldr` if a global host grid changes at fixed resolution. The key
-   !! does not include the planet either: both grids are spherical (planet="Spherical Earth",
+   !! `fldr` (default "maps") and reloads it on the next run, keyed by the grid names. The
+   !! source grid's name carries its dimensions and a hash of its axis values (axes_tag), so
+   !! any change of the source grid, at fixed dimensions too, builds new weights. The
+   !! conservative weight build (polygon clipping) is the costly step; the cache lets a
+   !! restart skip it. The key does not include the planet: both grids are spherical (planet="Spherical Earth",
    !! as the model), so a cache built before that was set (WGS84 areas) must be cleared.
    !!
    !! Source grid. Longitudes ascending; latitudes ascending or descending (a descending
@@ -44,6 +42,7 @@ module vilma_remap
    !! remapped field to round-off. conserve_mass=.true. then rescales by a factor of 1
    !! (to ~1e-16, tests/test_remap) for a global source: the source total in steradians is
    !! sum(f*area)/R^2, with R^2 from the Gauss grid's total area 4*pi*R^2.
+   use, intrinsic :: iso_fortran_env, only: int64
    use vilma_precision, only: wp, is_finite
    use vilma_sht,       only: sht_grid, sht_grid_surface_integral
    use coords,       only: grid_class, grid_init, grid_init_gaussian, map_class, map_init, map_field
@@ -52,7 +51,7 @@ module vilma_remap
 
    public :: remap_ll_gauss
    public :: remap_init, remap_to_gauss, remap_to_ll, remap_covers_sphere
-   public :: gauss_axes_rows, rows_copy
+   public :: gauss_axes_rows, rows_copy, axes_tag
    public :: ROWS_NONE, ROWS_NORTH_FIRST, ROWS_SOUTH_FIRST
 
    !! Row order of a field on the model's Gauss grid (gauss_axes_rows). The model's own layout
@@ -102,7 +101,6 @@ contains
       character(len=64) :: ll_name, gauss_name
       real(wp), allocatable :: lat_asc(:), ones(:,:), mean1(:,:)
       logical,  allocatable :: m2(:,:)
-      real(wp) :: dx, dy, span
       integer :: j
 
       self%nlon = size(lon_src);  self%nlat_ll = size(lat_src)
@@ -124,20 +122,10 @@ contains
 
       if (sht%mres /= 1) error stop 'vilma_remap: the Gauss target is global (needs mres = 1)'
 
-      ! tag grid names with their dimensions so the weight cache is resolution-specific
-      write(ll_name,    '(a,i0,a,i0)') "ll_",    self%nlon, "x", self%nlat_ll
-      ! a regional grid is named with its extent too [1/100 degree], so two regions of the
-      ! same dimensions do not share a cache; global grids keep the plain name
-      dx = lon_src(2) - lon_src(1);  dy = lat_asc(2) - lat_asc(1)
-      span = lon_src(self%nlon) - lon_src(1) + dx
-      if (abs(span - 360.0_wp) > 0.5_wp*dx .or. lat_asc(1) - dy > -90.0_wp &
-          .or. lat_asc(self%nlat_ll) + dy < 90.0_wp) &
-         write(ll_name, '(a,i0,a,i0,a,i0,a,i0,a,i0,a,i0)') "ll_", self%nlon, "x", self%nlat_ll, "_r", &
-              nint(100.0_wp*lon_src(1)), "_", nint(100.0_wp*lon_src(self%nlon)), "_", &
-              nint(100.0_wp*lat_asc(1)), "_", nint(100.0_wp*lat_asc(self%nlat_ll))
+      ! the weight cache is keyed by the grid names: the source's carries its dimensions and
+      ! a hash of its axes as given (latitude order included), the Gauss grid's its dimensions
+      write(ll_name,    '(a,i0,a,i0,a,a)') "ll_", self%nlon, "x", self%nlat_ll, "_", axes_tag(lon_src, lat_src)
       write(gauss_name, '(a,i0,a,i0)') "gauss_", self%nphi, "x", self%nlat
-      ! a reversed axis gets its own name: its weights are those of the ascending grid
-      if (self%flip_lat) ll_name = trim(ll_name)//"_f"
       call grid_init(self%ll, name=trim(ll_name), mtype="latlon", units="degrees", &
                      planet="Spherical Earth", lon180=.true., x=lon_src, y=lat_asc)
       ! Gauss target with edges from the Gauss weights, so its cell areas are the SHTns
@@ -320,5 +308,32 @@ contains
          error stop 'vilma_remap: rows_copy needs ROWS_NORTH_FIRST or ROWS_SOUTH_FIRST'
       end select
    end subroutine rows_copy
+
+   function axes_tag(lon, lat) result(tag)
+      !! 8 hex digits of a 32-bit FNV-1a hash of the axis values [deg, rounded to 1e-6] in
+      !! the order given: two grids of the same dimensions but other axes (lon 0..359 against
+      !! -180..179, a shifted region, latitude reversed) get different weight caches.
+      real(wp), intent(in) :: lon(:), lat(:)
+      character(len=8) :: tag
+      integer(int64), parameter :: PRIME = 16777619_int64, MOD32 = 4294967296_int64
+      integer(int64) :: h
+      h = 2166136261_int64
+      call mix(lon)
+      call mix(lat)
+      write(tag, '(z8.8)') h
+   contains
+      subroutine mix(x)
+         real(wp), intent(in) :: x(:)
+         integer(int64) :: v
+         integer :: i, b
+         do i = 1, size(x)
+            v = nint(x(i)*1.0e6_wp, int64)
+            do b = 0, 7
+               h = ieor(h, iand(shiftr(v, 8*b), 255_int64))
+               h = mod(h*PRIME, MOD32)
+            end do
+         end do
+      end subroutine mix
+   end function axes_tag
 
 end module vilma_remap
