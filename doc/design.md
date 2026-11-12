@@ -75,7 +75,8 @@ phase, Gauss grid, phi-contiguous layout; spectral arrays hold `m >= 0`.
   `rsl = dz_ss - dz_bed`: the bed change `dz_bed = u` and the sea-surface change
   `dz_ss = N + Δφ` (`se%dz_bed`, `se%dz_ss`, with the uniform shift `se%dphi`), on
   the host and Gauss grids; they come from the same final SLE solve as `rsl`
-  (VILMA1 backend: unset). The ocean function is on the host grid too (`se%C`).
+  (VILMA1 backend: unset). `se%dz_bed_rate` is the rate of `dz_bed` over the last
+  advancing update, `(u(t) - u(t - dt_yr))/dt_yr` [m/yr] (a `dt_yr = 0` update keeps it). The ocean function is on the host grid too (`se%C`).
   Every host-grid field is in the host's own order: a host on the Gauss grid passes
   through exactly, rows reversed when its latitude ascends; `se%gg` is internal.
 - The model maps between the host's lon-lat grid (the `grid` argument of

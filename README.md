@@ -188,7 +188,8 @@ type(solid_earth) :: se
 call vilma_par_load(se%par, "vilma.nml", defaults_file=DEFAULTS_FILE)
 call solid_earth_init(se, z_bed_eq, h_ice_eq, grid=host_grid, time=t0)  ! Gauss grid + remap; clock [yr]
 call solid_earth_update(se, h_ice, dt_yr)   ! advance dt_yr [years]; read se%rsl, se%z_bed
-                                            ! (rsl = se%dz_ss - se%dz_bed: sea-surface and bed change)
+                                            ! (rsl = se%dz_ss - se%dz_bed: sea-surface and bed change;
+                                            !  se%dz_bed_rate: the bed's rate over the interval [m/yr])
 call solid_earth_finalize(se)
 ```
 

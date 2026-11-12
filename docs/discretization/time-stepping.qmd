@@ -112,7 +112,7 @@ A restart file is written without rounding. It carries the following state:
 | next trial step of the step controller | `dt_try_s` | always |
 | polar motion and the memory of both degree-2 channels | `rot_m_*`, `rot_load_mem`, `rot_tidal_mem` | [rotation](../physics/rotation.qmd) on |
 | host-resolved terms of the last update (the start of the next ramp) | `w_prev`, `I_g_prev`, `C_prev`, `F_prev` | host-resolved terms |
-| surface fields of the last update: ice, relative sea level and its two parts, bed, ocean function, barystatic scalars | `h_ice`, `rsl`, `dz_bed`, `dz_ss`, `z_bed`, `C_ocean`, `bsl`, … | always |
+| surface fields of the last update: ice, relative sea level and its two parts, the bed rate, bed, ocean function, barystatic scalars | `h_ice`, `rsl`, `dz_bed`, `dz_ss`, `dz_bed_rate`, `z_bed`, `C_ocean`, `bsl`, … | always |
 
 The memory stress is by far the largest part. The surface fields follow from
 the memory and the load, but they are restored as well: the ice is the start

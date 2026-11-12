@@ -245,7 +245,10 @@ A few conventions worth knowing:
   forcing slice, including the convergence of the sea-level solve
   (`sle_resid`, the worst relative inner residual of the interval, and
   `sle_n_cap`, the number of solves that ended at an iteration cap; the model
-  also warns once per interval when a cap is hit). The folder of `file_out` is
+  also warns once per interval when a cap is hit) and the uplift rate
+  `dz_bed_rate` [m/yr], the change of the bed `dz_bed` over the interval
+  that ends at the slice divided by its length: at a present-day slice, the
+  rate a GNSS station measures (in the frame of `deg1_frame`). The folder of `file_out` is
   created if needed. `file_hor` (optional) receives the horizontal surface
   displacement.
   The variables and their output precision are listed in
@@ -381,6 +384,7 @@ do
    call solid_earth_update(se, h_ice, dt_yr)          ! advance dt_yr [years]
    ! ... read se%rsl, se%z_bed, se%dz_bed, se%dz_ss, se%C on the host grid ...
    ! ... rsl = se%dz_ss - se%dz_bed: the sea-surface change N + dphi and the bed change u ...
+   ! ... se%dz_bed_rate = (u(t) - u(t - dt_yr))/dt_yr [m/yr]: the uplift rate over the interval ...
 end do
 call solid_earth_finalize(se)                         ! frees the grid too
 ```
