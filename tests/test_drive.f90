@@ -288,7 +288,7 @@ contains
       write(u,'(a)')    "/"
       write(u,'(a)')    "&ctl"
       write(u,'(a)')    '    file_forcing = "'//force//'"'
-      write(u,'(a)')    '    name_ice     = "h_ice"'
+      write(u,'(a)')    '    name_h_ice   = "h_ice"'
       write(u,'(a)')    '    name_time    = "time"'
       write(u,'(a)')    '    file_ref     = "'//ref//'"'
       write(u,'(a)')    '    name_z_bed_start = "z_bed_eq"'

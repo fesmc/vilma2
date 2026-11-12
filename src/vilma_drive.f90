@@ -412,7 +412,7 @@ contains
       ! forcing file: time axis, ice and the lon/lat axes (the remap's source grid, or the
       ! row order of a Gauss-grid file); likewise every 2-D input below.
       call require_var(c%file_forcing, c%name_time, 'file_forcing/name_time')
-      call require_var(c%file_forcing, c%name_ice,  'file_forcing/name_ice')
+      call require_var(c%file_forcing, c%name_h_ice, 'file_forcing/name_h_ice')
       call require_axes(c, c%file_forcing, 'file_forcing')
 
       ! relaxed reference state (z_bed_eq, h_ice_eq), per i_eq -- see read_bed /
@@ -571,13 +571,13 @@ contains
       real(wp),             intent(inout) :: src(:,:)
       real(wp),             intent(out)   :: h_ice(:,:)
       if (remap) then
-         call nc_read(c%file_forcing, trim(c%name_ice), src, &
+         call nc_read(c%file_forcing, trim(c%name_h_ice), src, &
                       start=[1,1,k], count=[size(src,1), size(src,2), 1])
-         call require_field(src, 0.0_wp, ICE_MAX, c%file_forcing, c%name_ice)
+         call require_field(src, 0.0_wp, ICE_MAX, c%file_forcing, c%name_h_ice)
          call remap_to_gauss(rmap, sht, src, h_ice, conserve_mass=.true.)
       else
-         call read_gauss(c, sht, c%file_forcing, c%name_ice, h_ice, k)
-         call require_field(h_ice, 0.0_wp, ICE_MAX, c%file_forcing, c%name_ice)
+         call read_gauss(c, sht, c%file_forcing, c%name_h_ice, h_ice, k)
+         call require_field(h_ice, 0.0_wp, ICE_MAX, c%file_forcing, c%name_h_ice)
       end if
    end subroutine read_ice
 

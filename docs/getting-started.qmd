@@ -296,7 +296,7 @@ numerics pages describe most of them in context. The remaining ones are:
 | `&vilma` VILMA1 backend (`solver = "v1"` only) | `vilma_v1_jmax`, `vilma_v1_nsub` | VILMA1 degree and sub-steps per coupling interval |
 | | `vilma_v1_input_dir`, `vilma_v1_out_dir`, `vilma_v1_grid_file` | VILMA1 input directory, scratch directory and grid |
 | | `vilma_v1_visc_1d_file`, `vilma_v1_visc_3d_file`, `vilma_v1_l_prem` | VILMA1 viscosity files and earth-structure choice |
-| `&ctl` forcing | `file_forcing`, `name_ice`, `name_time` | ice-thickness forcing (lon, lat, time [yr]) and its variable names |
+| `&ctl` forcing | `file_forcing`, `name_h_ice`, `name_time` | ice-thickness forcing (lon, lat, time [yr]) and its variable names |
 | | `name_lon`, `name_lat` | longitude and latitude axes of every 2-D input file [deg], in both modes; with `remap_input = .false.` they must be the Gauss grid's (longitudes from 0) |
 | | `time_init`, `time_end` | run window [yr]; default the first and the last forcing slice |
 | | `remap_input` | `.true.` (default): remap lon-lat input online; `.false.`: input already on the Gauss grid |

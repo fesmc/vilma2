@@ -29,7 +29,7 @@ module vilma_control
    type :: vilma_ctl_class
       ! --- ice-thickness forcing (lon,lat,time) ---------------------------------
       character(len=512) :: file_forcing = ""            !! ice-thickness forcing
-      character(len=64)  :: name_ice     = "h_ice"       !! ice variable in file_forcing
+      character(len=64)  :: name_h_ice   = "h_ice"       !! ice variable in file_forcing
       character(len=64)  :: name_time    = "time"        !! time axis [years] in file_forcing
 
       ! --- legacy Gauss-grid reference file (remap_input=.false.) ----------------
@@ -122,7 +122,7 @@ contains
       ! forcing
       call nml_read(filename, g, "file_forcing",  c%file_forcing)
       c%file_forcing = expand_path(c%file_forcing)
-      call nml_read(filename, g, "name_ice",      c%name_ice)
+      call nml_read(filename, g, "name_h_ice",    c%name_h_ice)
       call nml_read(filename, g, "name_time",     c%name_time)
 
       ! legacy Gauss-grid reference file

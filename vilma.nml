@@ -14,7 +14,7 @@
 &ctl
     ! --- ice-thickness forcing, h_ice(lon,lat,time) -------------------
     file_forcing  = ""
-    name_ice      = "h_ice"
+    name_h_ice    = "h_ice"
     name_time     = "time"             ! time axis [years]
 
     ! --- legacy Gauss-grid reference file (remap_input=.false.) -------
