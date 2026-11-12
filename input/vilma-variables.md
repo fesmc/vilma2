@@ -18,8 +18,9 @@ The `prec` column is the output precision of the variable (ncio bit rounding, pa
 `variable_io`): `-` lossless, `1e-3` absolute (units of the field), `1e-4r` relative,
 `1e-3,1e-4r` both. It applies to diagnostic output only: restart files are always written
 lossless, and `write_lossless` (`&ctl`, or `nc_set_lossless`) forces lossless output too.
-Diagnostic surface fields are rounded to 1e-2 m, the ocean function to 1e-3 and the
-horizontal displacements to 1e-4 m; the prognostic state and the time series stay lossless.
+Diagnostic surface fields are rounded to 1e-2 m, the ocean function to 1e-3, the
+horizontal displacements to 1e-4 m and the bed rate to 1e-5 m yr-1 (0.01 mm/yr); the prognostic
+state and the time series stay lossless.
 
 | id | variable     | dimensions    | units  | long_name                                        | prec      |
 |----|--------------|---------------|--------|--------------------------------------------------|-----------|
@@ -66,3 +67,4 @@ horizontal displacements to 1e-4 m; the prognostic state and the time series sta
 | 41 | bsl_ive_host | time          | m      | bsl_ive's host part: -(rho_i/rho_w) int(I_g - I_g_ref) dA / int C dA over the host columns; 0 without host terms | -         |
 | 42 | sle_resid    | time          | 1      | Worst sea-level inner residual max(abs(dS))/max(abs(S)) of the last interval (<= sle_tol when converged) | -         |
 | 43 | sle_n_cap    | time          | 1      | Sea-level solves of the last interval that ended at an iteration cap (inner, coastline or memory) | -         |
+| 44 | dz_bed_rate  | lon, lat      | m yr-1 | Rate of the bed change u over the last update: (dz_bed(t) - dz_bed(t - dt))/dt | 1e-5      |

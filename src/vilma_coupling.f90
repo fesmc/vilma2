@@ -21,10 +21,11 @@ module vilma_coupling
    !! exact copy, the rows reversed for an ascending host (se%host_rows). If `grid` is
    !! absent the fields are taken to be in the SHTns layout (north first). Either way every
    !! host-grid field in and out is on the SAME grid, in the same order, as the host
-   !! supplied: the host reads se%rsl, se%z_bed, se%dz_bed, se%dz_ss, se%C and the scalars
+   !! supplied: the host reads se%rsl, se%z_bed, se%dz_bed, se%dz_bed_rate, se%dz_ss, se%C and the scalars
    !! (se%bsl, ...), never se%gg, the Gauss-grid working state in the SHTns layout.
    !! Only the smooth perturbations are mapped back to the host: rsl, and its two parts
    !! dz_bed = u (bed change) and dz_ss = N + Δφ (sea-surface change), rsl = dz_ss − dz_bed;
+   !! the rate of the bed change over the last update, dz_bed_rate = (u(t) − u(t − dt_yr))/dt_yr;
    !! and the ocean function C (bilinear and clipped to [0,1] on the remap path).
    !! se%z_bed is reconstructed as se%z_bed_eq - se%rsl on the host's own
    !! (high-resolution) bed, so host bed detail is preserved.
@@ -121,6 +122,7 @@ module vilma_coupling
       real(wp), allocatable :: rsl(:,:)        !! relative sea level change [m] (full field)
       real(wp), allocatable :: z_bed(:,:)      !! bedrock = z_bed_eq − rsl [m]
       real(wp), allocatable :: dz_bed(:,:)     !! bed change u [m] (solid uplift); rsl = dz_ss − dz_bed
+      real(wp), allocatable :: dz_bed_rate(:,:) !! rate of u over the last advancing update [m/yr] (see solid_earth_update)
       real(wp), allocatable :: dz_ss(:,:)      !! sea-surface change N + Δφ [m] (geoid rise + uniform shift)
       real(wp), allocatable :: C(:,:)          !! ocean function (1 ocean / 0 land; a fraction with host terms)
       real(wp), allocatable :: C0(:,:)         !! REFERENCE ocean function, from (z_bed_eq,
@@ -183,6 +185,7 @@ module vilma_coupling
       real(wp), allocatable    :: rsl(:,:)       !! relative sea level change [m], host grid
       real(wp), allocatable    :: z_bed(:,:)     !! bedrock = z_bed_eq − rsl [m], host grid
       real(wp), allocatable    :: dz_bed(:,:)    !! bed change u [m], host grid (rsl = dz_ss − dz_bed)
+      real(wp), allocatable    :: dz_bed_rate(:,:) !! rate of u over the last advancing update [m/yr], host grid
       real(wp), allocatable    :: dz_ss(:,:)     !! sea-surface change N + Δφ [m], host grid
       real(wp), allocatable    :: C(:,:)         !! ocean function [1], host grid (total with host terms)
 
@@ -300,13 +303,14 @@ contains
       ! zero, and the ocean function is the reference one. Another start ice is handed in by
       ! a dt = 0 update (the driver does), which solves the diagnostics under it.
       allocate(self%gg%h_ice(np,nl), self%gg%rsl(np,nl), self%gg%z_bed(np,nl), &
-               self%gg%dz_bed(np,nl), self%gg%dz_ss(np,nl), self%gg%C(np,nl), self%gg%C0(np,nl))
+               self%gg%dz_bed(np,nl), self%gg%dz_bed_rate(np,nl), self%gg%dz_ss(np,nl), self%gg%C(np,nl), &
+               self%gg%C0(np,nl))
       allocate(self%sigma_lm(self%sht%nlm));  self%sigma_lm = (0.0_wp, 0.0_wp)
       self%gg%h_ice = self%gg%h_ice_eq
       allocate(self%h_ice, source=h_ice_eq)
       self%gg%rsl   = 0.0_wp
       self%gg%z_bed = self%gg%z_bed_eq
-      self%gg%dz_bed = 0.0_wp;  self%gg%dz_ss = 0.0_wp;  self%dphi = 0.0_wp
+      self%gg%dz_bed = 0.0_wp;  self%gg%dz_bed_rate = 0.0_wp;  self%gg%dz_ss = 0.0_wp;  self%dphi = 0.0_wp
       self%fill_int = 0.0_wp;  self%fill_int_own = 0.0_wp
       allocate(self%gg%dIg(np,nl), source=0.0_wp)
       ! The reference ocean function is a run constant (z_bed_eq and h_ice_eq are
@@ -340,8 +344,8 @@ contains
 
       ! host-grid current state at the reference (rsl = 0, z_bed = z_bed_eq), from the Gauss state
       allocate(self%rsl(size(z_bed_eq,1), size(z_bed_eq,2)), self%z_bed(size(z_bed_eq,1), size(z_bed_eq,2)), &
-               self%dz_bed(size(z_bed_eq,1), size(z_bed_eq,2)), self%dz_ss(size(z_bed_eq,1), size(z_bed_eq,2)), &
-               self%C(size(z_bed_eq,1), size(z_bed_eq,2)))
+               self%dz_bed(size(z_bed_eq,1), size(z_bed_eq,2)), self%dz_bed_rate(size(z_bed_eq,1), size(z_bed_eq,2)), &
+               self%dz_ss(size(z_bed_eq,1), size(z_bed_eq,2)), self%C(size(z_bed_eq,1), size(z_bed_eq,2)))
       call solid_earth_sync_host(self)
 
       ! VILMA1 backend: hand it the SAME reference and start-slice ice, already on
@@ -517,6 +521,11 @@ contains
       !! previous h_ice to the new one across the interval; the adaptive stepper
       !! (vilma_timestep) chooses the internal Δt, solving the SLE against the current
       !! relaxation state and advancing the Maxwell memory at each sub-step.
+      !!
+      !! dz_bed_rate is the rate of the bed change over the interval, (u(t1) − u(t0))/dt_yr [m/yr]
+      !! (the present-day uplift rate a GNSS station measures, when t1 is the present). A dt_yr = 0
+      !! update keeps the rate of the last advancing one; where u(t0) is unset (a restart without
+      !! dz_bed) the rate is unset too, until the next advancing update.
       type(solid_earth), intent(inout) :: self
       !! The ice thickness [m] (host grid): the whole column, grounded or floating, as the ice
       !! model has it. Which part loads the bed is the model's own flotation test against the
@@ -529,7 +538,7 @@ contains
       !! h_ice is then the ice of the 1 − w part. Present if and only if they were at init;
       !! they ramp from the previous call's values (the reference at the first).
       real(wp),           intent(in), optional :: w(:,:), I_g(:,:), C(:,:), F(:,:)
-      real(wp), allocatable :: ice_new(:,:)
+      real(wp), allocatable :: ice_new(:,:), u0(:,:)
       complex(wp), allocatable :: u_lm(:), N_lm(:)
       type(sle_host) :: host_new
       real(wp) :: dt, t0, t1, fsr(2)
@@ -569,7 +578,8 @@ contains
          self%gg%z_bed = self%gg%z_bed_eq - self%gg%rsl
          self%time     = self%time + dt_yr
          ! VILMA1 returns only rsl: the split into bed and sea-surface change is not available
-         self%gg%dz_bed = VILMA_UNSET;  self%gg%dz_ss = VILMA_UNSET;  self%dphi = VILMA_UNSET
+         self%gg%dz_bed = VILMA_UNSET;  self%gg%dz_bed_rate = VILMA_UNSET
+         self%gg%dz_ss = VILMA_UNSET;  self%dphi = VILMA_UNSET
          self%fill_int = VILMA_UNSET;  self%fill_int_own = VILMA_UNSET
 
          ! Diagnostics VILMA1 does not hand back. DERIVED HONESTLY from VILMA1's own
@@ -645,10 +655,19 @@ contains
       ! the fill of the closing coastline in m³ (the unit-sphere integrals × a²)
       self%fill_int = self%earth%r_earth**2*fsr(1);  self%fill_int_own = self%earth%r_earth**2*fsr(2)
 
-      ! bed change u and sea-surface change N + Δφ at t1; rsl = N − u + Δφ = dz_ss − dz_bed
+      ! bed change u and sea-surface change N + Δφ at t1; rsl = N − u + Δφ = dz_ss − dz_bed; the rate of u
+      ! over the interval (kept by a dt = 0 update; unset where u(t0) is)
+      u0 = self%gg%dz_bed
       call sht_grid_synthesis(self%sht, u_lm, self%gg%dz_bed)
       call sht_grid_synthesis(self%sht, N_lm, self%gg%dz_ss)
       self%gg%dz_ss         = self%gg%dz_ss + self%dphi
+      if (dt_yr > 0.0_wp) then
+         where (u0 /= VILMA_UNSET)
+            self%gg%dz_bed_rate = (self%gg%dz_bed - u0)/dt_yr
+         elsewhere
+            self%gg%dz_bed_rate = VILMA_UNSET
+         end where
+      end if
 
       self%gg%h_ice         = ice_new
       self%gg%z_bed         = self%gg%z_bed_eq - self%gg%rsl
@@ -689,8 +708,9 @@ contains
 
    subroutine solid_earth_sync_host(self)
       !! Refresh the host-grid output fields from the Gauss-grid state (to_host): the smooth
-      !! rsl, dz_bed and dz_ss perturbations (bilinear, or the passthrough copy in the host's
-      !! row order; bilinear is linear, so rsl = dz_ss − dz_bed holds on the host grid too), the
+      !! rsl, dz_bed and dz_ss perturbations and the rate dz_bed_rate (bilinear, or the passthrough copy
+      !! in the host's row order; bilinear is linear, so rsl = dz_ss − dz_bed holds on the host grid too,
+      !! and dz_bed_rate is the rate of the host's dz_bed), the
       !! ocean function C (bilinear clipped to [0,1] on the remap path: a fraction, smooth on the
       !! host grid; its host-grid integral is not VILMA2's ocean area, which is the Gauss-grid
       !! one), and z_bed reconstructed on the host's own (high-resolution) bed so its detail
@@ -698,10 +718,11 @@ contains
       type(solid_earth), intent(inout) :: self
       call to_host(self, self%gg%rsl, self%rsl)
       if (self%use_vilma_v1) then               ! dz_* are unset: keep the fill value exact
-         self%dz_bed = VILMA_UNSET;  self%dz_ss = VILMA_UNSET
+         self%dz_bed = VILMA_UNSET;  self%dz_bed_rate = VILMA_UNSET;  self%dz_ss = VILMA_UNSET
       else
-         call to_host(self, self%gg%dz_bed, self%dz_bed)
-         call to_host(self, self%gg%dz_ss,  self%dz_ss)
+         call to_host(self, self%gg%dz_bed,      self%dz_bed)
+         call to_host(self, self%gg%dz_bed_rate, self%dz_bed_rate)
+         call to_host(self, self%gg%dz_ss,       self%dz_ss)
       end if
       call to_host(self, self%gg%C, self%C)
       if (self%remap) self%C = min(max(self%C, 0.0_wp), 1.0_wp)

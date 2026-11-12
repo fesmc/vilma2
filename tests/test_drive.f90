@@ -4,7 +4,9 @@ program test_drive
    !! overlaid on the shipped defaults, run vilma_run, and check the output:
    !!   (1) one output slice per forcing slice,
    !!   (2) the bed subsides under the growing ice cap (z_bed < z_bed_eq),
-   !!   (3) the ocean draws down (rsl < 0 in the far field).
+   !!   (3) the ocean draws down (rsl < 0 in the far field),
+   !!   (4) the uplift rate dz_bed_rate of a slice is the change of dz_bed since the slice
+   !!       before over the interval (the file is lossless: to round-off), < 0 under the cap.
    !! Then the legacy Gauss-grid reader (remap_input=.false.) with the same files stored
    !! with latitude ascending (rows reversed): read with i_eq = 0 (file_ref) and i_eq = 2
    !! (z_bed_eq_file, h_ice_eq_file), the output must equal that of the north-first files.
@@ -40,7 +42,8 @@ program test_drive
    real(wp), allocatable  :: h_ice(:,:,:), tyr(:), zb(:,:), rsl(:,:)
    real(wp), allocatable  :: ue(:,:), un(:,:), uet(:,:), unt(:,:)
    real(wp), allocatable  :: a3(:,:,:), b3(:,:,:)
-   real(wp) :: thd, sub
+   real(wp), allocatable  :: ub0(:,:), ub1(:,:), ubr(:,:)
+   real(wp) :: thd, sub, err
    integer  :: i, j, k, jice, jocean, nout
    logical  :: ok
 
@@ -112,6 +115,17 @@ program test_drive
    end if
    if (rsl(1,jocean) >= 0.0_wp) then
       write(*,'(a)') '   FAIL: building land ice should draw the ocean down'; ok = .false.
+   end if
+
+   ! --- (4) the uplift rate of the last slice: d(dz_bed)/dt over its interval ------------
+   allocate(ub0(sht%nphi,sht%nlat), ub1(sht%nphi,sht%nlat), ubr(sht%nphi,sht%nlat))
+   call nc_read(OUT, "dz_bed",      ub0, start=[1,1,nout-1], count=[sht%nphi,sht%nlat,1])
+   call nc_read(OUT, "dz_bed",      ub1, start=[1,1,nout],   count=[sht%nphi,sht%nlat,1])
+   call nc_read(OUT, "dz_bed_rate", ubr, start=[1,1,nout],   count=[sht%nphi,sht%nlat,1])
+   err = maxval(abs(ubr - (ub1 - ub0)/(tyr(NT) - tyr(NT-1))))/maxval(abs(ubr))
+   write(*,'(a,es10.2,a,es10.2)') '   dz_bed_rate under ice =', ubr(1,jice), ' m/yr; |rate - d(dz_bed)/dt|/max|rate| =', err
+   if (err > 1.0e-13_wp .or. ubr(1,jice) >= 0.0_wp) then
+      write(*,'(a)') '   FAIL: dz_bed_rate is not the subsidence rate of the last interval'; ok = .false.
    end if
 
    ! --- the horizontal-displacement file (&ctl file_hor) --------------------------
@@ -330,9 +344,9 @@ contains
    end subroutine write_cfg
 
    subroutine same_output(file, what)
-      !! rsl, z_bed and dz_bed of file (all slices) equal those of OUT, bit for bit.
+      !! rsl, z_bed, dz_bed and dz_bed_rate of file (all slices) equal those of OUT, bit for bit.
       character(len=*), intent(in) :: file, what
-      character(len=8), parameter :: VARS(3) = [character(len=8) :: "rsl", "z_bed", "dz_bed"]
+      character(len=11), parameter :: VARS(4) = [character(len=11) :: "rsl", "z_bed", "dz_bed", "dz_bed_rate"]
       integer :: q
       if (nc_size(file, "time") /= NT) then
          write(*,'(a)') '   FAIL: '//what//': expected one output slice per forcing slice'; ok = .false.;  return

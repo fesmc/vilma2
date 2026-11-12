@@ -10,6 +10,10 @@ program test_dz_split
    !! built up and then removed, so the coastline migrates and Δφ is non-trivial.
    !! Also checks the parts are not trivially zero (the identity would hold for 0 − 0)
    !! and that the reference state has dz_bed = dz_ss = 0.
+   !!
+   !! The bed rate: after every advancing update dz_bed_rate is the finite difference of
+   !! dz_bed over the step, (dz_bed(t) - dz_bed(t - dt))/dt, on both grids (to round-off; on
+   !! the Gauss grid exactly), a dt = 0 update keeps it, and it is 0 at the reference.
    use vilma_precision, only: wp
    use vilma_constants, only: pi
    use vilma_params,    only: vilma_param_class
@@ -43,7 +47,7 @@ program test_dz_split
 
    write(*,'(a)') ''
    if (ok) then
-      write(*,'(a)') ' PASS: rsl = dz_ss - dz_bed to round-off on the Gauss and host grids'
+      write(*,'(a)') ' PASS: rsl = dz_ss - dz_bed to round-off on the Gauss and host grids; dz_bed_rate = d(dz_bed)/dt'
    else
       write(*,'(a)') ' FAIL: dz_bed / dz_ss split'
       error stop 1
@@ -57,7 +61,8 @@ contains
       type(vilma_param_class) :: p
       type(solid_earth)       :: se
       real(wp), allocatable   :: z_eq(:,:), h_eq(:,:), h_on(:,:), h_off(:,:), lo(:), la(:)
-      real(wp) :: err_g, err_h, scale, worst_g, worst_h, max_u, max_n, max_dphi
+      real(wp), allocatable   :: u0_g(:,:), u0_h(:,:), r0_g(:,:), r0_h(:,:)
+      real(wp) :: err_g, err_h, scale, worst_g, worst_h, max_u, max_n, max_dphi, dt, rate_g, rate_h, max_rate
       integer  :: nx, ny, step
 
       p%lmax = LMAX;  p%nlat = 2*LMAX+2;  p%nphi = 4*LMAX
@@ -87,16 +92,29 @@ contains
           maxval(abs(se%gg%dz_bed)) /= 0.0_wp .or. maxval(abs(se%gg%dz_ss)) /= 0.0_wp) then
          write(*,'(a)') '   FAIL: dz_bed / dz_ss not zero at the reference'; ok = .false.
       end if
+      if (any(se%dz_bed_rate /= 0.0_wp) .or. any(se%gg%dz_bed_rate /= 0.0_wp)) then
+         write(*,'(a)') '   FAIL: dz_bed_rate not zero at the reference'; ok = .false.
+      end if
 
       worst_g = 0.0_wp;  worst_h = 0.0_wp;  max_u = 0.0_wp;  max_n = 0.0_wp;  max_dphi = 0.0_wp
+      rate_g = 0.0_wp;  rate_h = 0.0_wp;  max_rate = 0.0_wp
       do step = 0, 2*NSTEP
+         u0_g = se%gg%dz_bed;  u0_h = se%dz_bed;  r0_g = se%gg%dz_bed_rate;  r0_h = se%dz_bed_rate
          ! step 0: the dt = 0 report-only seed; then build the load up, then take it away
-         if (step == 0) then
-            call solid_earth_update(se, h_on, 0.0_wp)
-         else if (step <= NSTEP) then
-            call solid_earth_update(se, h_on, 1.0e3_wp)
+         dt = merge(0.0_wp, 1.0e3_wp, step == 0)
+         if (step <= NSTEP) then
+            call solid_earth_update(se, h_on, dt)
          else
-            call solid_earth_update(se, h_off, 1.0e3_wp)
+            call solid_earth_update(se, h_off, dt)
+         end if
+         if (dt > 0.0_wp) then
+            ! the finite difference of dz_bed over the step: exact on the Gauss grid, round-off on the host's
+            scale = max(maxval(abs(se%gg%dz_bed_rate)), tiny(1.0_wp))
+            rate_g = max(rate_g, maxval(abs(se%gg%dz_bed_rate - (se%gg%dz_bed - u0_g)/dt))/scale)
+            rate_h = max(rate_h, maxval(abs(se%dz_bed_rate - (se%dz_bed - u0_h)/dt))/scale)
+            max_rate = max(max_rate, scale)
+         else if (any(se%gg%dz_bed_rate /= r0_g) .or. any(se%dz_bed_rate /= r0_h)) then
+            write(*,'(a)') '   FAIL: a dt = 0 update changed dz_bed_rate'; ok = .false.
          end if
          scale = max(maxval(abs(se%gg%rsl)), 1.0_wp)
          err_g = maxval(abs(se%gg%rsl - (se%gg%dz_ss - se%gg%dz_bed)))/scale
@@ -116,6 +134,15 @@ contains
       end if
       if (max_u < 1.0e-3_wp .or. max_n < 1.0e-3_wp .or. max_dphi < 1.0e-3_wp) then
          write(*,'(a)') '   FAIL: dz_bed, dz_ss or dphi trivially zero'; ok = .false.
+      end if
+      write(*,'(2a,a,es9.2,a,es9.2,a,es9.2,a)') '   ', label, &
+           ' worst |dz_bed_rate - d(dz_bed)/dt|/max|rate|: Gauss ', rate_g, '  host ', rate_h, &
+           '   max|rate|=', max_rate, ' m/yr'
+      if (rate_g /= 0.0_wp .or. rate_h > TOL) then
+         write(*,'(a)') '   FAIL: dz_bed_rate is not the finite difference of dz_bed over the step'; ok = .false.
+      end if
+      if (max_rate < 1.0e-6_wp) then
+         write(*,'(a)') '   FAIL: dz_bed_rate trivially zero'; ok = .false.
       end if
       call solid_earth_finalize(se)
 
