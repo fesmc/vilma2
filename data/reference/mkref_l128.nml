@@ -8,7 +8,7 @@
 
 &ctl
     file_forcing  = ""
-    name_ice      = "h_ice"
+    name_h_ice    = "h_ice"
     name_time     = "time"
     file_ref      = ""
     name_z_bed_start = "z_bed_eq"

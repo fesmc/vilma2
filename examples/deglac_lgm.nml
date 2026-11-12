@@ -25,7 +25,7 @@
     ! External dataset (~1 GB, not shipped): CLIMBER-X input geo_ice_tarasov_deglac.nc.
     ! Leading ~/ or $HOME/ is expanded by the model; adjust to your local copy.
     file_forcing  = "~/models/climber-x/input/geo_ice_tarasov_deglac.nc"
-    name_ice      = "ice_thickness"
+    name_h_ice    = "ice_thickness"
     name_time     = "time"
     file_ref      = ""
     name_z_bed_start = "z_bed_eq"

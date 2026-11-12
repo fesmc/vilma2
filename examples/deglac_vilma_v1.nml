@@ -54,7 +54,7 @@
     ! or i_eq=2 with h_ice_eq_file set to the start-slice ice.
     ! ====================================================================
     file_forcing  = "~/models/climber-x/input/geo_ice_tarasov_deglac.nc"
-    name_ice      = "ice_thickness"
+    name_h_ice    = "ice_thickness"
     name_time     = "time"
     file_ref      = ""
     name_z_bed_start = "z_bed_eq"

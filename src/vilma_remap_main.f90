@@ -1,6 +1,6 @@
 program vilma_remap_main
    !! Offline lon-lat -> Gauss-Legendre remapper. Reads a &vilma config (the grid
-   !! knobs lmax/nlat/nphi, the source file_forcing + name_ice/name_lon/name_lat/
+   !! knobs lmax/nlat/nphi, the source file_forcing + name_h_ice/name_lon/name_lat/
    !! name_time, and file_out), conservatively remaps the ice variable over every
    !! time slice onto the model Gauss grid, and writes a Gauss-grid forcing file the
    !! standalone driver can consume with remap_input=.false.
@@ -72,10 +72,10 @@ program vilma_remap_main
 
    allocate(src(nlon,nls), gauss(np,nl))
    do k = 1, nt
-      call nc_read(c%file_forcing, trim(c%name_ice), src, &
+      call nc_read(c%file_forcing, trim(c%name_h_ice), src, &
                    start=[1,1,k], count=[nlon, nls, 1])
       call remap_to_gauss(rmap, sht, src, gauss, conserve_mass=.true.)
-      call nc_write(c%file_out, trim(c%name_ice), gauss, dim1="lon", dim2="lat", &
+      call nc_write(c%file_out, trim(c%name_h_ice), gauss, dim1="lon", dim2="lat", &
                     dim3="time", start=[1,1,k], count=[np, nl, 1])
    end do
 
