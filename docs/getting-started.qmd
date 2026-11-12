@@ -240,7 +240,7 @@ A few conventions worth knowing:
   its mass conserved and no ice outside it. Missing, non-finite or
   out-of-range values stop the run (put zero where there is no ice).
   The remap weights are cached in `maps/` in the working directory, keyed by
-  the grid dimensions; clear it when a grid changes at fixed dimensions.
+  the grid dimensions and a hash of the axis values.
 - **Output.** `file_out` receives the diagnostic surface fields at every
   forcing slice, including the convergence of the sea-level solve
   (`sle_resid`, the worst relative inner residual of the interval, and
@@ -427,8 +427,7 @@ The rest of the interface:
 Two files are read relative to the working directory: the variable table
 `input/vilma-variables.md`, which every output and restart write uses (set
 another path with `vilma_io_set_table`), and the remap-weight cache `maps/`,
-keyed by the grid dimensions (clear it when a host grid changes at fixed
-dimensions).
+keyed by the grid dimensions and a hash of the axis values.
 
 ### Host-resolved terms (optional)
 

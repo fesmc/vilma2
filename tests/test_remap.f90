@@ -5,10 +5,11 @@ program test_remap
    !! Then the source-grid cases: latitudes descending (the same result as ascending), and
    !! a regional source (the Northern Hemisphere): an ice field keeps its mass and its
    !! thickness and is zero outside the source, and the grid reports that it does not
-   !! cover the sphere (a bed or a fraction cannot come from it).
+   !! cover the sphere (a bed or a fraction cannot come from it). Last, two grids of the same
+   !! dimensions but other longitudes get their own cached weights.
    use vilma_precision, only: wp
    use vilma_sht,       only: sht_grid, sht_grid_init, sht_grid_surface_integral, sht_grid_destroy
-   use vilma_remap,     only: remap_ll_gauss, remap_init, remap_to_gauss, remap_to_ll, remap_covers_sphere
+   use vilma_remap,     only: remap_ll_gauss, remap_init, remap_to_gauss, remap_to_ll, remap_covers_sphere, axes_tag
    implicit none
 
    integer,  parameter :: LMAX = 32
@@ -176,6 +177,37 @@ program test_remap
           .or. minval(g(:, 1:sht%nlat/2 - 2)) < 1000.0_wp*(1.0_wp - 1.0e-3_wp)) then
          write(*,*) 'FAIL: regional ice reaching the edge of the source is not conserved'; ok = .false.
       end if
+   end block
+
+   ! Weight cache: two global grids of the same dimensions but longitudes from -180 and
+   ! from 0 get their own weights (axes_tag), so a field remapped through the second one,
+   ! after the first one cached its weights, is the same field (with shared weights it
+   ! would come back shifted by 180 degrees, i.e. negated).
+   block
+      character(len=*), parameter :: CACHE = "libvilma/include/test_remap_maps"
+      type(remap_ll_gauss) :: ra, rb
+      real(wp), allocatable :: lon_b(:), fa(:,:), fb(:,:), ga(:,:), gb(:,:)
+      call execute_command_line("rm -rf '"//CACHE//"'")
+      allocate(lon_b(NLON), fa(NLON,NLAT_S), fb(NLON,NLAT_S), ga(sht%nphi,sht%nlat), gb(sht%nphi,sht%nlat))
+      lon_b = lon_s + 180.0_wp                         ! 2.5 .. 357.5: the same cells, other axis
+      if (axes_tag(lon_s, lat_s) == axes_tag(lon_b, lat_s) .or. &
+          axes_tag(lon_s, lat_s) == axes_tag(lon_s, lat_s(NLAT_S:1:-1)) .or. &
+          axes_tag(lon_s, lat_s) /= axes_tag(lon_s, lat_s)) then
+         write(*,*) 'FAIL: axes_tag does not tell the grids apart'; ok = .false.
+      end if
+      do i = 1, NLON
+         fa(i, :) = cos(lon_s(i)*DEG);  fb(i, :) = cos(lon_b(i)*DEG)
+      end do
+      call remap_init(ra, sht, lon_s, lat_s, fldr=CACHE)
+      call remap_to_gauss(ra, sht, fa, ga)
+      call remap_init(rb, sht, lon_b, lat_s, fldr=CACHE)
+      call remap_to_gauss(rb, sht, fb, gb)
+      emax = maxval(abs(ga - gb))
+      write(*,'(a,es10.2)') '   same field via lon -180.. and 0.. grids, max diff = ', emax
+      if (emax > 1.0e-10_wp) then
+         write(*,*) 'FAIL: a grid of the same dimensions reused another grid''s weights'; ok = .false.
+      end if
+      call execute_command_line("rm -rf '"//CACHE//"'")
    end block
 
    call sht_grid_destroy(sht)
