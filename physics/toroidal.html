@@ -746,7 +746,7 @@ Z^{(4)} = G\,\mathbf{e}_{\theta\varphi} - H\,(\mathbf{e}_{\theta\theta} - \mathb
 <li>The SLE fixed point calls <code>apply()</code> as usual. <span class="math inline">\(W\)</span> does not enter uplift or geoid directly, so the affine structure is unchanged.</li>
 <li>The <strong>memory advance</strong> follows. In each genuinely 3-D element all six dyadic components of memory and strain, spheroidal and toroidal, are synthesized on the Gauss grid and multiplied pointwise by <span class="math inline">\(M(\theta,\varphi)\)</span>. The increment is analysed back into all six channels. This is where the two families exchange stress. Laterally uniform elements advance their toroidal channels on the per-degree spectral path, where they simply relax.</li>
 </ol>
-<p>The toroidal channels are switched on only when some element is genuinely 3-D (its lateral <span class="math inline">\(\log_{10}\eta\)</span> spread exceeds <code>visc3d_tol</code>) and <code>l_toroidal = .true.</code>. The memory arrays then widen from four to six channels (about 50 % more memory state). A radially symmetric or laterally uniform run keeps four channels and pays nothing. Once on, the channels stay on for the rest of the run: a later laterally uniform field no longer drives <span class="math inline">\(W\)</span>, but existing toroidal memory must still relax.</p>
+<p>The toroidal channels are switched on only when some element is genuinely 3-D (its lateral <span class="math inline">\(\log_{10}\eta\)</span> spread exceeds <code>visc_3d_tol</code>) and <code>l_toroidal = .true.</code>. The memory arrays then widen from four to six channels (about 50 % more memory state). A radially symmetric or laterally uniform run keeps four channels and pays nothing. Once on, the channels stay on for the rest of the run: a later laterally uniform field no longer drives <span class="math inline">\(W\)</span>, but existing toroidal memory must still relax.</p>
 <p>Restart files record the channel count. A spheroidal (four-channel) restart can be read into a toroidal run, with the toroidal memory starting at zero. Reading a toroidal restart into a spheroidal run is an error, since it would discard memory.</p>
 </section>
 <section id="configuration-and-output" class="level2">
@@ -780,7 +780,7 @@ Z^{(4)} = G\,\mathbf{e}_{\theta\varphi} - H\,(\mathbf{e}_{\theta\theta} - \mathb
 <td>load a lateral viscosity field (required for any toroidal flow)</td>
 </tr>
 <tr class="odd">
-<td><code>visc3d_tol</code></td>
+<td><code>visc_3d_tol</code></td>
 <td><code>&amp;vilma</code></td>
 <td><span class="math inline">\(10^{-3}\)</span> dex</td>
 <td>lateral spread above which an element is 3-D</td>

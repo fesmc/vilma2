@@ -627,7 +627,7 @@ window.Quarto = {
 </div>
 </div>
 <div class="callout-body-container callout-body">
-<p>Rotation is implemented (<code>vilma_rotation</code>), coupled self-consistently into the <a href="../physics/sea-level.html">sea-level equation</a>, persisted across restarts, and tested against the Spada et al.&nbsp;(2011) polar-motion benchmark (<code>test_rotation</code>, <code>test_rotation_sle</code>). It is <strong>on by default</strong> (<code>rotation = .true.</code>) for real-Earth runs; the non-rotating community benchmarks set <code>rotation = .false.</code> explicitly.</p>
+<p>Rotation is implemented (<code>vilma_rotation</code>), coupled self-consistently into the <a href="../physics/sea-level.html">sea-level equation</a>, persisted across restarts, and tested against the Spada et al.&nbsp;(2011) polar-motion benchmark (<code>test_rotation</code>, <code>test_rotation_sle</code>). It is <strong>on by default</strong> (<code>l_rotation = .true.</code>) for real-Earth runs; the non-rotating community benchmarks set <code>l_rotation = .false.</code> explicitly.</p>
 </div>
 </div>
 <section id="formulation" class="level2">
@@ -673,7 +673,7 @@ I(t) = \bigl[\delta(t) + k^{L}(t)\bigr] * I_{\rm rigid}(t),
 </div>
 </div>
 <div class="callout-body-container callout-body">
-<p><code>vilma_rotation</code> holds the two degree-2 channels, the Liouville solve, and the <code>s_rot</code> SLE contribution; <code>vilma_sle</code> iterates the rotation ↔︎ SLE fixed point and <code>vilma_timestep</code> steps and rolls it back with the load response; <code>vilma_io</code> persists the polar motion and channel memory on restart. On by default (<code>rotation = .true.</code>); set <code>rotation = .false.</code> for non-rotating benchmarks.</p>
+<p><code>vilma_rotation</code> holds the two degree-2 channels, the Liouville solve, and the <code>s_rot</code> SLE contribution; <code>vilma_sle</code> iterates the rotation ↔︎ SLE fixed point and <code>vilma_timestep</code> steps and rolls it back with the load response; <code>vilma_io</code> persists the polar motion and channel memory on restart. On by default (<code>l_rotation = .true.</code>); set <code>l_rotation = .false.</code> for non-rotating benchmarks.</p>
 </div>
 </div>
 
