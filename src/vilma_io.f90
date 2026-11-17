@@ -41,8 +41,16 @@ module vilma_io
    use vilma_coupling,     only: solid_earth, solid_earth_sync_host, solid_earth_set_time, VILMA_UNSET
    use ncio
    use variable_io
+   use, intrinsic :: iso_c_binding, only: c_int, c_char, c_null_char
    implicit none
    private
+
+   interface   ! POSIX rename: atomic within a file system
+      integer(c_int) function c_rename(old, new) bind(C, name="rename")
+         import :: c_int, c_char
+         character(kind=c_char), intent(in) :: old(*), new(*)
+      end function c_rename
+   end interface
 
    public :: vilma_restart_write, vilma_restart_read, vilma_write_step, vilma_io_set_table
    public :: vilma_restart_time, vilma_restart_compatible
@@ -101,15 +109,28 @@ contains
       !! folder="." and filename="vilma_restart.nc". With init=.true. (default) the file
       !! is (re)created; with init=.false. the snapshot is appended at a new time index.
       !! Always lossless: no variable is rounded, whatever the table's prec column says.
+      !! Atomic: the file is written as <file>.part (an append to a copy of the file) and
+      !! renamed when complete, so a run killed while writing leaves the previous restart,
+      !! or none, never a partial one.
       type(solid_earth), intent(in) :: self
       real(wp),           intent(in) :: time
       character(len=*), optional, intent(in) :: filename, folder
       logical, optional,  intent(in) :: init
-      character(len=:), allocatable :: fn, fd
+      character(len=:), allocatable :: fn, fd, f
+      logical :: do_init
+      integer :: st
       fn = "vilma_restart.nc";  if (present(filename)) fn = trim(filename)
       fd = ".";              if (present(folder))   fd = trim(folder)
+      do_init = .true.;      if (present(init))     do_init = init
       call execute_command_line("mkdir -p '"//fd//"'")
-      call vilma_write_step(self, fd//"/"//fn, time, init=init, lossless=.true.)
+      f = fd//"/"//fn
+      if (.not. do_init) then
+         call execute_command_line("cp '"//f//"' '"//f//".part'", exitstat=st)
+         if (st /= 0) error stop 'vilma_restart_write: cannot copy the restart file to append to'
+      end if
+      call vilma_write_step(self, f//".part", time, init=do_init, lossless=.true.)
+      if (c_rename(f//".part"//c_null_char, f//c_null_char) /= 0) &
+         error stop 'vilma_restart_write: cannot rename the written restart <file>.part to <file>'
    end subroutine vilma_restart_write
 
    subroutine vilma_write_step(self, filename, time, nms, init, lossless)

@@ -259,7 +259,9 @@ A few conventions worth knowing:
   files are always lossless.
 - **Restart.** The driver writes the full model state to
   `spinup/vilma_restart.nc` after the spin-up and to `final/vilma_restart.nc`
-  at the end of the run, in the run directory. `restart_in_file` (`&ctl`)
+  at the end of the run, in the run directory (written as `vilma_restart.nc.part`
+  and renamed when complete, so a killed run never leaves a partial restart).
+  `restart_in_file` (`&ctl`)
   resumes from such a file: the model is initialized at the reference and the
   saved state is restored, so a resumed run continues the original one bit for
   bit: neither the spin-up nor the start-slice solve is repeated, and its first
