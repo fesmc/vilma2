@@ -13,15 +13,14 @@ cluster levante (ifx). Production runs are currently made on albedo.
 
 | Dependency | Provides | Source |
 |---|---|---|
-| **[fesm-utils](https://github.com/fesmc/fesm-utils)**, branch `phase0-kryos` | FFTW, SHTns, the `fesmutils` helper library (precision, ncio, namelists) and the `coords` module used by the remapper | cloned and built by configme |
+| **[fesm-utils](https://github.com/fesmc/fesm-utils)** `v1.5` | FFTW, SHTns, the `fesmutils` helper library (precision, ncio, namelists) and the `coords` module used by the remapper | cloned and built by configme |
 | **netCDF** (C and Fortran) | input, output and restart files | system package (Homebrew, environment modules, apt) |
 | **configme**, **runme** | Makefile generation; run staging | [fesmc/configme](https://github.com/fesmc/configme), [fesmc/runme](https://github.com/fesmc/runme) (`pip install`) |
 
-The fesm-utils branch is pinned in `.configme/manifest.toml`, so a checkout
+The fesm-utils release is pinned in `.configme/manifest.toml`, so a checkout
 records the ref it needs. VILMA2 needs the `coords` routine
-`grid_init_gaussian`, which is in `phase0-kryos` but not yet in the fesm-utils
-`dev` branch: `src/vilma_remap.f90` does not compile against `dev` v1.4. The
-pin returns to `dev` once `phase0-kryos` is merged there.
+`grid_init_gaussian`, which fesm-utils has from v1.5: `src/vilma_remap.f90` does
+not compile against v1.4.
 
 ## Install
 

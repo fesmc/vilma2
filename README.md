@@ -54,11 +54,11 @@ that do not depend on local sea level. Details:
 
 ## Install
 
-Dependencies are [fesm-utils](https://github.com/fesmc/fesm-utils) at branch
-`phase0-kryos` (FFTW, SHTns, the `fesmutils` helper library and the `coords`
-module) plus a system netCDF (C and Fortran). The branch is pinned in
+Dependencies are [fesm-utils](https://github.com/fesmc/fesm-utils) `v1.5`
+(FFTW, SHTns, the `fesmutils` helper library and the `coords` module) plus a
+system netCDF (C and Fortran). The release is pinned in
 `.configme/manifest.toml`: VILMA2 needs `coords`' `grid_init_gaussian`, which
-fesm-utils `dev` (v1.4) does not have yet. **configme** clones and builds
+fesm-utils has from v1.5. **configme** clones and builds
 fesm-utils and generates the machine/compiler Makefile:
 
 ```bash

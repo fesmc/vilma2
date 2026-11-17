@@ -8,9 +8,9 @@
 # (cloned there by `configme install vilma2`, or a symlink to an existing checkout:
 # `configme install vilma2 --link fesm-utils=/abs/path`).
 #
-# fesm-utils must be at the ref pinned in .configme/manifest.toml (`phase0-kryos`):
-# vilma_remap uses coords' grid_init_gaussian, which fesm-utils `dev` (v1.4) does
-# not have yet, and the namelist reader uses nml_has_param (in dev since v1.4).
+# fesm-utils must be at the ref pinned in .configme/manifest.toml (`v1.5`):
+# vilma_remap uses coords' grid_init_gaussian (fesm-utils >= v1.5), and the
+# namelist reader uses nml_has_param (>= v1.4).
 # configme clones and builds it; by hand:
 #     (in the fesm-utils checkout)  configme config fesm-utils && make openmp=1 all
 #
