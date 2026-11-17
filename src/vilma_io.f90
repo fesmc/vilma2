@@ -28,8 +28,8 @@ module vilma_io
    !! (vilma_restart_compatible): the radial mesh and shear moduli, the radial viscosity
    !! profile and, with lateral viscosity, the 3-D field. Diagnostic: h_ice (the
    !! grounded-ice column of the load: with host terms I_g + (1 - w) h_ice_ext), h_ice_ext (VILMA2's own ice, the 1 - w
-   !! part; restored, and read from h_ice in a file of before it), rsl, z_bed, dz_bed, dz_bed_rate, dz_ss, C_ocean (lon,lat) and the scalars bsl, bsl_ive, bsl_ive_host, dphi, fill_int, fill_int_own — written
-   !! for inspection and restored if present.
+   !! part; restored, and read from h_ice in a file of before it), rsl, z_bed, dz_bed, dz_bed_rate, dz_ss, C_ocean (lon,lat) and the scalars bsl, bsl_ive, bsl_ive_host, dphi, fill_int, fill_int_own, sle_resid, sle_n_cap — written
+   !! for inspection and restored if present (so a resumed run's first output slice is the last one of the run it continues).
    use vilma_precision,    only: wp
    use vilma_constants,    only: rad2deg, sec_per_year
    use vilma_viscoelastic, only: NLAM, NLAM_TOR
@@ -53,9 +53,9 @@ module vilma_io
    ! the Maxwell stress tensor + trapezoidal σ_n; RESP_ELASTIC/RESP_NULL are
    ! memoryless (COMMON_VARS only).
    ! Static reference fields are written once in the init branch.
-   character(len=12), parameter :: COMMON_VARS(16) = [character(len=12) :: &
+   character(len=12), parameter :: COMMON_VARS(18) = [character(len=12) :: &
         "h_ice", "h_ice_ext", "rsl", "z_bed", "dz_bed", "dz_bed_rate", "dz_ss", "C_ocean", "dt_try", "dt_try_s", "bsl", &
-        "bsl_ive", "bsl_ive_host", "dphi", "fill_int", "fill_int_own"]
+        "bsl_ive", "bsl_ive_host", "dphi", "fill_int", "fill_int_own", "sle_resid", "sle_n_cap"]
    character(len=12), parameter :: VE_MEM_VARS(9) = [character(len=12) :: &
         "tau_a_re", "tau_a_im", "tau_b_re", "tau_b_im", "tau_c_re", "tau_c_im", &
         "sigma_n_re", "sigma_n_im", "sigma_primed"]
@@ -873,7 +873,8 @@ contains
    subroutine read_diagnostics(self, filename, n, np, nl)
       !! Restore the (lon,lat) diagnostic state so the restarted object reports
       !! correctly: ice thickness, RSL, bedrock, its two parts (dz_bed, dz_ss, Δφ), the bed
-      !! rate dz_bed_rate and the ocean function at slice n, and the scalars bsl, bsl_ive. A
+      !! rate dz_bed_rate and the ocean function at slice n, the scalars bsl, bsl_ive and the
+      !! convergence of the last sea-level solves (sle_resid, sle_n_cap). A
       !! file from before the split lacks dz_bed/dz_ss/dphi: they are then left at VILMA_UNSET
       !! until the next update; likewise dz_bed_rate in a file from before it, until the next
       !! advancing update. bsl, bsl_ive are restored only from a file that has bsl_ive (an
@@ -881,6 +882,7 @@ contains
       type(solid_earth), intent(inout) :: self
       character(len=*),   intent(in)    :: filename
       integer,            intent(in)    :: n, np, nl
+      real(wp) :: ncap
       ! VILMA2's own ice (the 1 - w part with host terms): h_ice_ext; a file of before it has only h_ice, which was that
       if (nc_exists_var(filename, "h_ice_ext")) then
          call get2d(filename, "h_ice_ext", self%gg%h_ice, np, nl, n)
@@ -909,6 +911,14 @@ contains
       else
          write(*,'(a)') ' vilma_restart_read: no dz_bed/dz_ss/dphi in the file (older restart); left unset'
          self%gg%dz_bed = VILMA_UNSET;  self%gg%dz_ss = VILMA_UNSET;  self%dphi = VILMA_UNSET
+      end if
+      ! the convergence of the last update's sea-level solves: a resumed run reports the slice it
+      ! starts at as the run it continues did. The caps are kept as their sum (the output's
+      ! sle_n_cap) and restored as inner caps; a file from before them leaves the initial values.
+      if (nc_exists_var(filename, "sle_resid") .and. nc_exists_var(filename, "sle_n_cap")) then
+         call nc_read(filename, "sle_resid", self%sle_resid, start=[n], count=[1])
+         call nc_read(filename, "sle_n_cap", ncap, start=[n], count=[1])
+         self%sle_n_cap_inner = nint(ncap);  self%sle_n_cap_coast = 0;  self%sle_n_cap_mem = 0
       end if
       if (nc_exists_var(filename, "dz_bed_rate")) then
          call get2d(filename, "dz_bed_rate", self%gg%dz_bed_rate, np, nl, n)
