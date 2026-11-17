@@ -259,12 +259,17 @@ A few conventions worth knowing:
   files are always lossless.
 - **Restart.** The driver writes the full model state to
   `spinup/vilma_restart.nc` after the spin-up and to `final/vilma_restart.nc`
-  at the end of the run, in the run directory. `restart_in_file` (`&ctl`)
+  at the end of the run, in the run directory (written as `vilma_restart.nc.part`
+  and renamed when complete, so a killed run never leaves a partial restart).
+  `restart_in_file` (`&ctl`)
   resumes from such a file: the model is initialized at the reference and the
   saved state is restored, so a resumed run continues the original one bit for
-  bit. If a spin-up is enabled, it then runs from the restored state. A
+  bit: neither the spin-up nor the start-slice solve is repeated, and its first
+  output slice is the last one of the original run. A
   restart from a lower degree is padded: its memory fills the shared low
-  degrees and the higher degrees start at zero (not bit for bit).
+  degrees and the higher degrees start at zero (not bit for bit); such a seed,
+  like one from another viscosity or one reused under `restart_time_reset`, is
+  spun up (if enabled) or re-solved under the start-slice ice.
   The run resumes at the restart's time: a `time_init` that selects another
   start stops it, unless `restart_time_reset = .true.` (`&ctl`), which takes the
   restart as the state at the start of the window. A restart from another
@@ -276,6 +281,14 @@ A few conventions worth knowing:
   mesh exactly. What the restart carries and what is checked on read is
   described in
   [Time stepping](discretization/time-stepping.qmd#memory-storage-and-restart).
+- **Wall-time stop.** In a batch job the driver reads the job's end from the
+  environment variable `SLURM_JOB_END_TIME` (Unix seconds; Slurm sets it). After
+  each forcing slice it stops when the next slice, at 1.25 times the longest so
+  far, and the restart write might not end before the job does; it then writes
+  `final/vilma_restart.nc` as at the end of a run, logs `wall stop at t = ...`
+  and `vilma.x` exits with code 75. Resuming from that restart (`restart_in_file`,
+  `time_init` unset, a new `file_out`) continues the run bit for bit. Without
+  the variable, or with one that is not a number, the run is not stopped.
 - **Backend** is chosen by `solver`: `"v2"` (this model, default) or `"v1"`,
   the VILMA1 library behind the same driver, forcing and output for
   like-for-like comparison (requires a build with `vilma_v1=1`).
@@ -422,7 +435,7 @@ The rest of the interface:
 | `solid_earth_enable_visc_3d(se, sht)` | switch to the 3-D memory advance, keeping the memory (e.g. after a 1-D spin-up); init calls it when `l_visc_3d` is on |
 | `solid_earth_host_check(w, I_g, C, F, msg, tol)` | admissibility of host-resolved terms (`tol` default 1e-9) |
 | `vilma_restart_write(se, time, filename, folder, init)` | write the full state; defaults `./vilma_restart.nc`, `init = .false.` appends a snapshot |
-| `vilma_restart_read(se, filename, time, other_visc)` | restore the state at `time` (default the last snapshot) into an initialized `se` |
+| `vilma_restart_read(se, filename, time, other_visc, exact)` | restore the state at `time` (default the last snapshot) into an initialized `se`; `exact` (out): the run continues the file's bit for bit (same degree and Earth) |
 | `vilma_restart_time(filename)` | time [yr] of the last snapshot |
 | `vilma_restart_compatible(se, filename, msg, other_visc)` | the checks `vilma_restart_read` applies, without reading |
 | `vilma_write_step`, `vilma_write_horizontal` | diagnostic output, as the standalone driver writes it |

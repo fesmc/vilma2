@@ -9,7 +9,7 @@ module vilma
    !!   restarts               vilma_restart_write, vilma_restart_read, vilma_restart_time,
    !!                          vilma_restart_compatible, and the step writers
    !!   constants              wp (the real kind), VILMA_UNSET (a value the backend did not set)
-   !!   the standalone driver  vilma_run
+   !!   the standalone driver  vilma_run (status VILMA_DONE or VILMA_WALL_STOP)
    !!
    !!   use vilma
    !!   type(solid_earth) :: se
@@ -27,7 +27,7 @@ module vilma
    use vilma_io,        only: vilma_restart_write, vilma_restart_read, vilma_restart_time, &
                               vilma_restart_compatible, vilma_write_step, vilma_write_horizontal, &
                               vilma_io_set_table
-   use vilma_drive,     only: vilma_run
+   use vilma_drive,     only: vilma_run, VILMA_DONE, VILMA_WALL_STOP
    implicit none
    private
 
@@ -38,7 +38,7 @@ module vilma
    public :: solid_earth_check_solver, solid_earth_host_check
    public :: vilma_restart_write, vilma_restart_read, vilma_restart_time, vilma_restart_compatible
    public :: vilma_write_step, vilma_write_horizontal, vilma_io_set_table
-   public :: vilma_run
+   public :: vilma_run, VILMA_DONE, VILMA_WALL_STOP
 
 #ifndef VERSION
 #define VERSION "unknown"

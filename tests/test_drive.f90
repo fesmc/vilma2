@@ -11,13 +11,23 @@ program test_drive
    !! with latitude ascending (rows reversed): read with i_eq = 0 (file_ref) and i_eq = 2
    !! (z_bed_eq_file, h_ice_eq_file), the output must equal that of the north-first files.
    !! Then the restart clock: a run stopped at the middle slice and resumed from its final
-   !! restart continues there (one slice left, the same end state as the uninterrupted
-   !! run), and forcing_window refuses every window that would replay or skip forcing.
+   !! restart continues there (one slice left), and forcing_window refuses every window that
+   !! would replay or skip forcing. The two legs are the uninterrupted run bit for bit, every
+   !! output variable and slice (the resumed leg's first slice is the first leg's last). So
+   !! are the legs of a run with a spin-up (under a deglaciating cap): the resumed leg runs
+   !! neither the spin-up nor the seed again, and a run resumed from the spin-up restart is
+   !! the whole run. Then the wall-time stop: with SLURM_JOB_END_TIME already past, the run
+   !! stops after its first slice with status VILMA_WALL_STOP and a final restart, and the
+   !! run resumed from it is the uninterrupted one bit for bit; with the variable not a
+   !! number or far ahead, the run goes to the end.
    use, intrinsic :: ieee_arithmetic, only: ieee_value, ieee_quiet_nan
    use vilma_precision,       only: wp
    use vilma_constants,       only: rad2deg, pi
    use vilma_sht,             only: sht_grid, sht_grid_init, sht_grid_destroy
-   use vilma_drive,           only: vilma_run, forcing_window, forcing_time_ok, input_field_ok
+   use, intrinsic :: iso_c_binding, only: c_int, c_char, c_null_char
+   use, intrinsic :: iso_fortran_env, only: int64
+   use vilma_drive,           only: vilma_run, forcing_window, forcing_time_ok, input_field_ok, unix_now, &
+                                    VILMA_DONE, VILMA_WALL_STOP
    use ncio,               only: nc_create, nc_write_dim, nc_write, nc_read, nc_size
    implicit none
 
@@ -36,6 +46,24 @@ program test_drive
    character(len=*), parameter :: OUTL1 = "libvilma/include/test_drive_out_leg1.nc"
    character(len=*), parameter :: OUTL2 = "libvilma/include/test_drive_out_leg2.nc"
    character(len=*), parameter :: RST   = "libvilma/include/test_drive_rst.nc"
+   character(len=*), parameter :: OUTL0 = "libvilma/include/test_drive_out_leg0.nc"
+   character(len=*), parameter :: FORCED = "libvilma/include/test_drive_force_deglac.nc"
+   character(len=*), parameter :: OUTS0 = "libvilma/include/test_drive_out_spin0.nc"
+   character(len=*), parameter :: OUTS1 = "libvilma/include/test_drive_out_spin1.nc"
+   character(len=*), parameter :: OUTS2 = "libvilma/include/test_drive_out_spin2.nc"
+   character(len=*), parameter :: OUTS3 = "libvilma/include/test_drive_out_spin3.nc"
+   character(len=*), parameter :: OUTSN = "libvilma/include/test_drive_out_nospin.nc"
+   character(len=*), parameter :: OUTW0 = "libvilma/include/test_drive_out_wall0.nc"
+   character(len=*), parameter :: OUTW1 = "libvilma/include/test_drive_out_wall1.nc"
+   character(len=*), parameter :: OUTW2 = "libvilma/include/test_drive_out_wall2.nc"
+   character(len=*), parameter :: RSTW  = "libvilma/include/test_drive_rst_wall.nc"
+   character(len=*), parameter :: RSTS0 = "libvilma/include/test_drive_rst_spin0.nc"
+   character(len=*), parameter :: RSTS1 = "libvilma/include/test_drive_rst_spin1.nc"
+   !! every output variable of the native solver with rotation: (lon, lat, time) fields and scalars
+   character(len=11), parameter :: OUT2D(7) = [character(len=11) :: "h_ice", "rsl", "z_bed", "C_ocean", &
+        "dz_bed", "dz_bed_rate", "dz_ss"]
+   character(len=11), parameter :: OUT1D(8) = [character(len=11) :: "time", "bsl", "bsl_ive", "dphi", &
+        "sle_resid", "sle_n_cap", "rot_m_re", "rot_m_im"]
 
    type(sht_grid), target :: sht
    real(wp), allocatable  :: lon_deg(:), lat_deg(:), z_bed_eq(:,:), h_ice_eq(:,:)
@@ -46,6 +74,18 @@ program test_drive
    real(wp) :: thd, sub, err
    integer  :: i, j, k, jice, jocean, nout
    logical  :: ok
+
+   interface   ! POSIX: the test sets SLURM_JOB_END_TIME itself
+      integer(c_int) function c_setenv(name, value, overwrite) bind(C, name="setenv")
+         import :: c_int, c_char
+         character(kind=c_char), intent(in) :: name(*), value(*)
+         integer(c_int), value :: overwrite
+      end function c_setenv
+      integer(c_int) function c_unsetenv(name) bind(C, name="unsetenv")
+         import :: c_int, c_char
+         character(kind=c_char), intent(in) :: name(*)
+      end function c_unsetenv
+   end interface
 
    ok = .true.
    call sht_grid_init(sht, LMAX, nlat=NLAT, nphi=NPHI)
@@ -172,6 +212,7 @@ program test_drive
    call same_output(OUTA2, 'ascending files, i_eq = 2')
 
    call restart_clock()
+   call wall_stop()
    call time_axis()
    call field_values()
 
@@ -193,29 +234,61 @@ contains
       !! leg 2 resumes its final restart with time_init unset and must march the one
       !! remaining interval, 1000 -> 2000 yr, to the end state of the uninterrupted run.
       !! (Before the clock was checked, leg 2 replayed the forcing from t = 0 on the
-      !! restart's memory.) Then the window rule itself, case by case.
-      real(wp), allocatable :: t2(:), z2(:,:), zf(:,:)
+      !! restart's memory.) The legs are the uninterrupted run bit for bit. Then the same
+      !! with a spin-up, and the window rule itself, case by case.
+      real(wp), allocatable :: t2(:)
       character(len=400) :: msg
       integer :: k0, k1
       logical :: w
+      call write_cfg(CFGA, FORCE, REF, OUTL0, "", 2)
+      call vilma_run(CFGA, defaults_file=DEFS)
       call write_cfg(CFGA, FORCE, REF, OUTL1, "", 2, time_end=1000.0_wp)
       call vilma_run(CFGA, defaults_file=DEFS)
       call execute_command_line("cp libvilma/include/final/vilma_restart.nc "//RST)
       call write_cfg(CFGA, FORCE, REF, OUTL2, "", 2, restart=RST)
       call vilma_run(CFGA, defaults_file=DEFS)
-      allocate(t2(nc_size(OUTL2, "time")), z2(sht%nphi,sht%nlat), zf(sht%nphi,sht%nlat))
+      allocate(t2(nc_size(OUTL2, "time")))
       call nc_read(OUTL2, "time", t2)
       write(*,'(a,i0,a,2f10.1)') '   resumed run: ', size(t2), ' slices, t first/last =', t2(1), t2(size(t2))
       if (size(t2) /= 2 .or. t2(1) /= 1000.0_wp .or. t2(size(t2)) /= 2000.0_wp) then
          write(*,'(a)') '   FAIL: the resumed run does not continue at the restart time'; ok = .false.
       else
-         call nc_read(OUTL2, "z_bed", z2, start=[1,1,2],  count=[sht%nphi,sht%nlat,1])
-         call nc_read(OUT,   "z_bed", zf, start=[1,1,NT], count=[sht%nphi,sht%nlat,1])
-         write(*,'(a,es10.2,a)') '   resumed run: max|z_bed - uninterrupted run| at the end =', maxval(abs(z2 - zf)), ' m'
-         if (maxval(abs(z2 - zf)) > 1.0e-5_wp) then
-            write(*,'(a)') '   FAIL: the resumed run does not reach the uninterrupted end state'; ok = .false.
-         end if
+         call same_slices(OUTL0, 1, OUTL1, 1, 2, 'leg 1')
+         call same_slices(OUTL0, 2, OUTL2, 1, 2, 'leg 2 (resumed)')
       end if
+
+      ! the same with a spin-up under the start-slice ice: a cap deglaciating 2 -> 1 -> 0 km
+      call nc_create(FORCED, overwrite=.true.)
+      call nc_write_dim(FORCED, "lon",  x=lon_deg, units="degrees_east")
+      call nc_write_dim(FORCED, "lat",  x=lat_deg, units="degrees_north")
+      call nc_write_dim(FORCED, "time", x=tyr,     units="years", unlimited=.true.)
+      call nc_write(FORCED, "h_ice", h_ice(:, :, NT:1:-1), dim1="lon", dim2="lat", dim3="time")
+      call write_cfg(CFGA, FORCED, REF, OUTS0, "", 2, spinup=.true.)
+      call vilma_run(CFGA, defaults_file=DEFS)
+      call write_cfg(CFGA, FORCED, REF, OUTS1, "", 2, time_end=1000.0_wp, spinup=.true.)
+      call vilma_run(CFGA, defaults_file=DEFS)
+      call execute_command_line("cp libvilma/include/spinup/vilma_restart.nc "//RSTS0)
+      call execute_command_line("cp libvilma/include/final/vilma_restart.nc "//RSTS1)
+      call write_cfg(CFGA, FORCED, REF, OUTS2, "", 2, restart=RSTS1, spinup=.true.)
+      call vilma_run(CFGA, defaults_file=DEFS)
+      call write_cfg(CFGA, FORCED, REF, OUTS3, "", 2, restart=RSTS0, spinup=.true.)
+      call vilma_run(CFGA, defaults_file=DEFS)
+      call same_slices(OUTS0, 1, OUTS1, 1, 2, 'spin-up, leg 1')
+      call same_slices(OUTS0, 2, OUTS2, 1, 2, 'spin-up, leg 2 (resumed)')
+      call same_slices(OUTS0, 1, OUTS3, 1, 3, 'spin-up, resumed from the spin-up restart')
+      ! the spin-up did something: under the cap the bed starts deeper than without it (elastic)
+      call write_cfg(CFGA, FORCED, REF, OUTSN, "", 2)
+      call vilma_run(CFGA, defaults_file=DEFS)
+      block
+         real(wp), allocatable :: z0(:,:), ze(:,:)
+         integer :: jc
+         allocate(z0(sht%nphi,sht%nlat), ze(sht%nphi,sht%nlat))
+         jc = nearest_row(15.0_wp)
+         call nc_read(OUTS0, "dz_bed", z0, start=[1,1,1], count=[sht%nphi,sht%nlat,1])
+         call nc_read(OUTSN, "dz_bed", ze, start=[1,1,1], count=[sht%nphi,sht%nlat,1])
+         write(*,'(a,2f10.3,a)') '   dz_bed under the cap at the start, spun up / elastic =', z0(1,jc), ze(1,jc), ' m'
+         call expect(z0(1,jc) < ze(1,jc) - 1.0_wp, 'spin-up: the bed starts deeper under the cap than the elastic one')
+      end block
 
       ! the window rule (tyr = 0, 1000, 2000 yr; -1e30 = time_init unset)
       w = forcing_window(tyr, -1.0e30_wp, 1.0e30_wp, k0, k1, msg)
@@ -235,6 +308,55 @@ contains
       w = forcing_window(tyr, 0.0_wp, 1.0e30_wp, k0, k1, msg, t_restart=2000.0_wp, restart_reset=.true.)
       call expect(w .and. k0 == 1 .and. k1 == 3, 'restart_time_reset: the window time_init gives')
    end subroutine restart_clock
+
+   subroutine wall_stop()
+      !! The wall-time stop (vilma_drive): SLURM_JOB_END_TIME set by the test. The variable of
+      !! the job the test may run in is put back at the end.
+      character(len=64) :: job, v
+      integer :: st, n, u, ios
+      integer(int64) :: t_date
+      logical :: had
+      call get_environment_variable("SLURM_JOB_END_TIME", job, length=n, status=st)
+      had = (st == 0)
+      ! the clock: unix_now is date +%s
+      call execute_command_line("date +%s > libvilma/include/test_drive_date.txt")
+      open(newunit=u, file="libvilma/include/test_drive_date.txt", action="read")
+      read(u, *, iostat=ios) t_date;  close(u)
+      write(*,'(a,i0,a,i0)') '   unix_now = ', unix_now(), ', date +%s = ', t_date
+      call expect(ios == 0 .and. abs(unix_now() - t_date) <= 2, 'unix_now is the Unix time (date +%s)')
+      ! the job ends now: the run stops after its first slice, with the final restart
+      write(v,'(i0)') unix_now()
+      call set_end(trim(v))
+      call write_cfg(CFGA, FORCE, REF, OUTW1, "", 2)
+      call vilma_run(CFGA, defaults_file=DEFS, status=st)
+      call expect(st == VILMA_WALL_STOP .and. nc_size(OUTW1, "time") == 2, &
+                  'job end past: stops after the first slice (status VILMA_WALL_STOP)')
+      call same_slices(OUTL0, 1, OUTW1, 1, 2, 'wall stop')
+      call execute_command_line("cp libvilma/include/final/vilma_restart.nc "//RSTW)
+      ! not a number: no stop
+      call set_end("soon")
+      call write_cfg(CFGA, FORCE, REF, OUTW0, "", 2)
+      call vilma_run(CFGA, defaults_file=DEFS, status=st)
+      call expect(st == VILMA_DONE .and. nc_size(OUTW0, "time") == NT, 'SLURM_JOB_END_TIME not a number: runs to the end')
+      ! the job ends in a day: the resumed run goes to the end, and is the uninterrupted one
+      write(v,'(i0)') unix_now() + 86400_int64
+      call set_end(trim(v))
+      call write_cfg(CFGA, FORCE, REF, OUTW2, "", 2, restart=RSTW)
+      call vilma_run(CFGA, defaults_file=DEFS, status=st)
+      call expect(st == VILMA_DONE .and. nc_size(OUTW2, "time") == 2, 'job end ahead: the resumed run goes to the end')
+      call same_slices(OUTL0, 2, OUTW2, 1, 2, 'resumed after the wall stop')
+      if (had) then
+         call set_end(job(1:n))
+      else
+         st = c_unsetenv("SLURM_JOB_END_TIME"//c_null_char)
+      end if
+   end subroutine wall_stop
+
+   subroutine set_end(v)
+      character(len=*), intent(in) :: v
+      if (c_setenv("SLURM_JOB_END_TIME"//c_null_char, v//c_null_char, 1_c_int) /= 0) &
+         error stop 'test_drive: setenv failed'
+   end subroutine set_end
 
    subroutine time_axis()
       !! The forcing time axis must be in years (or a unit that converts to them without a
@@ -284,21 +406,26 @@ contains
       end if
    end subroutine expect
 
-   subroutine write_cfg(cfg, force, ref, out, hor, i_eq, time_end, restart)
+   subroutine write_cfg(cfg, force, ref, out, hor, i_eq, time_end, restart, spinup)
       !! A sparse &vilma and a complete &ctl: the legacy Gauss-grid input (remap_input=.false.),
       !! the reference from file_ref (i_eq = 0, the ice-free start slice) or from
-      !! z_bed_eq_file / h_ice_eq_file (i_eq = 2, the same fields). time_end [years] and the
-      !! restart to resume are optional (default: the whole axis, no restart).
+      !! z_bed_eq_file / h_ice_eq_file (i_eq = 2, the same fields). time_end [years], the
+      !! restart to resume and a spin-up under the start-slice ice (equil_time_max) are
+      !! optional (default: the whole axis, no restart, no spin-up).
       character(len=*), intent(in) :: cfg, force, ref, out, hor
       integer,          intent(in) :: i_eq
       real(wp),         intent(in), optional :: time_end
       character(len=*), intent(in), optional :: restart
+      logical,          intent(in), optional :: spinup
       integer :: u
       open(newunit=u, file=cfg, status="replace", action="write")
       write(u,'(a)')    "&vilma"
       write(u,'(a,i0)') "    lmax = ", LMAX
       write(u,'(a,i0)') "    nlat = ", NLAT
       write(u,'(a,i0)') "    nphi = ", NPHI
+      if (present(spinup)) then
+         if (spinup) write(u,'(a)') "    equil_time_max = 2.0e4"
+      end if
       write(u,'(a)')    "/"
       write(u,'(a)')    "&ctl"
       write(u,'(a)')    '    file_forcing = "'//force//'"'
@@ -360,6 +487,34 @@ contains
          end if
       end do
    end subroutine same_output
+
+   subroutine same_slices(fa, ia, fb, ib, n, what)
+      !! Slices ib .. ib+n-1 of fb equal slices ia .. ia+n-1 of fa, bit for bit, in every
+      !! output variable (OUT2D, OUT1D).
+      character(len=*), intent(in) :: fa, fb, what
+      integer,          intent(in) :: ia, ib, n
+      real(wp), allocatable :: a(:,:,:), b(:,:,:), a1(:), b1(:)
+      integer :: q, nbad
+      nbad = 0
+      allocate(a(sht%nphi,sht%nlat,n), b(sht%nphi,sht%nlat,n), a1(n), b1(n))
+      do q = 1, size(OUT2D)
+         call nc_read(fa, trim(OUT2D(q)), a, start=[1,1,ia], count=[sht%nphi,sht%nlat,n])
+         call nc_read(fb, trim(OUT2D(q)), b, start=[1,1,ib], count=[sht%nphi,sht%nlat,n])
+         if (any(a /= b)) then
+            write(*,'(a,es10.2)') '   '//what//': '//trim(OUT2D(q))//' differs, max|d| =', maxval(abs(a - b))
+            nbad = nbad + 1
+         end if
+      end do
+      do q = 1, size(OUT1D)
+         call nc_read(fa, trim(OUT1D(q)), a1, start=[ia], count=[n])
+         call nc_read(fb, trim(OUT1D(q)), b1, start=[ib], count=[n])
+         if (any(a1 /= b1)) then
+            write(*,'(a,es10.2)') '   '//what//': '//trim(OUT1D(q))//' differs, max|d| =', maxval(abs(a1 - b1))
+            nbad = nbad + 1
+         end if
+      end do
+      call expect(nbad == 0, what//': the uninterrupted run bit for bit (every variable and slice)')
+   end subroutine same_slices
 
    integer function nearest_row(colat_deg) result(jbest)
       real(wp), intent(in) :: colat_deg

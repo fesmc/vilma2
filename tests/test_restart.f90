@@ -10,7 +10,8 @@ program test_restart
    !!       seed and step forward; the trajectory reproduces the uninterrupted run
    !!       exactly (the restored prognostic state is all that is needed);
    !!   (3) multi-snapshot file — two snapshots at different times coexist, and a
-   !!       specific earlier time can be selected on read.
+   !!       specific earlier time can be selected on read; the writes (a new file and an
+   !!       append) leave no <file>.part behind (they are written so and renamed).
    !! RESP_VE is run twice: radially symmetric (4 memory channels) and with the
    !! synthetic FesmData-form lateral viscosity, which switches on the toroidal channels (6), so
    !! the round trip covers the widened memory. Then (4) the migration: a
@@ -72,6 +73,7 @@ contains
       real(wp) :: a6_dphi
       real(wp) :: t1, t2, d_restore, d_continue, dt_yr
       integer  :: step, nt
+      logical  :: part_left
 
       dt_yr           = 1.0e3_wp          ! interval per update [years]
       p%lmax = LMAX;  p%nlat = 2*LMAX;  p%nphi = 4*LMAX  ! model builds its own grid from par
@@ -103,6 +105,12 @@ contains
            '   t1=', t1*1.0e-3_wp, ' kyr   t2=', t2*1.0e-3_wp
       if (visc3d .and. a%resp%nlam == 4) then
          write(*,'(a)') '   FAIL: lateral viscosity did not switch the toroidal channels on'; ok = .false.
+      end if
+
+      ! the writes are atomic: written as <file>.part and renamed, none left behind
+      inquire(file=file//".part", exist=part_left)
+      if (part_left) then
+         write(*,'(a)') '   FAIL: '//file//'.part left after the restart writes'; ok = .false.
       end if
 
       ! === (3) multi-snapshot file ===========================================
