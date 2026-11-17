@@ -619,7 +619,7 @@ contains
 
    ! --- reading ---------------------------------------------------------------
 
-   subroutine vilma_restart_read(self, filename, time, other_visc)
+   subroutine vilma_restart_read(self, filename, time, other_visc, exact)
       !! Restore the prognostic state into an already-initialised solid_earth
       !! (init() must have rebuilt the operators, spectrum and grid). Reads the
       !! response's memory state + model time at the time slice matching `time`
@@ -637,10 +637,16 @@ contains
       !! stops. other_visc = .true. (default .false.) accepts a file written under another
       !! viscosity: its memory then seeds this run (a 1-D spin-up for a 3-D run, say)
       !! instead of continuing one. The mesh must match either way.
+      !!
+      !! exact (optional, out): .true. when the run continues the file's run bit for bit (the
+      !! same resolution and Earth: the state is all restored); .false. for a seed (a
+      !! lower-degree file, or another viscosity under other_visc), which the caller must
+      !! re-solve or spin up.
       type(solid_earth), intent(inout) :: self
       character(len=*),   intent(in)    :: filename
       real(wp), optional, intent(in)    :: time
       logical,  optional, intent(in)    :: other_visc
+      logical,  optional, intent(out)   :: exact
       real(wp), allocatable :: tvals(:)
       character(len=400) :: msg
       integer :: nt, n, np, nl
@@ -667,6 +673,15 @@ contains
          write(*,'(a)') ' vilma_restart_read: '//trim(filename)//' is from another Earth:'
          write(*,'(a)') '   '//trim(msg)
          error stop 'vilma_restart_read: the restart does not match the model (see message above)'
+      end if
+
+      ! a continuation or a seed: the same resolution (VE memory) and the same Earth
+      if (present(exact)) then
+         exact = .true.
+         if (self%resp%kind == RESP_VE) exact = (nc_size(filename, "nk") == self%resp%nk)
+         if (exact .and. present(other_visc)) then
+            if (other_visc) exact = vilma_restart_compatible(self, filename, msg, other_visc=.false.)
+         end if
       end if
 
       ! kind-specific prognostic memory + (where applicable) reference/diagnostics

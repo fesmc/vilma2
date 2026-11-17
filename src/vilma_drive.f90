@@ -103,7 +103,7 @@ contains
       real(wp), allocatable  :: src(:,:), tyr(:)
       real(wp) :: dt, t_rst
       integer  :: nt, k, k0, k1, np, nl, nlon, nls
-      logical  :: remap, resume, win_ok
+      logical  :: remap, resume, win_ok, exact, cont
       character(len=400) :: msg
       character(len=:), allocatable :: rundir
       character(len=11), allocatable :: out_names(:)  ! OUT_VARS, + polar motion if active
@@ -184,17 +184,25 @@ contains
       call execute_command_line("mkdir -p '"//rundir//"'")   ! the output folder (examples write under runs/)
       call system_clock(pc0, prate)
       se%par = p; call solid_earth_init(se, z_bed_eq, h_ice_eq, time=tyr(k0))   ! reference, memory 0
+      cont = .false.
       if (resume) then                                                        ! resume saved memory + clock
          ! KNOWN GAP: a VILMA2 restart file carries the NATIVE solver's
          ! prognostic memory, which has no VILMA1 counterpart. VILMA1 restarts through
          ! its own files (r_restart / w_restart), which this driver does not wire up.
          if (se%use_vilma_v1) &
             error stop 'vilma_run: restart_in_file is not supported with solver="v1" (see doc/vilma-v1-backend.md)'
-         call vilma_restart_read(se, trim(c%restart_in_file), other_visc=c%restart_other_visc)
+         call vilma_restart_read(se, trim(c%restart_in_file), other_visc=c%restart_other_visc, exact=exact)
          ! the file's time is the window start, unless the state is reused at another time
          if (c%restart_time_reset) call solid_earth_set_time(se, tyr(k0))
+         ! An exact restart at its own time continues the run that wrote it: its state is the
+         ! one that run had there (spun up and solved), so neither the spin-up nor the seed
+         ! is repeated, and the run goes on bit for bit. A seed (another degree or Earth) or
+         ! a state reused at another time is spun up or re-solved as a fresh start.
+         cont = exact .and. .not. c%restart_time_reset
       end if
-      if (p%pre_spinup_1d .or. p%equil_time_max > 0.0_wp) then
+      if (cont) then
+         write(*,'(a,f0.1,a)') ' vilma: continues the restart at t = ', se%time, ' yr (no spin-up, no seed)'
+      else if (p%pre_spinup_1d .or. p%equil_time_max > 0.0_wp) then
          ! LGM-memory spin-up: relax under the start-slice ice while HOLDING the
          ! reference (z_bed_eq, h_ice_eq) as the datum, so the transient measures
          ! rsl/bsl against the reference (-> 0 as ice -> h_ice_eq).

@@ -86,8 +86,11 @@ module vilma_control
       ! restart_in_dir and never reads this field.
       character(len=512) :: restart_in_file = ""
          !! full-state restart (vilma_restart.nc) to resume from: solid_earth_init at the
-         !! reference, then restore the saved memory/clock; a spin-up, if enabled, then
-         !! runs from it. A lower-degree restart is zero-padded in the higher degrees.
+         !! reference, then restore the saved memory/clock. A restart of the same degree and
+         !! Earth continues its run bit for bit (no spin-up, no seed). A seed (a lower-degree
+         !! restart, zero-padded in the higher degrees, or another viscosity under
+         !! restart_other_visc) or a state reused under restart_time_reset is spun up, if
+         !! enabled, or re-solved under the start-slice ice, as a fresh start.
       logical :: restart_time_reset = .false.
          !! A restart continues where it left off: the window starts at the restart's time
          !! (time_init unset), and a time_init that selects another start slice stops the
