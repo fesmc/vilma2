@@ -359,7 +359,7 @@ Degrees ≥ 2 are unaffected.
    optional held-load spin-up (`equil_time_max`, `pre_spinup_1d`).
    Validated on CLIMBER-X `geo_ice_tarasov_deglac.nc` (−26 ka→0). Depends on the
    fesm-utils `coords` module at the branch pinned in `.configme/manifest.toml`
-   (`phase0-kryos`). See §13.
+   (`v1.5`). See §13.
 
 **Rung 6 (3D laterally-varying viscosity) — 6a/6b/6c DONE (§12).** Tensor-correct
 pseudo-spectral memory advance (`vilma_tensor_sh`, general order `mmax≥0`), validated
@@ -571,7 +571,7 @@ global factor so its SHTns quadrature integral equals the source area-integral e
 (the whole sphere is 4π sr — no planet radius needed). Geometry (bed) is remapped as-is.
 `test_remap`: constant preserved ~3e-15, latitude orientation, zonal accuracy, mass
 exact. **Depends on the fesm-utils `coords` module** at the branch pinned in
-`.configme/manifest.toml` (`phase0-kryos`: `grid_init_gaussian` is not in `dev` v1.4);
+`.configme/manifest.toml` (`v1.5`, the first release with `grid_init_gaussian`);
 `configme install vilma2` clones and builds it.
 
 **Driver (`vilma_drive`).** General forced-transient loop, fields read per
