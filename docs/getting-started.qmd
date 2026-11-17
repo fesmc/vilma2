@@ -279,6 +279,14 @@ A few conventions worth knowing:
   mesh exactly. What the restart carries and what is checked on read is
   described in
   [Time stepping](discretization/time-stepping.qmd#memory-storage-and-restart).
+- **Wall-time stop.** In a batch job the driver reads the job's end from the
+  environment variable `SLURM_JOB_END_TIME` (Unix seconds; Slurm sets it). After
+  each forcing slice it stops when the next slice, at 1.25 times the longest so
+  far, and the restart write might not end before the job does; it then writes
+  `final/vilma_restart.nc` as at the end of a run, logs `wall stop at t = ...`
+  and `vilma.x` exits with code 75. Resuming from that restart (`restart_in_file`,
+  `time_init` unset, a new `file_out`) continues the run bit for bit. Without
+  the variable, or with one that is not a number, the run is not stopped.
 - **Backend** is chosen by `solver`: `"v2"` (this model, default) or `"v1"`,
   the VILMA1 library behind the same driver, forcing and output for
   like-for-like comparison (requires a build with `vilma_v1=1`).

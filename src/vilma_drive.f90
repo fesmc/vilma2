@@ -34,6 +34,14 @@ module vilma_drive
    !! Optional (non-default) LGM-memory spin-up when pre_spinup_1d or equil_time_max>0:
    !! relax under the start-slice ice while HOLDING the i_eq reference as the datum, so
    !! the model enters the transient spun up (viscous memory) — see solid_earth_spinup.
+   !!
+   !! Wall-time stop (a run longer than its batch job): when the environment variable
+   !! SLURM_JOB_END_TIME (Unix epoch seconds; Slurm sets it in every job) is set, the run
+   !! stops after a forcing slice when the next one might not end, with the final restart,
+   !! before the job does: when now + 1.25 x (the longest slice so far) + (the time of a
+   !! restart write) is past it. vilma_run then returns status VILMA_WALL_STOP (vilma.x:
+   !! exit code 75), and a run resumed from final/vilma_restart.nc continues it bit for bit.
+   !! Without the variable (or with one that is not an integer) the run is not stopped.
    use vilma_precision, only: wp, is_finite
    use vilma_constants, only: sec_per_year
    use vilma_params,    only: vilma_param_class, vilma_par_load, vilma_par_print
@@ -45,12 +53,22 @@ module vilma_drive
    use vilma_io,        only: vilma_write_step, vilma_restart_write, vilma_restart_read, vilma_write_horizontal, &
                               vilma_restart_time
    use ncio,         only: nc_read, nc_size, nc_exists_var, nc_set_lossless, nc_exists_attr, nc_read_attr
-   use iso_fortran_env, only: error_unit
+   use iso_fortran_env, only: error_unit, int64
    implicit none
    private
 
    public :: vilma_run
-   public :: forcing_window, forcing_time_ok, input_field_ok
+   public :: forcing_window, forcing_time_ok, input_field_ok, unix_now
+   public :: VILMA_DONE, VILMA_WALL_STOP
+
+   !! vilma_run's status: the window is done, or the run stopped at the job's wall time
+   !! (resume it from final/vilma_restart.nc)
+   integer, parameter :: VILMA_DONE = 0, VILMA_WALL_STOP = 1
+
+   !! The wall-time stop: the next slice may take this many times the longest so far, and
+   !! a restart write this long [s] before one has been timed (or twice the restart read)
+   real(wp), parameter :: WALL_SLICE_FACTOR = 1.25_wp
+   real(wp), parameter :: WALL_RESTART_MIN = 60.0_wp
 
    !! Admissible ranges of the input fields [m] (input_field_ok): anything outside is a
    !! fill value or a unit error, not data.
@@ -85,14 +103,16 @@ module vilma_drive
 
 contains
 
-   subroutine vilma_run(cfg_file, defaults_file)
+   subroutine vilma_run(cfg_file, defaults_file, status)
       !! Run a forced simulation defined by cfg_file. Its &vilma (physics) group is
       !! overlaid on the complete physics defaults in defaults_file (the program
       !! passes vilma_control's DEFAULTS_FILE = input/vilma_defaults.nml); its &ctl
       !! (run control) group is read from cfg_file alone and must be complete, apart from
-      !! the optional keys vilma_ctl_load names.
+      !! the optional keys vilma_ctl_load names. status (optional): VILMA_DONE, or
+      !! VILMA_WALL_STOP when the run stopped before the job's end (module header).
       character(len=*), intent(in) :: cfg_file
       character(len=*), intent(in) :: defaults_file
+      integer, optional, intent(out) :: status
 
       type(vilma_param_class)   :: p
       type(vilma_ctl_class)     :: c
@@ -112,6 +132,10 @@ contains
       real(wp) :: t_dr, t_mm                      ! PROFILE: solid_earth_update sub-phases
       real(wp) :: rest, t_sle, t_grid, t_oth      ! PROFILE: the "rest" bucket, opened up
       integer  :: nstep = 0, nout
+      integer(int64) :: t_job_end                 ! wall-time stop: the job's end [Unix s]
+      integer(kind=8) :: ps0, ps1                 ! ... a slice's wall time
+      real(wp) :: t_slice_max, t_rst_wr           ! ... the longest slice, a restart write [s]
+      logical  :: wall_on, wall_stop
 
       ! --- configuration --------------------------------------------------------
       ! &vilma: cfg_file overlaid on the physics defaults. &ctl: from cfg_file alone
@@ -121,6 +145,8 @@ contains
       call vilma_par_print(p)
       call vilma_ctl_print(c)
       call nc_set_lossless(c%write_lossless)        ! diagnostics: table precision unless set
+      wall_on = job_end_time(t_job_end);  wall_stop = .false.
+      t_slice_max = 0.0_wp;  t_rst_wr = WALL_RESTART_MIN
 
       ! Solver backend check, before any work: an unknown &vilma solver, or
       ! solver="v1" in a binary built without the optional VILMA1 backend (the
@@ -191,7 +217,9 @@ contains
          ! its own files (r_restart / w_restart), which this driver does not wire up.
          if (se%use_vilma_v1) &
             error stop 'vilma_run: restart_in_file is not supported with solver="v1" (see doc/vilma-v1-backend.md)'
+         call system_clock(ps0)
          call vilma_restart_read(se, trim(c%restart_in_file), other_visc=c%restart_other_visc, exact=exact)
+         call system_clock(ps1);  t_rst_wr = max(WALL_RESTART_MIN, 2.0_wp*real(ps1-ps0,wp)/prate)
          ! the file's time is the window start, unless the state is reused at another time
          if (c%restart_time_reset) call solid_earth_set_time(se, tyr(k0))
          ! An exact restart at its own time continues the run that wrote it: its state is the
@@ -207,7 +235,9 @@ contains
          ! reference (z_bed_eq, h_ice_eq) as the datum, so the transient measures
          ! rsl/bsl against the reference (-> 0 as ice -> h_ice_eq).
          call solid_earth_spinup(se, ice_lgm)
+         call system_clock(ps0)
          call vilma_restart_write(se, se%time, folder=trim(rundir)//"/spinup")
+         call system_clock(ps1);  t_rst_wr = real(ps1-ps0,wp)/prate
       else
          ! seed the entering (LGM) ice and re-solve the diagnostics (also fills
          ! rsl/z_bed/C after a cross-resolution restart); no integration.
@@ -261,6 +291,7 @@ contains
       se%sle%t_rot = 0.0_wp;  se%t_remap = 0.0_wp;  se%stepper%t_guard = 0.0_wp
       do k = k0, k1-1
          dt = tyr(k+1) - tyr(k)                    ! coupling interval [years]
+         call system_clock(ps0)
          call system_clock(pc0, prate)
          call read_ice(c, rmap, sht, remap, k+1, src, h_ice)
          call system_clock(pc1);  t_read = t_read + real(pc1-pc0,wp)/prate
@@ -283,6 +314,16 @@ contains
             write(*,'(a,f12.2,a,es10.2,a,es9.2,a,i0,a,i0)') '   t=', se%time, &
                  ' yr   max|rsl|=', maxval(abs(se%rsl)), '   sle_resid=', se%sle_resid, &
                  '   capped=', se%sle_n_cap_inner + se%sle_n_cap_coast + se%sle_n_cap_mem, '/', se%sle_n_solve
+         end if
+         ! the wall-time stop: would the next slice and the final restart still end within the job?
+         call system_clock(ps1);  t_slice_max = max(t_slice_max, real(ps1-ps0,wp)/prate)
+         if (wall_on .and. k+1 < k1) then
+            if (real(unix_now() - t_job_end, wp) + WALL_SLICE_FACTOR*t_slice_max + t_rst_wr > 0.0_wp) then
+               write(*,'(a,f0.1,a)') ' vilma: wall stop at t = ', se%time, ' yr, next slice would end after the job'
+               flush(6)
+               wall_stop = .true.
+               exit
+            end if
          end if
       end do
 
@@ -385,6 +426,9 @@ contains
          call vilma_restart_write(se, se%time, folder=trim(rundir)//"/final")
          write(*,'(a,a)') ' vilma: wrote restart ', trim(rundir)//'/final/vilma_restart.nc'
       end if
+      if (wall_stop) write(*,'(a,f0.1,a)') ' vilma: stopped at t = ', se%time, &
+           ' yr before the end of the job: resume from final/vilma_restart.nc'
+      if (present(status)) status = merge(VILMA_WALL_STOP, VILMA_DONE, wall_stop)
       call solid_earth_finalize(se);  call sht_grid_destroy(sht)
 
    contains
@@ -397,6 +441,40 @@ contains
          end do
       end subroutine add_names
    end subroutine vilma_run
+
+   logical function job_end_time(t_end) result(on)
+      !! The end of the batch job [Unix s] from SLURM_JOB_END_TIME, and whether the
+      !! wall-time stop is on: off when the variable is absent or not a positive integer.
+      integer(int64), intent(out) :: t_end
+      character(len=64) :: v
+      integer :: n, st, ios
+      on = .false.;  t_end = 0
+      call get_environment_variable("SLURM_JOB_END_TIME", v, length=n, status=st)
+      if (st /= 0 .or. n == 0) return
+      read(v, *, iostat=ios) t_end
+      if (ios /= 0 .or. t_end <= 0) then
+         write(*,'(a)') ' vilma: SLURM_JOB_END_TIME = "'//trim(v)//'" is not a Unix time: no wall-time stop'
+         t_end = 0;  return
+      end if
+      on = .true.
+      write(*,'(a,i0,a,f0.2,a)') ' vilma: wall-time stop on: the job ends at ', t_end, &
+           ' (SLURM_JOB_END_TIME), in ', real(t_end - unix_now(), wp)/3600.0_wp, ' h'
+   end function job_end_time
+
+   integer(int64) function unix_now() result(t)
+      !! The time now [s since 1970-01-01 UTC], from date_and_time (days_from_civil, H. Hinnant).
+      integer :: v(8)
+      integer(int64) :: y, m, era, yoe, doy, doe
+      call date_and_time(values=v)
+      y = v(1);  m = v(2)
+      if (m <= 2) y = y - 1
+      era = merge(y, y - 399, y >= 0)/400
+      yoe = y - era*400
+      doy = (153*merge(m - 3, m + 9, m > 2) + 2)/5 + v(3) - 1
+      doe = yoe*365 + yoe/4 - yoe/100 + doy
+      t = (era*146097 + doe - 719468)*86400_int64 + v(5)*3600_int64 + v(6)*60_int64 + v(7) &
+          - int(v(4), int64)*60_int64
+   end function unix_now
 
    pure function dir_of(path) result(d)
       !! Directory part of a path (everything before the last "/"); "." if none.

@@ -16,12 +16,18 @@ program test_drive
    !! output variable and slice (the resumed leg's first slice is the first leg's last). So
    !! are the legs of a run with a spin-up (under a deglaciating cap): the resumed leg runs
    !! neither the spin-up nor the seed again, and a run resumed from the spin-up restart is
-   !! the whole run.
+   !! the whole run. Then the wall-time stop: with SLURM_JOB_END_TIME already past, the run
+   !! stops after its first slice with status VILMA_WALL_STOP and a final restart, and the
+   !! run resumed from it is the uninterrupted one bit for bit; with the variable not a
+   !! number or far ahead, the run goes to the end.
    use, intrinsic :: ieee_arithmetic, only: ieee_value, ieee_quiet_nan
    use vilma_precision,       only: wp
    use vilma_constants,       only: rad2deg, pi
    use vilma_sht,             only: sht_grid, sht_grid_init, sht_grid_destroy
-   use vilma_drive,           only: vilma_run, forcing_window, forcing_time_ok, input_field_ok
+   use, intrinsic :: iso_c_binding, only: c_int, c_char, c_null_char
+   use, intrinsic :: iso_fortran_env, only: int64
+   use vilma_drive,           only: vilma_run, forcing_window, forcing_time_ok, input_field_ok, unix_now, &
+                                    VILMA_DONE, VILMA_WALL_STOP
    use ncio,               only: nc_create, nc_write_dim, nc_write, nc_read, nc_size
    implicit none
 
@@ -47,6 +53,10 @@ program test_drive
    character(len=*), parameter :: OUTS2 = "libvilma/include/test_drive_out_spin2.nc"
    character(len=*), parameter :: OUTS3 = "libvilma/include/test_drive_out_spin3.nc"
    character(len=*), parameter :: OUTSN = "libvilma/include/test_drive_out_nospin.nc"
+   character(len=*), parameter :: OUTW0 = "libvilma/include/test_drive_out_wall0.nc"
+   character(len=*), parameter :: OUTW1 = "libvilma/include/test_drive_out_wall1.nc"
+   character(len=*), parameter :: OUTW2 = "libvilma/include/test_drive_out_wall2.nc"
+   character(len=*), parameter :: RSTW  = "libvilma/include/test_drive_rst_wall.nc"
    character(len=*), parameter :: RSTS0 = "libvilma/include/test_drive_rst_spin0.nc"
    character(len=*), parameter :: RSTS1 = "libvilma/include/test_drive_rst_spin1.nc"
    !! every output variable of the native solver with rotation: (lon, lat, time) fields and scalars
@@ -64,6 +74,18 @@ program test_drive
    real(wp) :: thd, sub, err
    integer  :: i, j, k, jice, jocean, nout
    logical  :: ok
+
+   interface   ! POSIX: the test sets SLURM_JOB_END_TIME itself
+      integer(c_int) function c_setenv(name, value, overwrite) bind(C, name="setenv")
+         import :: c_int, c_char
+         character(kind=c_char), intent(in) :: name(*), value(*)
+         integer(c_int), value :: overwrite
+      end function c_setenv
+      integer(c_int) function c_unsetenv(name) bind(C, name="unsetenv")
+         import :: c_int, c_char
+         character(kind=c_char), intent(in) :: name(*)
+      end function c_unsetenv
+   end interface
 
    ok = .true.
    call sht_grid_init(sht, LMAX, nlat=NLAT, nphi=NPHI)
@@ -190,6 +212,7 @@ program test_drive
    call same_output(OUTA2, 'ascending files, i_eq = 2')
 
    call restart_clock()
+   call wall_stop()
    call time_axis()
    call field_values()
 
@@ -285,6 +308,55 @@ contains
       w = forcing_window(tyr, 0.0_wp, 1.0e30_wp, k0, k1, msg, t_restart=2000.0_wp, restart_reset=.true.)
       call expect(w .and. k0 == 1 .and. k1 == 3, 'restart_time_reset: the window time_init gives')
    end subroutine restart_clock
+
+   subroutine wall_stop()
+      !! The wall-time stop (vilma_drive): SLURM_JOB_END_TIME set by the test. The variable of
+      !! the job the test may run in is put back at the end.
+      character(len=64) :: job, v
+      integer :: st, n, u, ios
+      integer(int64) :: t_date
+      logical :: had
+      call get_environment_variable("SLURM_JOB_END_TIME", job, length=n, status=st)
+      had = (st == 0)
+      ! the clock: unix_now is date +%s
+      call execute_command_line("date +%s > libvilma/include/test_drive_date.txt")
+      open(newunit=u, file="libvilma/include/test_drive_date.txt", action="read")
+      read(u, *, iostat=ios) t_date;  close(u)
+      write(*,'(a,i0,a,i0)') '   unix_now = ', unix_now(), ', date +%s = ', t_date
+      call expect(ios == 0 .and. abs(unix_now() - t_date) <= 2, 'unix_now is the Unix time (date +%s)')
+      ! the job ends now: the run stops after its first slice, with the final restart
+      write(v,'(i0)') unix_now()
+      call set_end(trim(v))
+      call write_cfg(CFGA, FORCE, REF, OUTW1, "", 2)
+      call vilma_run(CFGA, defaults_file=DEFS, status=st)
+      call expect(st == VILMA_WALL_STOP .and. nc_size(OUTW1, "time") == 2, &
+                  'job end past: stops after the first slice (status VILMA_WALL_STOP)')
+      call same_slices(OUTL0, 1, OUTW1, 1, 2, 'wall stop')
+      call execute_command_line("cp libvilma/include/final/vilma_restart.nc "//RSTW)
+      ! not a number: no stop
+      call set_end("soon")
+      call write_cfg(CFGA, FORCE, REF, OUTW0, "", 2)
+      call vilma_run(CFGA, defaults_file=DEFS, status=st)
+      call expect(st == VILMA_DONE .and. nc_size(OUTW0, "time") == NT, 'SLURM_JOB_END_TIME not a number: runs to the end')
+      ! the job ends in a day: the resumed run goes to the end, and is the uninterrupted one
+      write(v,'(i0)') unix_now() + 86400_int64
+      call set_end(trim(v))
+      call write_cfg(CFGA, FORCE, REF, OUTW2, "", 2, restart=RSTW)
+      call vilma_run(CFGA, defaults_file=DEFS, status=st)
+      call expect(st == VILMA_DONE .and. nc_size(OUTW2, "time") == 2, 'job end ahead: the resumed run goes to the end')
+      call same_slices(OUTL0, 2, OUTW2, 1, 2, 'resumed after the wall stop')
+      if (had) then
+         call set_end(job(1:n))
+      else
+         st = c_unsetenv("SLURM_JOB_END_TIME"//c_null_char)
+      end if
+   end subroutine wall_stop
+
+   subroutine set_end(v)
+      character(len=*), intent(in) :: v
+      if (c_setenv("SLURM_JOB_END_TIME"//c_null_char, v//c_null_char, 1_c_int) /= 0) &
+         error stop 'test_drive: setenv failed'
+   end subroutine set_end
 
    subroutine time_axis()
       !! The forcing time axis must be in years (or a unit that converts to them without a
