@@ -27,9 +27,7 @@ LFLAGS_EXTRA =
 # target machine to confirm the SLE mass-conservation tests (~1e-16) still pass
 # after a toolchain or flag change.
 #
-# awi_albedo and dkrz_levante have per-repo overrides too (value-safe
-# -O2 -fp-model precise, with -march=znver2 and znver3). pik_hpc2024 takes
-# configme's own fragment (`configme show pik_hpc2024`: -Ofast -march=core-avx2
-# -traceback). The generic linux fragment builds at the compiler default (-O2
-# for gfortran).
+# awi_albedo, dkrz_levante and pik_hpc2024 have per-repo overrides too
+# (value-safe -O2 -fp-model precise, with -march=znver2, znver3 and core-avx2).
+# The generic linux fragment builds at the compiler default (-O2 for gfortran).
 DFLAGS_NODEBUG = -O3 -mcpu=native -funroll-loops -ffast-math
