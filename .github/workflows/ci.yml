@@ -41,7 +41,9 @@ jobs:
         id: fesm
         run: |
           ref=$(sed -n 's/.*"fesm-utils:\([^"]*\)".*/\1/p' .configme/manifest.toml)
-          sha=$(git ls-remote https://github.com/fesmc/fesm-utils.git "refs/heads/$ref" | cut -f1)
+          # a branch or a tag (an annotated tag resolves to its commit, the ^{} line, which sorts last)
+          sha=$(git ls-remote https://github.com/fesmc/fesm-utils.git "refs/heads/$ref" "refs/tags/$ref" "refs/tags/$ref^{}" \
+                | sort -k2 | tail -1 | cut -f1)
           [ -n "$ref" ] && [ -n "$sha" ] || { echo "cannot resolve fesm-utils ref '$ref'"; exit 1; }
           echo "ref=$ref" >> "$GITHUB_OUTPUT"
           echo "sha=$sha" >> "$GITHUB_OUTPUT"
