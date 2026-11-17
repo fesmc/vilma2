@@ -666,7 +666,7 @@ window.Quarto = {
 <section id="status" class="level2">
 <h2 class="anchored" data-anchor-id="status">Status</h2>
 <p>VILMA2 is validated against the published GIA benchmarks and is starting to be used for science. It is versioned 0.x, so the namelist and the host API may still change. The implemented model comprises the spectral–finite-element solver, the viscoelastic time stepping, the self-consistent sea-level equation with migrating coastlines, rotational feedback, laterally varying (3-D) viscosity, restart and spin-up, online remapping of lon-lat forcing, and a host-coupling API.</p>
-<p>Each benchmark is an executable test with a pass/fail exit. The table gives the tolerance each test asserts and the difference measured with the reference build (ifx <code>-Ofast</code> on the AWI cluster albedo).</p>
+<p>Each benchmark is an executable test with a pass/fail exit. The table gives the tolerance each test asserts and the difference measured with the reference build of the time (ifx 2024.1 <code>-Ofast</code> on the AWI cluster albedo; the reference build is now ifx 2024.0 <code>-O2 -fp-model precise</code>).</p>
 <table class="caption-top table">
 <thead>
 <tr class="header">
