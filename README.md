@@ -26,8 +26,9 @@ is **off by default and is not a dependency**: it needs an explicit
 VILMA2 is validated against the published GIA benchmarks and is starting to be
 used for science. It is versioned 0.x: the namelist and the host API may still
 change. Each benchmark is an executable test with a pass/fail exit
-(`make check`, `make check-slow`); the reference build is ifx `-Ofast` on the
-AWI cluster albedo.
+(`make check`, `make check-slow`); the reference build is ifx 2024.0
+`-O2 -fp-model precise` on the AWI cluster albedo (the measured differences
+below: ifx 2024.1 `-Ofast`).
 
 | Benchmark | Test | Asserted | Measured (albedo, ifx) |
 |---|---|---|---|
