@@ -36,10 +36,13 @@ one, add `--link fesm-utils=/abs/path/to/fesm-utils`.
 
 The optimization flags differ by machine. The macbook fragment is the
 repository's own (`.configme/machines/macbook.mk`): gfortran
-`-O3 -mcpu=native -funroll-loops -ffast-math`. The clusters use configme's
-fragments: ifx `-Ofast -march=znver2 -traceback` on albedo (AMD EPYC 7702) and
-`-Ofast -march=znver3 -traceback` on levante (AMD EPYC 7763). The benchmark
-numbers in these pages were measured with the albedo build.
+`-O3 -mcpu=native -funroll-loops -ffast-math`. The clusters' fragments are the
+repository's own too (`.configme/machines/awi_albedo.mk`, `dkrz_levante.mk`,
+`pik_hpc2024.mk`), with value-safe flags in place of configme's `-Ofast`, as
+the coupled kryos stack builds VILMA2: ifx `-O2 -fp-model precise -traceback`
+with `-march=znver2` on albedo (AMD EPYC 7702), `-march=znver3` on levante
+(AMD EPYC 7763) and `-march=core-avx2` on the PIK hpc2024. The benchmark numbers in these pages were measured
+with the earlier albedo build, ifx 2024.1 `-Ofast -march=znver2`.
 
 ### MacBook (gfortran)
 
@@ -56,10 +59,13 @@ make check
 
 The system git has been removed from the login nodes, so load the git module
 first. The Intel compiler and netCDF modules must be loaded before configme
-runs, so that it finds `nf-config`.
+runs, so that it finds `nf-config`. Use the Intel compiler 2024.0.0: 2024.1, the
+login default, miscompiles (an inlined function result passed as an argument
+loses a `WHERE`), and the build stops on it.
 
 ```bash
-module load git intel-oneapi-compilers netcdf-c netcdf-fortran
+module unload intel-oneapi-compilers
+module load git intel-oneapi-compilers/2024.0.0 netcdf-c netcdf-fortran
 git clone git@github.com:fesmc/vilma2.git && cd vilma2
 configme install vilma2 -m awi_albedo -c ifx
 make openmp=1 -j 8 vilma            # on the login node, at most -j 8
@@ -81,6 +87,18 @@ make openmp=1 -j 8 vilma
 
 The build on levante has been verified (ifx 2023.2, netCDF-Fortran 4.6.2). No
 runs have been made there yet.
+
+### PIK hpc2024 (ifx)
+
+```bash
+module load intel/oneAPI/2025.0.0 netcdf-fortran-intel/4.6.1
+git clone git@github.com:fesmc/vilma2.git && cd vilma2
+configme install vilma2 -m pik_hpc2024 -c ifx
+make openmp=1 -j 8 vilma
+```
+
+The build on the hpc2024 has been verified (ifx 2025.0, netCDF-Fortran 4.6.1).
+No runs have been made there yet.
 
 ## Build
 
@@ -136,7 +154,7 @@ export OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK
 make openmp=1 check; make openmp=1 check-slow
 ```
 
-**Known state.** With ifx `-Ofast` on albedo, all 49 tests of `make check` and
+**Known state.** With ifx 2024.0 `-O2 -fp-model precise` on albedo, all 49 tests of `make check` and
 all 9 runs of `make check-slow` pass, with the default stack settings. A GitHub workflow builds the model
 with gfortran on Ubuntu and runs `make check` on every push and pull request to
 `main`.

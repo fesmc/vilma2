@@ -72,7 +72,8 @@ host-coupling API.
 
 Each benchmark is an executable test with a pass/fail exit. The table gives the
 tolerance each test asserts and the difference measured with the reference
-build (ifx `-Ofast` on the AWI cluster albedo).
+build of the time (ifx 2024.1 `-Ofast` on the AWI cluster albedo; the reference
+build is now ifx 2024.0 `-O2 -fp-model precise`).
 
 | Benchmark | Asserted | Measured |
 |---|---|---|

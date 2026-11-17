@@ -113,7 +113,7 @@ A full glacial cycle at this resolution is therefore minutes (1-D) to a few hour
 ## Reproducing
 
 ```sh
-make vilma                                 # ifx, OpenMP, -Ofast
+make vilma DFLAGS_NODEBUG="-Ofast -march=znver3 -traceback"   # the flags of these timings (default: -O2 -fp-model precise)
 OMP_NUM_THREADS=64 OMP_PROC_BIND=spread OMP_PLACES=cores \
     bin/vilma.x <your deglaciation namelist>
 ```
