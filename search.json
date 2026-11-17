@@ -1024,7 +1024,7 @@
     "href": "getting-started.html#dependencies",
     "title": "Installation and running",
     "section": "Dependencies",
-    "text": "Dependencies\n\n\n\nDependency\nProvides\nSource\n\n\n\n\nfesm-utils, branch phase0-kryos\nFFTW, SHTns, the fesmutils helper library (precision, ncio, namelists) and the coords module used by the remapper\ncloned and built by configme\n\n\nnetCDF (C and Fortran)\ninput, output and restart files\nsystem package (Homebrew, environment modules, apt)\n\n\nconfigme, runme\nMakefile generation; run staging\nfesmc/configme, fesmc/runme (pip install)\n\n\n\nThe fesm-utils branch is pinned in .configme/manifest.toml, so a checkout records the ref it needs. VILMA2 needs the coords routine grid_init_gaussian, which is in phase0-kryos but not yet in the fesm-utils dev branch: src/vilma_remap.f90 does not compile against dev v1.4. The pin returns to dev once phase0-kryos is merged there.",
+    "text": "Dependencies\n\n\n\nDependency\nProvides\nSource\n\n\n\n\nfesm-utils v1.5\nFFTW, SHTns, the fesmutils helper library (precision, ncio, namelists) and the coords module used by the remapper\ncloned and built by configme\n\n\nnetCDF (C and Fortran)\ninput, output and restart files\nsystem package (Homebrew, environment modules, apt)\n\n\nconfigme, runme\nMakefile generation; run staging\nfesmc/configme, fesmc/runme (pip install)\n\n\n\nThe fesm-utils release is pinned in .configme/manifest.toml, so a checkout records the ref it needs. VILMA2 needs the coords routine grid_init_gaussian, which fesm-utils has from v1.5: src/vilma_remap.f90 does not compile against v1.4.",
     "crumbs": [
       "Overview",
       "Getting started",

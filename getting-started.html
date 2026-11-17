@@ -680,7 +680,7 @@ window.Quarto = {
 </thead>
 <tbody>
 <tr class="odd">
-<td><strong><a href="https://github.com/fesmc/fesm-utils">fesm-utils</a></strong>, branch <code>phase0-kryos</code></td>
+<td><strong><a href="https://github.com/fesmc/fesm-utils">fesm-utils</a></strong> <code>v1.5</code></td>
 <td>FFTW, SHTns, the <code>fesmutils</code> helper library (precision, ncio, namelists) and the <code>coords</code> module used by the remapper</td>
 <td>cloned and built by configme</td>
 </tr>
@@ -696,7 +696,7 @@ window.Quarto = {
 </tr>
 </tbody>
 </table>
-<p>The fesm-utils branch is pinned in <code>.configme/manifest.toml</code>, so a checkout records the ref it needs. VILMA2 needs the <code>coords</code> routine <code>grid_init_gaussian</code>, which is in <code>phase0-kryos</code> but not yet in the fesm-utils <code>dev</code> branch: <code>src/vilma_remap.f90</code> does not compile against <code>dev</code> v1.4. The pin returns to <code>dev</code> once <code>phase0-kryos</code> is merged there.</p>
+<p>The fesm-utils release is pinned in <code>.configme/manifest.toml</code>, so a checkout records the ref it needs. VILMA2 needs the <code>coords</code> routine <code>grid_init_gaussian</code>, which fesm-utils has from v1.5: <code>src/vilma_remap.f90</code> does not compile against v1.4.</p>
 </section>
 <section id="install" class="level2">
 <h2 class="anchored" data-anchor-id="install">Install</h2>
