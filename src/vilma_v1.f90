@@ -239,6 +239,10 @@ contains
 
       self%t_kyr   = 0.0_wp
       self%nsub    = max(1, par%vilma_v1_nsub)
+      ! VILMA1 has one ocean density (loadh.inp's rho_ocean) for its load, melt and
+      ! flotation: it cannot take VILMA2's two waters (vilma_sle)
+      if (par%rho_seawater /= par%rho_water) &
+         error stop 'solver = "v1": one water density only, set rho_seawater = rho_water'
       self%rho_ice   = par%rho_ice
       self%rho_water = par%rho_water
       self%started = .false.
