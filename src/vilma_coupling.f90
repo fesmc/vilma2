@@ -248,8 +248,8 @@ contains
       ! standalone driver calls it earlier still, right after reading the config)
       call solid_earth_check_solver(self%par)
       self%use_vilma_v1 = (trim(self%par%solver) == "v1")
-      if (self%par%rho_ice <= 0.0_wp .or. self%par%rho_water <= 0.0_wp) &
-         error stop 'solid_earth_init: &vilma rho_ice and rho_water must be > 0'
+      if (self%par%rho_ice <= 0.0_wp .or. self%par%rho_water <= 0.0_wp .or. self%par%rho_seawater <= 0.0_wp) &
+         error stop 'solid_earth_init: &vilma rho_ice, rho_water and rho_seawater must be > 0'
 
       ! the model owns its Gauss grid, sized from the parameter record
       allocate(self%sht)
@@ -330,7 +330,7 @@ contains
          ! total reference ocean fraction: the host's plus the own part's, whose ice is
          ! read only where the own part exists (w = 1 cells ignore h_ice_eq)
          call ocean_function(self%gg%z_bed_eq, merge(self%gg%h_ice_eq, 0.0_wp, self%gg%host%ref%w < 1.0_wp), &
-                             self%gg%C0, self%par%rho_ice, self%par%rho_water)
+                             self%gg%C0, self%par%rho_ice, self%par%rho_seawater)
          where (self%gg%host%ref%w < 1.0_wp)
             self%gg%C0 = self%gg%host%ref%C + (1.0_wp - self%gg%host%ref%w)*self%gg%C0
          elsewhere
@@ -338,7 +338,7 @@ contains
          end where
       else
          call ocean_function(self%gg%z_bed_eq, self%gg%h_ice_eq, self%gg%C0, &
-                             self%par%rho_ice, self%par%rho_water)
+                             self%par%rho_ice, self%par%rho_seawater)
       end if
       self%gg%C = self%gg%C0
 
@@ -443,6 +443,7 @@ contains
       self%sle%subgrid      = self%par%sle_subgrid
       self%sle%rho_ice      = self%par%rho_ice
       self%sle%rho_water    = self%par%rho_water
+      self%sle%rho_seawater = self%par%rho_seawater
       self%sle%warm_start   = .true.
 
       ! adaptive-Δt controller (vilma_timestep)
@@ -594,7 +595,7 @@ contains
          !         Again a VILMA2 diagnostic of VILMA1's state, not VILMA1's own
          !         ocean bookkeeping (vega_oce.dat).
          call ocean_function(self%gg%z_bed, self%gg%h_ice, self%gg%C, &
-                             self%par%rho_ice, self%par%rho_water)
+                             self%par%rho_ice, self%par%rho_seawater)
          call update_bsl(self)
          ! NOT derivable: VILMA1 reports no sea-level-equation mass residual, so this
          ! stays at the documented fill value rather than a made-up number. The
@@ -883,7 +884,8 @@ contains
       !! current ocean function, the REFERENCE column by the reference one. Masking the
       !! raw difference by the current C alone drops the whole column of any cell that
       !! carried grounded marine reference ice and has since flooded -- see the ΔI_g
-      !! note in vilma_sle. This is the WHOLE grounded-column change, with no subgrid
+      !! note in vilma_sle. In melt-water volume (ρ_w, rho_water: the volume the melt adds to
+      !! the ocean, vilma_sle), it is the WHOLE grounded-column change, with no subgrid
       !! term: over cells that flooded since the reference, bsl_ive therefore reads
       !! high by their below-flotation volume -- about 10 m on the LGM-datum
       !! deglaciation -- and is not the barystatic rise.

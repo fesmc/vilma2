@@ -15,11 +15,27 @@ module vilma_sle
    !!     S = C·( N − u + Δφ ) ,
    !!
    !! where N (geoid) and u (uplift) are the response to the TOTAL surface load
-   !! L = ρ_i ΔI_g + ρ_w (C·S), and the spatial constant Δφ (a uniform shift of
-   !! the equipotential) is fixed each iteration by ocean-mass conservation,
+   !! L = ρ_i ΔI_g + ρ_sw (C·S) + Δρ·C·D, and the spatial constant Δφ (a uniform
+   !! shift of the equipotential) is fixed each iteration by the ocean-water volume,
    !!
-   !!     ρ_w ∫ C·S dA = −ρ_i ∫ ΔI_g dA   (melt water volume) ,
+   !!     ∫ C·S dA = V_m = −(ρ_i/ρ_w) ∫ ΔI_g dA   (the melt's fresh-water volume) ,
    !!     Δφ = [ −(ρ_i/ρ_w) ∫ΔI_g dΩ − ∫ C(N−u) dΩ ] / ∫ C dΩ .
+   !!
+   !! Two waters. ρ_w (rho_water, 1000) is the melt water: a melt of mass M adds the
+   !! volume M/ρ_w to the ocean, since the sea water it dilutes contracts by what
+   !! the fresh water lacks in salt (Munk 2003), so the geometric sea level rises by
+   !! its fresh-water volume. ρ_sw (rho_seawater, 1028) is the sea water: the
+   !! flotation test (ocean_function) and the columns that move, C·S and the
+   !! flooded-area fill. The ocean's mass then changes by ρ_sw V_m, not by M; the
+   !! dilution term Δρ·C·D removes the difference, with D the water column of the
+   !! time and Δρ = −(ρ_sw − ρ_w) V_m / ∫C·D dA the density change of a uniformly
+   !! mixed ocean (its mass anomaly is in proportion to the depth, so shelves carry
+   !! none). So ∫L dA = ρ_i ∫ΔI_g dA + ρ_w V_m = 0: mass is conserved, and the
+   !! barystatic sea level is the melt's fresh-water volume. With ρ_sw = ρ_w (the
+   !! GIA benchmarks) Δρ = 0 and this is the one-water equation. Not included: the
+   !! 2.7 % of its displaced volume that floating ice adds as it melts (C = 1 ice is
+   !! outside the melt source), and the ice draft in D (D is to the bed); both of the
+   !! order of centimetres.
    !!
    !! ΔI_g is the GROUNDED-ice increment, I·(1−C) − I⁽⁰⁾·(1−C⁽⁰⁾): each endpoint
    !! masked by its own ocean function, because only grounded ice loads the bed
@@ -30,7 +46,8 @@ module vilma_sle
    !! feeds back through the response); the outer loop rebuilds the ocean
    !! function C from the migrated topography topo0 − S (moving shorelines).
    use vilma_precision, only: wp
-   use vilma_constants, only: rho_ice_default => rho_ice, rho_water_default => rho_water
+   use vilma_constants, only: rho_ice_default => rho_ice, rho_water_default => rho_water, &
+                              rho_seawater_default => rho_seawater
    use vilma_sht,       only: sht_grid, sht_grid_surface_integral, sht_grid_analysis, sht_grid_synthesis
    use vilma_rotation,  only: rotation_state, rotation_open_step, rotation_trial, rotation_close_step, &
                               rotation_add_srot_lm
@@ -86,11 +103,14 @@ module vilma_sle
    end type sle_result
 
    type :: sle_solver
-      !! Densities [kg m^-3] of the surface load, the melt source and the flotation
-      !! test. 917, 1000 (vilma_constants) unless the caller sets them (vilma_coupling
-      !! passes the &vilma pair; the benchmark tests set 931).
-      real(wp) :: rho_ice   = rho_ice_default
-      real(wp) :: rho_water = rho_water_default
+      !! Densities [kg m^-3]: ice (the surface load, the melt source), melt water (the
+      !! melt's volume) and sea water (the flotation test, the ocean load; see the
+      !! header). 917, 1000, 1028 (vilma_constants) unless the caller sets them
+      !! (vilma_coupling passes the &vilma values; the benchmark tests set 931 and one
+      !! water, rho_seawater = rho_water).
+      real(wp) :: rho_ice      = rho_ice_default
+      real(wp) :: rho_water    = rho_water_default
+      real(wp) :: rho_seawater = rho_seawater_default
       !! Cap on the paleotopography / coastline iterations, not a fixed count: the
       !! loop exits as soon as the migrated coastline stops moving (see sle_solve).
       integer  :: n_outer = 3          !! paleotopography / coastline iterations
@@ -294,9 +314,9 @@ contains
       ! leaves C ≡ C⁽⁰⁾ and the subgrid term vanishes). With a host this is the own
       ! part's reference ocean function, C0_own.
       if (hmode) then
-         call ocean_function(topo0, ice_o0, C0, self%rho_ice, self%rho_water)
+         call ocean_function(topo0, ice_o0, C0, self%rho_ice, self%rho_seawater)
       else
-         call ocean_function(topo0, ice - d_ice, C0, self%rho_ice, self%rho_water)
+         call ocean_function(topo0, ice - d_ice, C0, self%rho_ice, self%rho_seawater)
       end if
 
       ronly = .false.;  if (present(report_only)) ronly = report_only
@@ -329,7 +349,7 @@ contains
             ! own part: the same migration as below, on C_own; the host's ocean fraction
             ! is fixed by the host, and the two make up C
             if (io == 1) then
-               call ocean_function(topo0 - rsl, ice_o, C_own, self%rho_ice, self%rho_water)
+               call ocean_function(topo0 - rsl, ice_o, C_own, self%rho_ice, self%rho_seawater)
             else
                C_own = C_next
             end if
@@ -347,7 +367,7 @@ contains
             ! where the deformed solid surface topo0 − rsl is below the sea surface
             ! AND the ice there floats rather than grounds (grounded ice keeps a
             ! subsided cell as land).
-            call ocean_function(topo0 - rsl, ice, C, self%rho_ice, self%rho_water)
+            call ocean_function(topo0 - rsl, ice, C, self%rho_ice, self%rho_seawater)
          else
             ! the coastline the previous pass's converged rsl implies; it was built
             ! at the foot of that pass by the convergence test, from this same rsl,
@@ -374,9 +394,10 @@ contains
          ! to the LGM that is 45 m of missing barystatic rise, concentrated in
          ! Hudson Bay, the Canadian Arctic, the Baltic and West Antarctica.
          !
-         ! The below-flotation part is not double counted: the water that fills
+         ! The below-flotation part is not double counted: the sea water that fills
          ! such a newly flooded cell from its bed is removed again by the subgrid
-         ! term ζ⁽⁰⁾(C − C⁽⁰⁾) below, leaving exactly the above-flotation volume.
+         ! term ζ⁽⁰⁾(C − C⁽⁰⁾) below, leaving the above-flotation volume and, with
+         ! two waters, the fresh water's excess over the sea water it displaced.
          if (hmode) then
             ! host columns plus the own part, each endpoint against its own C_own, C0_own
             where (a > 0.0_wp .and. a0 > 0.0_wp)
@@ -417,7 +438,7 @@ contains
                elsewhere
                   fill = host%F
                end where
-               wcorr    = -self%rho_water * fill
+               wcorr    = -self%rho_seawater * fill
                zeta_int = sht_grid_surface_integral(sht, fill)
                where (a > 0.0_wp)
                   fill = a*(topo0*(C_own - C0))          ! the own part's share alone
@@ -426,7 +447,7 @@ contains
                end where
                zown_int = sht_grid_surface_integral(sht, fill)
             else
-               wcorr    = -self%rho_water * topo0 * (C - C0)
+               wcorr    = -self%rho_seawater * topo0 * (C - C0)
                zeta_int = sht_grid_surface_integral(sht, topo0*(C - C0))
                zown_int = zeta_int
             end if
@@ -491,10 +512,10 @@ contains
          ! final pass C must stay the coastline that rsl was converged against,
          ! because the closing load (and wcorr, zeta_int) below are built from both.
          if (hmode) then
-            call ocean_function(topo0 - rsl, ice_o, C_next, self%rho_ice, self%rho_water)
+            call ocean_function(topo0 - rsl, ice_o, C_next, self%rho_ice, self%rho_seawater)
             res%n_coast_flip = count(C_next /= C_own .and. a > 0.0_wp)   ! only the own part moves
          else
-            call ocean_function(topo0 - rsl, ice, C_next, self%rho_ice, self%rho_water)
+            call ocean_function(topo0 - rsl, ice, C_next, self%rho_ice, self%rho_seawater)
             res%n_coast_flip = count(C_next /= C)
          end if
          if (res%n_coast_flip == 0) exit
@@ -568,7 +589,16 @@ contains
          !! the same C the rsl was converged against. One definition rather than
          !! two copies kept in step by hand: the grounded-mask fix had to touch
          !! both sites, which is the failure mode this removes.
-         load = self%rho_ice*d_ice_g + self%rho_water*(C*rsl) + wcorr
+         !! With two waters the dilution term (header): Δρ·C·D, D = C·max(0, rsl − topo0)
+         !! the water column of the time from the current rsl, so ∫load dΩ = 0.
+         real(wp), allocatable :: dcol(:,:)
+         real(wp) :: v_oc
+         load = self%rho_ice*d_ice_g + self%rho_seawater*(C*rsl) + wcorr
+         if (self%rho_seawater /= self%rho_water) then
+            dcol = C*max(0.0_wp, rsl - topo0)
+            v_oc = sht_grid_surface_integral(sht, dcol)
+            if (v_oc > 0.0_wp) load = load - (self%rho_seawater - self%rho_water)*(ice_int/v_oc)*dcol
+         end if
       end subroutine assemble_load
 
    end subroutine sle_solve

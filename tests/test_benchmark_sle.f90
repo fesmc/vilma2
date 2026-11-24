@@ -104,6 +104,7 @@ program test_benchmark_sle
    em = build_M3L70V01()
    call response_init_ve(resp, em, sht, dt)
    sle%rho_ice = rho_ice   ! the benchmark's density, not the default (rho_water: the default 1000)
+   sle%rho_seawater = rho_water   ! the benchmark's one water
    sle%n_inner = 20     ! n_outer left at default 3 (converged: 3 == 12 on E2)
    sle%fixed_ocean = fixed_ocean_case   ! SLE1 (C2/D3) vs SLE2 migrating (E2/F1)
    sle%subgrid     = .not. binary_run   ! subgrid coast by default; "binary" 2nd arg opts out

@@ -25,11 +25,15 @@ module vilma_constants
    real(wp), parameter :: rho_earth_mean = 5511.0_wp!! mean density [kg m^-3]
 
    ! --- Material densities ------------------------------------------------------
-   ! The defaults of the &vilma parameters rho_ice and rho_water that the model
-   ! actually uses (a host with its own densities sets those). Ice: the standard
-   ! 917, not the GIA benchmarks' 931; water: 1000, as in the benchmarks.
-   real(wp), parameter :: rho_ice   = 917.0_wp      !! ice  [kg m^-3]
-   real(wp), parameter :: rho_water = 1000.0_wp     !! ocean water [kg m^-3]
+   ! The defaults of the &vilma parameters rho_ice, rho_water and rho_seawater that
+   ! the model actually uses (a host with its own densities sets those). Ice: the
+   ! standard 917, not the GIA benchmarks' 931. Two waters (vilma_sle): melt water,
+   ! fresh, whose volume a melt adds to the ocean (1000), and sea water, of the
+   ! flotation test and the ocean columns that move (1028). The GIA benchmarks have
+   ! one water of 1000 (rho_seawater = rho_water).
+   real(wp), parameter :: rho_ice      = 917.0_wp   !! ice  [kg m^-3]
+   real(wp), parameter :: rho_water    = 1000.0_wp  !! melt water (fresh) [kg m^-3]
+   real(wp), parameter :: rho_seawater = 1028.0_wp  !! sea water [kg m^-3]
 
    ! --- Rotation (for the rotational-feedback / TPW module) -------------------
    real(wp), parameter :: omega_earth = 7.292115e-5_wp  !! mean rotation rate [rad s^-1]

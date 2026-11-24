@@ -708,6 +708,7 @@ contains
       call nc_write(f, "d_ice", d_ice, dim1="lon", dim2="colat", units="m", long_name="grounded ice thickness change (load); ice = d_ice")
 
       sle%rho_ice = rho_ice
+      sle%rho_seawater = rho_water      ! one water: the reference dumps' convention
 
       ! elastic (stateless: one solve)
       call response_init_elastic(el, e, lmax=LMAX32)
@@ -1065,6 +1066,7 @@ contains
          p%l_rotation = .false.
          p%scheme = sn(isch)
          p%rho_ice = rho_ice
+         p%rho_seawater = rho_water        ! one water: the reference dumps' convention
          se%par = p
          call solid_earth_init(se, z_bed_eq, h_ice_eq)
          do is = 1, NINT
@@ -1365,6 +1367,7 @@ contains
                dtopo(sht%nphi,sht%nlat), C0(sht%nphi,sht%nlat), load_lm(sht%nlm))
       call response_init_ve(resp, em, sht, MS_DT)
       sle%rho_ice     = rho_ice
+      sle%rho_seawater = rho_water         ! one water: the reference dumps' convention
       sle%n_inner     = 20                 ! n_outer left at the default 3
       sle%fixed_ocean = fixo
       sle%subgrid     = .true.             ! the library default (giapy is a subgrid coast)
